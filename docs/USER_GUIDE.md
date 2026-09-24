@@ -56,6 +56,8 @@ Use **语言 / Language** at the top right to choose **中文** or **EN**. On mo
 
 6. 私有完整备份已保存于 `~/Library/Application Support/TorontoHousing/backups/`。新建备份可运行 `.venv/bin/python scripts/backup_private.py --output-parent "$HOME/Library/Application Support/TorontoHousing/backups"`，随后用 `.venv/bin/python scripts/check_restore.py --backup-dir "备份目录绝对路径"` 复验；备份包含数据库、原件、manifest、记录和恢复所需代码，不含密码验证器。该路径与项目同机，不能抵御整机或磁盘故障。恢复到新目录后先运行上述校验，再单独设置本机密码。
 
+   每次成功重发展示快照前，当前有效版本会按 SHA-256 保存到私有 `data/display_history/`。可运行 `.venv/bin/python scripts/rollback_display.py --list` 查看旧版哈希和生成时间；确认要回退的完整哈希后，运行 `.venv/bin/python scripts/rollback_display.py --restore 完整64位哈希`。回退只替换展示快照，不倒退数据库；下次成功刷新会再次按当前库重发，故需同时处理导致回退的数据问题。
+
    定时任务可用 `.venv/bin/python scripts/local_schedule.py --show` 查看定义、`launchctl print gui/$(id -u)/local.toronto-housing.official-refresh` 查看状态；手动补跑用 `.venv/bin/python scripts/run_refresh_cycle.py`，卸载用 `.venv/bin/python scripts/local_schedule.py --uninstall`。任务结果以 `data/run_reports/official-*.json` 为准，`snapshot_published` 为 `true` 才表示本轮发布成功。当前没有失败通知；需定期查看报告。
 
 ## 退出、停止与重设管理密码

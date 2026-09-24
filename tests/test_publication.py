@@ -1,4 +1,5 @@
 import json
+import hashlib
 import sqlite3
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ from streamlit.testing.v1 import AppTest
 
 from housing.db import connect
 from housing.owner_auth import make_verifier, verify, session_valid, SESSION_SECONDS
-from housing.publication import build_display_snapshot, load_display_snapshot, monthly_display, publish
+from housing.publication import build_display_snapshot, load_display_snapshot, monthly_display, publish, restore_display_snapshot
 from housing.research import as_known_at
 
 
@@ -72,6 +73,32 @@ class PublicationTests(unittest.TestCase):
             with self.assertRaises(sqlite3.OperationalError):
                 publish(root / "missing.sqlite3", output)
             self.assertEqual(json.loads(output.read_text())["observations"]["trreb_sales"]["2026-08"], 1234)
+
+    def test_display_publish_archives_and_can_restore_previous_good_version(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            database = root / "private.sqlite3"
+            db = connect(database)
+            db.execute("INSERT INTO raw_files VALUES (?,?,?,?,?,?,?)", ("first", "data/raw/a.csv", "test", "url", "2026-09-01", "2026-08", "CSV"))
+            db.execute("INSERT INTO observations (series_id,period,value,version,raw_sha256,first_seen_at) VALUES (?,?,?,?,?,?)", ("trreb_sales", "2026-08", 100, 1, "first", "2026-09-01"))
+            db.commit()
+            output = root / "display.json"
+            publish(database, output)
+            old_hash = hashlib.sha256(output.read_bytes()).hexdigest()
+            db.execute("INSERT INTO raw_files VALUES (?,?,?,?,?,?,?)", ("second", "data/raw/b.csv", "test", "url", "2026-09-02", "2026-08", "CSV"))
+            db.execute("INSERT INTO observations (series_id,period,value,version,raw_sha256,first_seen_at) VALUES (?,?,?,?,?,?)", ("trreb_sales", "2026-08", 110, 2, "second", "2026-09-02"))
+            db.commit()
+            db.close()
+            publish(database, output)
+            self.assertEqual(load_display_snapshot(output)["observations"]["trreb_sales"]["2026-08"], 110)
+            archived = root / "display_history" / f"{old_hash}.json"
+            self.assertTrue(archived.is_file())
+            restore_display_snapshot(output, old_hash)
+            self.assertEqual(load_display_snapshot(output)["observations"]["trreb_sales"]["2026-08"], 100)
+            archived.write_text("tampered")
+            with self.assertRaises(ValueError):
+                restore_display_snapshot(output, old_hash)
+            self.assertEqual(load_display_snapshot(output)["observations"]["trreb_sales"]["2026-08"], 100)
 
     def test_monthly_display_uses_only_snapshot_values(self):
         source = {"schema_version": 1, "created_at": "2026-09-01T00:00:00Z", "observations": {

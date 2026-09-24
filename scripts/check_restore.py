@@ -65,6 +65,17 @@ def verify_dataset(root):
             if sales and stock is not None and values.get("moi_raw") is not None:
                 if abs(values["moi_raw"] - stock / sales) > 1e-10:
                     raise ValueError(f"Wrong saved MOI: {path.name}")
+        display = data / "display_snapshot.json"
+        if display.exists():
+            snapshot = json.loads(display.read_text(encoding="utf-8"))
+            if snapshot.get("schema_version") != 1 or not isinstance(snapshot.get("observations"), dict):
+                raise ValueError("Invalid display snapshot in backup")
+        for path in (data / "display_history").glob("*.json"):
+            if hashlib.sha256(path.read_bytes()).hexdigest() != path.stem:
+                raise ValueError(f"Wrong archived display snapshot hash: {path.name}")
+            snapshot = json.loads(path.read_text(encoding="utf-8"))
+            if snapshot.get("schema_version") != 1 or not isinstance(snapshot.get("observations"), dict):
+                raise ValueError(f"Invalid archived display snapshot: {path.name}")
         return {"observations": db.execute("SELECT COUNT(*) FROM observations").fetchone()[0],
                 "source_files": len(entries), "monthly_records": len(records)}
     finally:
@@ -84,10 +95,12 @@ def rehearse_current(root=ROOT):
         finally:
             copy.close()
             original.close()
-        for folder in ("raw", "manual", "observations"):
+        for folder in ("raw", "manual", "observations", "display_history"):
             source = Path(root) / "data" / folder
             if source.exists():
                 shutil.copytree(source, data / folder)
+        if (Path(root) / "data/display_snapshot.json").exists():
+            shutil.copy2(Path(root) / "data/display_snapshot.json", data / "display_snapshot.json")
         return verify_dataset(restored)
 
 

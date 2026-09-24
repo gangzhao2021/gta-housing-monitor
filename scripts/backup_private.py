@@ -29,10 +29,12 @@ def backup(destination, root=ROOT):
         finally:
             copy.close()
             original.close()
-        for folder in ("raw", "manual", "observations"):
+        for folder in ("raw", "manual", "observations", "display_history", "run_reports", "backups"):
             source = root / "data" / folder
             if source.exists():
                 shutil.copytree(source, data / folder)
+        if (root / "data/display_snapshot.json").exists():
+            shutil.copy2(root / "data/display_snapshot.json", data / "display_snapshot.json")
         for folder in ("src", "scripts", "docs", "design", "tests"):
             shutil.copytree(root / folder, destination / folder,
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))

@@ -1,6 +1,9 @@
 """Deliberately small, path-free data contract for the display application."""
 import json
+import hashlib
+import fcntl
 import os
+import shutil
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -59,6 +62,9 @@ def publish(db_path, output):
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.parent.chmod(0o700)
+    history = output.parent / "display_history"
+    history.mkdir(mode=0o700, exist_ok=True)
+    history.chmod(0o700)
     temporary = output.with_name(f".{output.name}.{os.getpid()}.tmp")
     try:
         fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
@@ -66,7 +72,52 @@ def publish(db_path, output):
             json.dump(snapshot, stream, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
             stream.flush()
             os.fsync(stream.fileno())
-        temporary.replace(output)
+        lock_path = output.with_name(f".{output.name}.lock")
+        with lock_path.open("a+b") as lock:
+            lock_path.chmod(0o600)
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            _archive_current(output, history)
+            temporary.replace(output)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return output
+
+
+def _archive_current(output, history):
+    if not output.is_file():
+        return None
+    try:
+        load_display_snapshot(output)
+    except (ValueError, OSError, json.JSONDecodeError):
+        return None
+    sha = hashlib.sha256(output.read_bytes()).hexdigest()
+    archived = history / f"{sha}.json"
+    if not archived.exists():
+        os.link(output, archived)
+    return archived
+
+
+def restore_display_snapshot(output, sha):
+    """Restore a previously validated snapshot without touching the database."""
+    if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+        raise ValueError("Expected a full lowercase SHA-256 snapshot id")
+    output = Path(output)
+    history = output.parent / "display_history"
+    archived = history / f"{sha}.json"
+    if hashlib.sha256(archived.read_bytes()).hexdigest() != sha:
+        raise ValueError("Archived snapshot hash differs")
+    load_display_snapshot(archived)
+    temporary = output.with_name(f".{output.name}.{os.getpid()}.restore.tmp")
+    try:
+        lock_path = output.with_name(f".{output.name}.lock")
+        with lock_path.open("a+b") as lock:
+            lock_path.chmod(0o600)
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            _archive_current(output, history)
+            with archived.open("rb") as source, temporary.open("xb") as target:
+                shutil.copyfileobj(source, target)
+            temporary.chmod(0o600)
+            temporary.replace(output)
     finally:
         temporary.unlink(missing_ok=True)
     return output
