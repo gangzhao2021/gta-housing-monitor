@@ -12,7 +12,7 @@
 
 以下假设 `.venv` 和私有 `data/` 已准备好；新电脑或只取得代码仓库时，先按[使用指南](docs/USER_GUIDE.md)安装并恢复数据。Git 不包含数据库与原件。
 
-- 管理端：首次运行 `.venv/bin/python scripts/setup_owner_password.py` 设置至少 16 字符的本机密码，再运行 `sh scripts/run_owner_local.sh`，打开 <http://127.0.0.1:8501/>。后续启动只运行启动脚本。
+- 管理端：首次运行 `.venv/bin/python scripts/setup_owner_password.py` 设置本机密码，再运行 `sh scripts/run_owner_local.sh`，打开 <http://127.0.0.1:8501/>。默认至少 16 字符；仅本人本机演示可按[使用指南](docs/USER_GUIDE.md)启用 6 字符例外。后续启动只运行启动脚本。
 - 展示端：运行 `.venv/bin/python scripts/publish_display.py`，再运行 `sh scripts/run_viewer_local.sh`，打开 <http://127.0.0.1:8502/>；使用同一本机密码。
 
 当前是本机演示方案，两个入口均监听本机地址；本地密码不等于已经完成远程账户授权。停止、改密、导入和备份步骤见使用指南。

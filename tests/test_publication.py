@@ -58,6 +58,15 @@ class PublicationTests(unittest.TestCase):
         self.assertFalse(list(app.radio))
         self.assertTrue(any("本机密码尚未设置" in item.value for item in app.error))
 
+    def test_display_login_uses_local_password_label(self):
+        root = Path(__file__).resolve().parents[1]
+        token = make_verifier("a test-only long password")
+        with patch.dict("os.environ", {"HOUSING_REQUIRE_OWNER_AUTH": "1", "HOUSING_OWNER_VERIFIER": token}):
+            app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
+        self.assertFalse(list(app.exception))
+        self.assertEqual(app.text_input[0].label, "本机密码")
+        self.assertFalse(list(app.radio))
+
     def test_snapshot_excludes_private_provenance_and_survives_failed_publish(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)

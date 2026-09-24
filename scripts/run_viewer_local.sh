@@ -9,4 +9,4 @@ set -a
 . ./.streamlit/owner_auth.env
 set +a
 export HOUSING_REQUIRE_OWNER_AUTH=1
-exec .venv/bin/streamlit run viewer_app.py --server.address=127.0.0.1 --server.port=8502
+exec .venv/bin/streamlit run viewer_app.py --server.address=127.0.0.1 --server.port=8502 --server.headless=true

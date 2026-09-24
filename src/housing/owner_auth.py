@@ -53,7 +53,7 @@ def owner_gate(st, *, title="管理端登录", logout_label="退出管理端"):
     st.session_state.pop("owner_authenticated", None)
     st.title(title)
     with st.form("owner-login"):
-        password = st.text_input("管理密码", type="password")
+        password = st.text_input("本机密码", type="password")
         submitted = st.form_submit_button("登录")
     if submitted:
         if verify(password, verifier):
