@@ -1,4 +1,4 @@
-"""Local owner gate for the full application; never use a URL as authority."""
+"""Local password gate shared by the management and read-only display apps."""
 import hashlib
 import hmac
 import os
@@ -41,7 +41,7 @@ def owner_gate(st, *, title="管理端登录", logout_label="退出管理端"):
     """Called before opening the private database or rendering any owner content."""
     verifier = os.environ.get("HOUSING_OWNER_VERIFIER")
     if not verifier:
-        st.error("管理入口未配置身份验证，已拒绝访问。")
+        st.error("本机密码尚未设置，已拒绝访问。请先按使用指南设置密码，再重启此页面。")
         st.stop()
     if session_valid(st.session_state, verifier):
         if st.button(logout_label, key="owner-logout"):

@@ -24,6 +24,7 @@ class PublicationTests(unittest.TestCase):
             app = AppTest.from_file(str(root / "app.py"), default_timeout=20).run()
         self.assertFalse(list(app.exception))
         self.assertFalse(list(app.radio))
+        self.assertTrue(any("本机密码尚未设置" in item.value for item in app.error))
 
     def test_display_app_has_no_management_or_download_surface(self):
         root = Path(__file__).resolve().parents[1]
@@ -55,6 +56,7 @@ class PublicationTests(unittest.TestCase):
             app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
         self.assertFalse(list(app.exception))
         self.assertFalse(list(app.radio))
+        self.assertTrue(any("本机密码尚未设置" in item.value for item in app.error))
 
     def test_snapshot_excludes_private_provenance_and_survives_failed_publish(self):
         with tempfile.TemporaryDirectory() as folder:
