@@ -14,6 +14,23 @@ REPORT = 'https://rentals.ca/blog/rentals-ca-august-2026-rent-report'
 
 
 class RentalsTests(unittest.TestCase):
+    def test_september_report_bedroom_chart_is_august_observation(self):
+        csv_path = RAW / '2026-09-report-bedrooms.csv'
+        html_path = RAW / '2026-09-report-bedrooms.html'
+        rows, url, intro = parse_dataset(csv_path, html_path)
+        self.assertEqual(url, 'https://datawrapper.dwcdn.net/7AZ1v/1/')
+        self.assertIn('August 2026', intro)
+        self.assertEqual(rows, [
+            ('toronto_asking_rent_1br', '2026-08', 2229),
+            ('toronto_asking_rent_2br', '2026-08', 2955),
+            ('toronto_asking_rent_3br', '2026-08', 3642),
+        ])
+        db = connect(':memory:')
+        self.addCleanup(db.close)
+        report = 'https://rentals.ca/national-rent-report'
+        self.assertEqual(import_dataset(db, csv_path, html_path, report)['inserted'], 3)
+        self.assertEqual(import_dataset(db, csv_path, html_path, report)['unchanged'], 3)
+
     def test_real_source_periods_values_and_idempotence(self):
         csv_path, chart_path = (RAW / f'2026-08-report-history.{ext}' for ext in ['csv', 'html'])
         rows, _, _ = parse_dataset(csv_path, chart_path)

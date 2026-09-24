@@ -68,8 +68,9 @@ def parse_dataset(csv_path, chart_path):
 
 
 def import_dataset(db, csv_path, chart_path, report_url):
-    if not re.fullmatch(r"https://rentals\.ca/blog/rentals-ca-[a-z]+-\d{4}-rent-report", report_url):
-        raise ValueError("An archived Rentals.ca report URL is required")
+    if not (re.fullmatch(r"https://rentals\.ca/blog/rentals-ca-[a-z]+-\d{4}-rent-report", report_url)
+            or report_url == "https://rentals.ca/national-rent-report"):
+        raise ValueError("A Rentals.ca report URL is required")
     rows, chart_url, intro = parse_dataset(csv_path, chart_path)
     span = f"{min(r[1] for r in rows)}/{max(r[1] for r in rows)}"
     with db:

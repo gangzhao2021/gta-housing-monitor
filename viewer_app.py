@@ -14,6 +14,7 @@ from housing.catalog import SERIES_URLS
 from housing.dashboard import css, cards, line_chart, label, note
 from housing.presentation import available_periods, period_label
 from housing.publication import load_display_snapshot, monthly_display
+from housing.regions import MONTHLY_REGIONS, CMHC_REGIONS, asking_id, cmhc_id
 
 st.set_page_config(page_title="GTA Housing Monitor", layout="wide")
 css()
@@ -91,12 +92,33 @@ elif page == "租赁市场":
             line_chart(annual, fields, min(annual), end, height=330)
             note("CMHC 年度存量租金，与月度挂牌不同；均值变化并非同一套住房租金涨幅。")
     else:
-        fields = sorted(field for field in snapshot["observations"] if field.startswith("regional_asking_") and field.endswith("_total"))
-        chosen = st.multiselect("比较地区（最多三个）", fields, default=fields[:2], max_selections=3, format_func=label)
-        scope = period_control(chosen, "viewer-region-period") if chosen else None
-        if scope:
-            line_chart(data, chosen, *scope, height=340)
-            st.caption("仅比较同一月度挂牌口径。地区无值即缺失，不以总体均值代替。")
+        frequency = st.radio("地区资料频率", ["月度挂牌", "年度 CMHC"], horizontal=True)
+        annual = frequency == "年度 CMHC"
+        regions = CMHC_REGIONS if annual else MONTHLY_REGIONS
+        chosen = st.multiselect("比较地区（最多三个）", list(regions), default=list(regions)[:2],
+                                max_selections=3, format_func=regions.get)
+        rooms = ["total", "studio", "1br", "2br", "3plus"] if annual else ["total", "1br", "2br", "3br"]
+        room = st.selectbox("地区房型", rooms, format_func={"total": "全部卧室类型", "studio": "开间", "1br": "一卧", "2br": "两卧", "3br": "三卧", "3plus": "三卧及以上"}.get)
+        measure = st.selectbox("地区指标", ["rent", "vacancy"], format_func={"rent": "平均租金", "vacancy": "空置率"}.get) if annual else "rent"
+        fields = [cmhc_id(region, measure, room) if annual else asking_id(region, room) for region in chosen]
+        present = [field for field in fields if snapshot["observations"].get(field)]
+        for region, field in zip(chosen, fields):
+            if field not in present:
+                st.info(f"{regions[region]} · {room}：该口径没有可展示观测；不以其他地区或房型替代。")
+        if present:
+            if annual:
+                annual_data = {period: {field: snapshot["observations"].get(field, {}).get(period) for field in present}
+                               for period in sorted({period for field in present for period in snapshot["observations"][field]})}
+                end = st.selectbox("地区调查年份", list(reversed(annual_data)), key="viewer-region-year")
+                line_chart(annual_data, present, min(annual_data), end, height=340,
+                           names={field: regions[region] for region, field in zip(chosen, fields) if field in present})
+                st.caption("CMHC 年度专建出租公寓调查区；组合调查区不能拆成单一城市。缺值可能是来源抑制，不填零。")
+            else:
+                scope = period_control(present, "viewer-region-period")
+                if scope:
+                    line_chart(data, present, *scope, height=340,
+                               names={field: regions[region] for region, field in zip(chosen, fields) if field in present})
+                    st.caption("仅比较同一月度挂牌口径。地区无值即缺失，不以总体均值代替。")
 elif page == "经济与供给":
     groups = [
         ("利率与融资", ["boc_policy_rate", "goc_5y_yield", "mortgage_uninsured_fixed_5plus"]),
@@ -108,6 +130,12 @@ elif page == "经济与供给":
         scope = period_control(fields, f"viewer-{title}")
         if scope:
             line_chart(data, fields, *scope, height=290)
+    st.subheader("人口")
+    population = snapshot["observations"].get("toronto_cma_2021_population", {})
+    if population:
+        annual_population = {year: {"toronto_cma_2021_population": value} for year, value in sorted(population.items())}
+        end = st.selectbox("人口估计年份", list(reversed(annual_population)), key="viewer-population-year")
+        line_chart(annual_population, ["toronto_cma_2021_population"], min(annual_population), end, height=290)
     st.caption("利率为加拿大背景；就业为 Toronto CMA 2021 边界；建设为 CMA 2011 边界。不同总体不计算交叉比率。")
 else:
     from housing.affordability import monthly_payment

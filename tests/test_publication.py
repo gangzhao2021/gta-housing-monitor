@@ -2,17 +2,28 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from types import SimpleNamespace
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 from streamlit.testing.v1 import AppTest
 
 from housing.db import connect
-from housing.owner_auth import make_verifier, verify
+from housing.owner_auth import make_verifier, verify, session_valid, SESSION_SECONDS
 from housing.publication import build_display_snapshot, load_display_snapshot, monthly_display, publish
 from housing.research import as_known_at
 
 
 class PublicationTests(unittest.TestCase):
+    def test_owner_app_stops_before_database_without_verifier(self):
+        root = Path(__file__).resolve().parents[1]
+        with patch.dict("os.environ", {"HOUSING_REQUIRE_OWNER_AUTH": "1"}), \
+             patch.dict("os.environ", {"HOUSING_OWNER_VERIFIER": ""}), \
+             patch("housing.db.connect", side_effect=AssertionError("private database opened")):
+            app = AppTest.from_file(str(root / "app.py"), default_timeout=20).run()
+        self.assertFalse(list(app.exception))
+        self.assertFalse(list(app.radio))
+
     def test_display_app_has_no_management_or_download_surface(self):
         root = Path(__file__).resolve().parents[1]
         app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
@@ -20,6 +31,19 @@ class PublicationTests(unittest.TestCase):
         self.assertNotIn("数据与记录", app.radio(key="navigation").options)
         self.assertEqual(len(app.get("button")), 0)
         self.assertEqual(len(app.get("arrow_vega_lite_chart")) > 0, True)
+
+    def test_display_rental_and_economy_scopes_render(self):
+        root = Path(__file__).resolve().parents[1]
+        app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
+        app.radio(key="navigation").set_value("租赁市场").run()
+        self.assertFalse(list(app.exception))
+        app.radio(key="ui-租金口径").set_value("地区对比").run()
+        app.radio(key="ui-地区资料频率").set_value("年度 CMHC").run()
+        self.assertFalse(list(app.exception))
+        self.assertTrue(list(app.get("arrow_vega_lite_chart")))
+        app.radio(key="navigation").set_value("经济与供给").run()
+        self.assertFalse(list(app.exception))
+        self.assertIn("人口", {item.value for item in app.subheader})
 
     def test_snapshot_excludes_private_provenance_and_survives_failed_publish(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -62,3 +86,31 @@ class PublicationTests(unittest.TestCase):
         token = make_verifier("a sufficiently long password")
         self.assertTrue(verify("a sufficiently long password", token))
         self.assertFalse(verify("wrong", token))
+
+    def test_owner_session_expires_and_rotation_revokes_it(self):
+        import hashlib
+        verifier = make_verifier("a sufficiently long password")
+        state = {"owner_authenticated": True, "owner_authenticated_at": 100.0,
+                 "owner_verifier_fingerprint": hashlib.sha256(verifier.encode()).hexdigest()}
+        self.assertTrue(session_valid(state, verifier, now=100 + SESSION_SECONDS - 1))
+        self.assertFalse(session_valid(state, verifier, now=100 + SESSION_SECONDS))
+        self.assertFalse(session_valid(state, make_verifier("a different long password"), now=101))
+
+    def test_failed_refresh_cycle_keeps_last_display_snapshot(self):
+        from scripts.run_refresh_cycle import run_cycle
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "data").mkdir()
+            current = root / "data/display_snapshot.json"
+            current.write_text("last-good")
+            calls = []
+
+            def fail_refresh(command, **kwargs):
+                calls.append(command)
+                return SimpleNamespace(returncode=1, stdout="", stderr="source unavailable")
+
+            report = run_cycle(root, fail_refresh)
+            self.assertFalse(report["snapshot_published"])
+            self.assertEqual(len(calls), 1)
+            self.assertEqual(current.read_text(), "last-good")
+            self.assertEqual(len(list((root / "data/run_reports").glob("*.json"))), 1)

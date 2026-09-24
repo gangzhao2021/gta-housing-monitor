@@ -435,5 +435,16 @@
   "固定本金的月供情景": "Fixed-principal mortgage scenario",
   "贷款本金（加元）": "Loan principal (CAD)",
   "名义年利率（%）": "Nominal annual interest rate (%)",
-  "仅为固定假设的计算情景，不代表贷款批准、实际家庭负担能力或利率预测。": "A calculation under fixed assumptions, not a loan approval, actual household affordability measure or rate forecast."
+  "仅为固定假设的计算情景，不代表贷款批准、实际家庭负担能力或利率预测。": "A calculation under fixed assumptions, not a loan approval, actual household affordability measure or rate forecast.",
+  "租金口径": "Rent measure",
+  "地区资料频率": "Area data frequency",
+  "年度 CMHC": "Annual CMHC",
+  "比较地区（最多三个）": "Compare up to three areas",
+  "地区房型": "Area bedroom type",
+  "地区指标": "Area measure",
+  "平均租金": "Average rent",
+  "地区调查年份": "Area survey year",
+  "该口径没有可展示观测；不以其他地区或房型替代。": "No display observation for this measure; no other area or bedroom type is substituted.",
+  "CMHC 年度专建出租公寓调查区；组合调查区不能拆成单一城市。缺值可能是来源抑制，不填零。": "CMHC annual purpose-built apartment survey zones. Combined zones cannot be split into individual cities; suppressed values are not filled with zero.",
+  "全部卧室类型": "All bedroom types"
 }

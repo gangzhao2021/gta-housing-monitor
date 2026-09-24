@@ -11,6 +11,24 @@ ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / 'data/raw/rentals'
 
 class RegionSourcesTests(unittest.TestCase):
+    def test_august_city_and_top25_sources_keep_property_scope(self):
+        city = RAW / '2026-09-report-regions-cities.csv'
+        total = RAW / '2026-09-report-top25.csv'
+        city_rows, city_url, city_intro = parse_regional_csv(city, city.with_suffix('.html'))
+        total_rows, total_url, total_intro = parse_regional_csv(total, total.with_suffix('.html'))
+        self.assertEqual((city_url, total_url), (
+            'https://datawrapper.dwcdn.net/X3ogP/1/',
+            'https://datawrapper.dwcdn.net/2fDmk/1/'))
+        self.assertEqual((city_intro, total_intro), (
+            'August 2026', 'Top 25 Markets (Outside of 6 Largest): August 2026'))
+        city_values = {field: value for field, _, value in city_rows}
+        totals = {field: value for field, _, value in total_rows}
+        self.assertEqual(city_values['toronto_asking_rent_total'], 2570)
+        self.assertEqual(city_values[asking_id('north_york', '1br')], 2104)
+        self.assertNotIn(asking_id('markham', '1br'), city_values)
+        self.assertNotIn(asking_id('north_york', 'total'), city_values)
+        self.assertEqual(totals[asking_id('markham', 'total')], 2309)
+
     def test_regions_reconcile_and_do_not_mix_all_property_values(self):
         rows, url, _ = parse_regional_csv(RAW/'2026-08-report-apts-cities.csv', RAW/'2026-08-report-apts-cities.html')
         values = {s:v for s,_,v in rows}

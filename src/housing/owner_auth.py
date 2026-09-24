@@ -3,8 +3,10 @@ import hashlib
 import hmac
 import os
 import secrets
+import time
 
 ITERATIONS = 600_000
+SESSION_SECONDS = 3600
 
 
 def make_verifier(password, *, salt=None):
@@ -26,17 +28,29 @@ def verify(password, verifier):
         return False
 
 
+def session_valid(state, verifier, *, now=None):
+    now = time.time() if now is None else now
+    stamp = state.get("owner_authenticated_at")
+    expected = hashlib.sha256(verifier.encode("utf-8")).hexdigest()
+    return (state.get("owner_authenticated") is True
+            and state.get("owner_verifier_fingerprint") == expected
+            and isinstance(stamp, (int, float)) and 0 <= now - stamp < SESSION_SECONDS)
+
+
 def owner_gate(st):
     """Called before opening the private database or rendering any owner content."""
     verifier = os.environ.get("HOUSING_OWNER_VERIFIER")
     if not verifier:
         st.error("管理入口未配置身份验证，已拒绝访问。")
         st.stop()
-    if st.session_state.get("owner_authenticated") is True:
+    if session_valid(st.session_state, verifier):
         if st.button("退出管理端", key="owner-logout"):
             st.session_state.pop("owner_authenticated", None)
+            st.session_state.pop("owner_authenticated_at", None)
+            st.session_state.pop("owner_verifier_fingerprint", None)
             st.rerun()
         return
+    st.session_state.pop("owner_authenticated", None)
     st.title("管理端登录")
     with st.form("owner-login"):
         password = st.text_input("管理密码", type="password")
@@ -44,6 +58,8 @@ def owner_gate(st):
     if submitted:
         if verify(password, verifier):
             st.session_state["owner_authenticated"] = True
+            st.session_state["owner_authenticated_at"] = time.time()
+            st.session_state["owner_verifier_fingerprint"] = hashlib.sha256(verifier.encode("utf-8")).hexdigest()
             st.rerun()
         else:
             st.error("密码无效。")

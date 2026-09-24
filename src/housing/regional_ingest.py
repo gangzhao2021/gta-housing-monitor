@@ -79,8 +79,9 @@ def regional_cmhc_details(path):
 
 def import_regional_csv(db, csv_path, chart_path, report_url):
     from .ingest import register_raw, ingest
-    if not re.fullmatch(r'https://rentals\.ca/blog/rentals-ca-[a-z]+-\d{4}-rent-report', report_url):
-        raise ValueError('Archived report URL required')
+    if not (re.fullmatch(r'https://rentals\.ca/blog/rentals-ca-[a-z]+-\d{4}-rent-report', report_url)
+            or report_url == 'https://rentals.ca/national-rent-report'):
+        raise ValueError('Rentals.ca report URL required')
     rows, url, intro = parse_regional_csv(csv_path, chart_path)
     period = rows[0][1]
     with db:

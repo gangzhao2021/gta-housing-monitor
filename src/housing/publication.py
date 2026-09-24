@@ -58,9 +58,11 @@ def publish(db_path, output):
         db.close()
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
+    output.parent.chmod(0o700)
     temporary = output.with_name(f".{output.name}.{os.getpid()}.tmp")
     try:
-        with temporary.open("x", encoding="utf-8") as stream:
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
             json.dump(snapshot, stream, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
             stream.flush()
             os.fsync(stream.fileno())
