@@ -1,0 +1,111 @@
+"""Definitions selected from the first verified official source samples."""
+
+SERIES = {
+    "boc_policy_rate": ("央行隔夜目标利率", "BoC", "V39079", "Canada", "%", "daily", "not adjusted", "none", "按生效日公布；月末值为最后一个有效日"),
+    "goc_5y_yield": ("五年政府基准债收益率", "BoC", "BD.CDN.5YR.DQ.YLD", "Canada", "%", "daily", "not adjusted", "none", "交易日收盘收益率；月图为有效日均值"),
+    "mortgage_uninsured_fixed_5plus": ("新增放款非受保固定按揭：五年及以上", "BoC", "V122667786", "Canada", "%", "monthly", "not adjusted", "none", "特许银行金额加权均值；包括续贷和再融资"),
+    "toronto_unemployment_rate": ("Toronto CMA 失业率", "StatsCan", "v1642720028", "Toronto CMA 2021 boundary", "%", "monthly", "seasonally adjusted", "none", "14-10-0460-01；单月季调估计"),
+    "toronto_employment_rate": ("Toronto CMA 就业率", "StatsCan", "v1642720044", "Toronto CMA 2021 boundary", "%", "monthly", "seasonally adjusted", "none", "14-10-0460-01；单月季调估计"),
+    "toronto_participation_rate": ("Toronto CMA 参与率", "StatsCan", "v1642720036", "Toronto CMA 2021 boundary", "%", "monthly", "seasonally adjusted", "none", "14-10-0460-01；单月季调估计"),
+    "trreb_sales": ("转售成交", "TRREB", "Market Watch p3", "All TRREB Areas", "sales", "monthly", "not adjusted", "none", "当月报告成交；全房型"),
+    "trreb_new_listings": ("新增挂牌", "TRREB", "Market Watch p3", "All TRREB Areas", "listings", "monthly", "not adjusted", "none", "当月进入 MLS 的新挂牌"),
+    "trreb_active_listings": ("月末有效挂牌", "TRREB", "Market Watch p3", "All TRREB Areas", "listings", "monthly", "not adjusted", "none", "月末存量"),
+    "trreb_hpi_composite": ("MLS HPI 综合指数", "TRREB", "Market Watch p25", "All TRREB Areas", "index", "monthly", "not adjusted", "none", "综合指数，与 benchmark price 分开"),
+    "trreb_hpi_benchmark": ("MLS HPI 综合基准房价", "TRREB", "Market Watch p25", "All TRREB Areas", "CAD", "monthly", "not adjusted", "none", "综合 benchmark price，非平均成交价"),
+    "toronto_cma_2011_starts": ("住宅开工", "StatsCan", "34-10-0154-01", "Toronto CMA 2011 boundary", "units", "monthly", "actual, not SAAR", "none", "CMHC Starts and Completions Survey；Total units"),
+    "toronto_cma_2011_completions": ("住宅竣工", "StatsCan", "34-10-0154-01", "Toronto CMA 2011 boundary", "units", "monthly", "actual", "none", "CMHC Starts and Completions Survey；Total units"),
+    "toronto_cma_2011_under_construction": ("在建住宅", "StatsCan", "34-10-0154-01", "Toronto CMA 2011 boundary", "units", "monthly", "stock", "none", "CMHC Starts and Completions Survey；月末存量，Total units"),
+    "toronto_cma_2021_population": ("Toronto CMA 人口估计", "StatsCan", "17-10-0148-01", "Toronto CMA 2021 boundary", "persons", "annual", "July 1 estimate", "none", "Total gender、All ages；年度值不插值为月度值"),
+}
+
+
+# Apartment markets remain separate; total rents are source-weighted published
+# averages, not an arithmetic mean of the bedroom categories.
+RENTAL_BEDROOMS = {
+    "studio": "单间 Studio", "1br": "一卧", "2br": "两卧",
+    "3plus": "三卧及以上", "total": "公寓全部卧室类型",
+}
+for market, market_label, rent_table in (
+    ("pbr", "专建出租公寓", "1.1.2"),
+    ("condo", "出租公寓产权房", "4.1.3"),
+):
+    for bedroom, bedroom_label in RENTAL_BEDROOMS.items():
+        SERIES[f"toronto_{market}_rent_{bedroom}"] = (
+            f"{market_label}平均租金 · {bedroom_label}", "CMHC",
+            f"Rental Market Survey Table {rent_table}", "Toronto CMA 2021 boundary",
+            "CAD/month", "annual", "October survey", "none",
+            ("私人出租公寓（3+ 套）" if market == "pbr" else "Condominium Apartment Survey；次级出租市场")
+            + f"；{bedroom_label}；平均租金，非当前挂牌租金；均值变化不等于同样本租金涨幅",
+        )
+    vacancy_types = RENTAL_BEDROOMS if market == "pbr" else {"total": "公寓全部卧室类型"}
+    for bedroom, bedroom_label in vacancy_types.items():
+        suffix = "rate" if bedroom == "total" else bedroom
+        SERIES[f"toronto_{market}_vacancy_{suffix}"] = (
+            f"{market_label}空置率 · {bedroom_label}", "CMHC",
+            "Rental Market Survey Table " + ("1.1.1" if market == "pbr" else "4.1.1"),
+            "Toronto CMA 2021 boundary", "%", "annual", "October survey", "none",
+            ("私人出租公寓（3+ 套）" if market == "pbr" else "Condominium Apartment Survey；独立于专建出租公寓")
+            + f"；年度 10 月调查；{bedroom_label}",
+        )
+
+SOURCE_URLS = {
+    "BoC": "https://www.bankofcanada.ca/valet/",
+    "StatsCan": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410046001",
+    "TRREB": "https://trreb.ca/market-data/market-watch/",
+}
+
+SERIES_URLS = {
+    "boc_policy_rate": "https://www.bankofcanada.ca/valet-api-how-to/",
+    "goc_5y_yield": "https://www.bankofcanada.ca/rates/interest-rates/canadian-bonds/",
+    "mortgage_uninsured_fixed_5plus": "https://www.bankofcanada.ca/rates/banking-and-financial-statistics/interest-rates-for-new-and-existing-lending-by-chartered-banks/",
+    "toronto_unemployment_rate": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410046001",
+    "toronto_employment_rate": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410046001",
+    "toronto_participation_rate": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410046001",
+    "trreb_sales": "https://trreb.ca/market-data/market-watch/market-watch-archive/",
+    "trreb_new_listings": "https://trreb.ca/market-data/market-watch/market-watch-archive/",
+    "trreb_active_listings": "https://trreb.ca/market-data/market-watch/market-watch-archive/",
+    "trreb_hpi_composite": "https://trreb.ca/market-data/market-watch/market-watch-archive/",
+    "trreb_hpi_benchmark": "https://trreb.ca/market-data/market-watch/market-watch-archive/",
+    "toronto_cma_2011_starts": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015401",
+    "toronto_cma_2011_completions": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015401",
+    "toronto_cma_2011_under_construction": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015401",
+    "toronto_cma_2021_population": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710014801",
+}
+
+CMHC_RENTAL_URL = "https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-data/data-tables/rental-market/rental-market-report-data-tables"
+SERIES_URLS.update({series_id: CMHC_RENTAL_URL for series_id, definition in SERIES.items()
+                    if definition[1] == "CMHC"})
+
+
+ASKING_ROOMS = {"total": "公寓全部卧室类型", "1br": "一卧", "2br": "两卧", "3br": "三卧"}
+RENTALS_URL = "https://rentals.ca/blog/canada-national-rent-reports"
+for room, name in ASKING_ROOMS.items():
+    field = f"toronto_asking_rent_{room}"
+    SERIES[field] = (
+        f"挂牌租金 · {name}", "Rentals.ca / Urbanation", "Public Datawrapper report dataset",
+        "Toronto (Rentals.ca market definition)", "CAD/month", "monthly", "not adjusted", "none",
+        "专建出租公寓与 condo 的平均挂牌租金；非签约租金。Toronto 为来源市场名称，不能直接等同 Toronto CMA 或 TRREB 全市场。均值受挂牌构成影响；三卧不等于三卧及以上。",
+    )
+    SERIES_URLS[field] = RENTALS_URL
+
+from .regions import MONTHLY_REGIONS, CMHC_REGIONS, asking_id, cmhc_id
+for region, name in MONTHLY_REGIONS.items():
+    if region == 'toronto':
+        continue
+    for room in (('total',) if region == 'markham' else ('total', '1br', '2br')):
+        field = asking_id(region, room)
+        SERIES[field] = (f'{name} · {ASKING_ROOMS[room]}', 'Rentals.ca / Urbanation',
+            'Top 25 apartment/condo ranking' if room == 'total' else 'Public apartment/condo city table', f'{name} (Rentals.ca market definition)',
+            'CAD/month', 'monthly', 'not adjusted', 'none',
+            '专建出租公寓与 condo 平均挂牌租金；地区采用来源名称，不合并行政边界；非实际签约租金。')
+        SERIES_URLS[field] = RENTALS_URL
+for region, name in CMHC_REGIONS.items():
+    for measure in ('rent', 'vacancy'):
+        for room, room_name in RENTAL_BEDROOMS.items():
+            field = cmhc_id(region, measure, room)
+            SERIES[field] = (f'{name} · {room_name} · ' + ('平均租金' if measure == 'rent' else '空置率'),
+                'CMHC', 'Rental Market Survey Table ' + ('1.1.2' if measure == 'rent' else '1.1.1'),
+                name + ' (CMHC 2021 zones)', 'CAD/month' if measure == 'rent' else '%',
+                'annual', 'October survey', 'none',
+                '专建出租公寓；沿用 CMHC 原始调查分区，组合地区不可当作其中单一城市。')
+            SERIES_URLS[field] = CMHC_RENTAL_URL

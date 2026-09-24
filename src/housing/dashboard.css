@@ -1,0 +1,150 @@
+/* Approved Figma editorial system, adapted to live Streamlit controls. */
+:root {--canvas:#fff;--ink:#171717;--muted:#666;--line:#e5e5e5;--surface:#f7f7f7;--accent:#2855d9;--teal:#007f86;--orange:#bf6517;--purple:#7952be}
+html,.stApp,[data-testid="stAppViewContainer"] {background:var(--canvas);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Helvetica,Arial,"PingFang SC",sans-serif}
+.block-container {max-width:1440px;padding:30px 64px 40px}
+/* The app has its own masthead. A transparent zero-height native header
+   leaves its toolbar over the language selector and intercepts pointer clicks. */
+[data-testid="stHeader"] {display:none}
+[data-testid="stAppDeployButton"] {display:none}
+.brand {font-size:16px;font-weight:700;letter-spacing:-.025em;white-space:nowrap}
+h1 {font-size:32px!important;font-weight:550!important;letter-spacing:-.035em;line-height:1.3!important;padding:16px 0 8px!important}
+h2 {font-size:22px!important;font-weight:550!important}
+h3 {font-size:18px!important;font-weight:550!important;letter-spacing:-.015em;padding-bottom:4px!important}
+p {line-height:1.55}
+[data-testid="stCaptionContainer"] p {font-size:12px!important;color:var(--muted)!important;line-height:1.65}
+[data-testid="stMainBlockContainer"]>[data-testid="stVerticalBlock"] {gap:16px}
+/* Accessible native radios retain keyboard focus and selected state. */
+:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] {display:flex;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:32px;padding:0;border-bottom:1px solid var(--line);margin:0 0 8px;scrollbar-width:thin}
+:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] label {position:relative;flex-shrink:0;min-height:48px;padding:12px 0!important;margin:0!important;border-bottom:2px solid transparent;background:transparent!important;border-radius:0}
+:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] label:has(input:checked) {border-bottom-color:var(--accent)}
+:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] label:has(input:checked) p {color:var(--accent)!important}
+:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] label>div:first-child {position:absolute;opacity:0;width:1px;height:1px;overflow:hidden}
+:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] label:focus-within {outline:2px solid var(--accent);outline-offset:-2px}
+:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] p {font-size:14px;font-weight:500;white-space:nowrap;color:var(--muted)}
+.st-key-masthead [role="radiogroup"] {justify-content:flex-end;flex-wrap:nowrap;gap:4px}
+.st-key-masthead [role="radiogroup"] label {position:relative;display:flex;justify-content:center;align-items:center;width:44px;min-width:44px;height:44px;margin:0!important;padding:0!important;border-radius:6px;background:transparent;color:var(--muted)}
+.st-key-masthead [role="radiogroup"] label>div:first-child {position:absolute;opacity:0;width:1px;height:1px;overflow:hidden}
+.st-key-masthead [role="radiogroup"] label p {font-size:12px;font-weight:500;line-height:1;white-space:nowrap;color:var(--muted)}
+.st-key-masthead [role="radiogroup"] label:has(input:checked) {background:#edf2ff}
+.st-key-masthead [role="radiogroup"] label:has(input:checked) p {color:var(--accent)}
+.st-key-masthead [role="radiogroup"] label:hover {background:var(--surface)}
+.st-key-masthead [role="radiogroup"] label:has(input:focus-visible) {outline:2px solid var(--accent);outline-offset:2px}
+[data-testid="stSelectbox"] [data-baseweb="select"]>div,[data-testid="stNumberInput"] [data-baseweb="input"] {background:transparent!important;border:0!important;border-bottom:1px solid var(--line)!important;border-radius:0!important;min-height:44px;box-shadow:none!important}
+[data-testid="stSelectbox"] [data-baseweb="select"]>div:hover {border-bottom-color:var(--accent)!important}
+[data-testid="stSelectbox"] [data-baseweb="select"]>div:focus-within,[data-testid="stNumberInput"] [data-baseweb="input"]:focus-within {outline:2px solid var(--accent);outline-offset:2px}
+[data-testid="stSelectbox"] label p,[data-testid="stNumberInput"] label p {font-size:12px;color:var(--muted)}
+[data-baseweb="select"] {font-size:14px}
+[data-testid="stButton"] button,[data-testid="stDownloadButton"] button {border-radius:2px;min-height:44px;font-size:13px;border-color:var(--line);background:var(--surface);box-shadow:none}
+[data-testid="stBaseButton-primary"] {background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+:is(.st-key-market-story,.st-key-asking-story,.st-key-annual-story,.st-key-regional-story,.st-key-economic-story,.st-key-mortgage-story) {padding:16px 0 24px}
+.metric-grid {display:grid;grid-template-columns:repeat(var(--cards),minmax(0,1fr));gap:40px;margin:4px 0 20px;padding:24px 0}
+.metric-card {min-width:0}
+.metric-label {font-size:12px;color:var(--muted);margin-bottom:10px;line-height:1.5}
+.metric-value {font-size:32px;font-weight:500;letter-spacing:-.045em;line-height:1.25;font-variant-numeric:tabular-nums;color:var(--series-color,var(--ink));white-space:nowrap}
+.metric-unit {font-size:11px;font-weight:400;letter-spacing:0;color:var(--muted);margin-left:6px}
+.metric-change {font-size:12px;color:#444;margin-top:12px;line-height:1.5}
+.metric-note {font-size:11px;color:var(--muted);margin-top:5px;line-height:1.5}
+.st-key-hero-price .metric-grid {display:block;border:0;margin:0 0 24px;padding:0}
+.st-key-hero-price .metric-value {font-size:clamp(32px,3.35vw,48px)}
+.st-key-hero-price .metric-unit {display:block;margin:4px 0}
+.st-key-asking-story .metric-grid {grid-template-columns:repeat(var(--cards),minmax(0,1fr));gap:16px}
+.region-names {display:flex;flex-direction:column;gap:10px;font-size:18px;font-weight:500;padding:10px 0}
+[data-testid="stMetric"] {background:transparent;border:0;border-radius:0;padding:16px 0 20px}
+[data-testid="stMetricLabel"] {color:var(--muted);font-size:12px}
+[data-testid="stMetricValue"] {font-size:32px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--accent);letter-spacing:-.035em}
+.st-key-source-summary [data-testid="stColumn"]:nth-child(2) [data-testid="stMetricValue"],.st-key-mortgage-story [data-testid="stColumn"]:nth-child(2) [data-testid="stMetricValue"] {color:var(--teal)}
+.page-note {border:0;border-left:2px solid var(--teal);background:transparent;padding:4px 0 4px 14px;font-size:12px;color:var(--muted);line-height:1.7;margin:8px 0 20px}
+[data-testid="stExpander"],[data-testid="stExpander"] details {border:0!important;border-radius:0!important;box-shadow:none!important;background:transparent!important}
+[data-testid="stExpander"] {border-top:0!important}
+[data-testid="stExpander"] summary {min-height:44px;padding:10px 0!important;border:0!important;box-shadow:none!important}
+[data-testid="stExpander"] summary p {font-size:13px!important;font-weight:500;color:var(--muted)}
+[data-testid="stExpander"] summary:hover p {color:var(--accent)}
+[data-testid="stDataFrame"],[data-testid="stVegaLiteChart"] {border-radius:0;background:transparent;border:0;padding:0}
+[data-testid="stAlert"] {border-radius:0;border:0;border-left:2px solid var(--orange);background:#fffaf3;font-size:12px;padding:10px 12px}
+.rental-table {width:100%;border-collapse:collapse;background:#fff;border:0;margin:8px 0 20px;font-size:14px}
+.rental-table th,.rental-table td {padding:16px 20px;text-align:right;border-bottom:1px solid var(--line)}
+.rental-table th {font-size:12px;color:var(--muted);background:var(--surface);font-weight:500}
+.rental-table th:nth-child(2) {color:var(--teal)}
+.rental-table th:nth-child(3) {color:var(--accent)}
+.rental-table td:first-child,.rental-table th:first-child {text-align:left;padding-left:0}
+.rental-table strong {font-weight:500;font-variant-numeric:tabular-nums;font-size:16px}
+.rental-table span {display:block;font-size:12px;margin-top:4px;color:var(--muted)}
+@media(max-width:1050px){.block-container{padding:24px 32px}.metric-grid{gap:20px}.metric-value{font-size:28px}.metric-unit{display:block;margin:4px 0 0}}
+@media(max-width:700px){
+ .block-container{padding:20px 20px 32px}
+ .st-key-masthead [data-testid="stHorizontalBlock"] {flex-wrap:nowrap!important;gap:8px}
+ .st-key-masthead [data-testid="stColumn"]:first-child {min-width:0!important;flex:1 1 65%!important}
+ .st-key-masthead [data-testid="stColumn"]:last-child {min-width:92px!important;flex:0 0 92px!important}
+ .brand{font-size:14px}
+ h1{font-size:28px!important}
+ :is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"]{gap:24px}
+ .metric-grid{gap:20px;grid-template-columns:repeat(2,minmax(0,1fr));padding:20px 0}
+ .metric-value{font-size:28px}
+ .st-key-hero-price .metric-value{font-size:44px}
+ .st-key-hero-price .metric-grid{margin-bottom:8px}
+ .region-names{flex-direction:row;flex-wrap:wrap;font-size:15px;gap:8px 18px}
+ .rental-table th,.rental-table td{padding:12px 8px}.rental-table{font-size:13px}.rental-table span{font-size:11px}.rental-table strong{font-size:15px}
+}
+
+:is(.st-key-main-nav,.st-key-rental-view-nav) [data-testid="stRadio"],:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] {width:100%}
+.st-key-mortgage-story [data-testid="stMetricValue"] {font-size:40px}
+@media(max-width:700px){.st-key-mortgage-story [data-testid="stMetricValue"]{font-size:32px}}
+
+.st-key-main-nav,.st-key-rental-view-nav {border-bottom:1px solid var(--line)}
+:is(.st-key-main-nav,.st-key-rental-view-nav) [role="radiogroup"] {border:0;margin-bottom:0}
+.st-key-regional-actions [data-testid="stHorizontalBlock"] {flex-direction:column;gap:12px}
+.st-key-regional-actions [data-testid="stColumn"] {width:100%;flex-basis:auto}
+[data-testid="stPopover"] button {border:0;border-radius:0;background:var(--surface);font-size:13px;min-height:44px}
+[data-testid="stAlertContainer"] {background:transparent!important;border:0!important;padding:0!important}
+@media(max-width:700px){
+ .st-key-regional-actions [data-testid="stHorizontalBlock"] {flex-direction:row;flex-wrap:nowrap;align-items:end}
+ .st-key-regional-actions [data-testid="stColumn"] {min-width:0!important;flex:1 1 0!important}
+ .st-key-regional-actions [data-testid="stColumn"]:last-child {flex-grow:1.4!important}
+ .st-key-regional-story,.st-key-annual-story,.st-key-asking-story {padding-top:0}
+ .st-key-regional-filters [data-testid="stVerticalBlock"] {gap:8px}
+}
+
+@media(max-width:700px){
+ :is(.st-key-market-story,.st-key-asking-story,.st-key-annual-story,.st-key-regional-story,.st-key-economic-story,.st-key-mortgage-story) [data-testid="stHorizontalBlock"] {row-gap:20px}
+ .st-key-price-chart-heading [data-testid="stHorizontalBlock"] {flex-wrap:nowrap}
+ .st-key-price-chart-heading [data-testid="stColumn"] {min-width:0!important;flex:1 1 0!important}
+}
+
+.st-key-mortgage-story .st-key-scenario-result [data-testid="stMetricValue"] {color:var(--accent)}
+@media(max-width:700px){
+ .st-key-source-summary [data-testid="stHorizontalBlock"] {flex-wrap:nowrap;gap:16px}
+ .st-key-source-summary [data-testid="stColumn"] {min-width:0!important;flex:1 1 0!important}
+}
+
+/* Pointer previews and native click/keyboard disclosures for indicator context. */
+.metric-card {position:relative}
+.metric-help {position:static}
+.metric-help summary {cursor:help;list-style:none;display:inline;outline-offset:4px}
+.metric-help summary::-webkit-details-marker {display:none}
+.metric-help summary:focus-visible {outline:2px solid var(--accent)}
+.help-icon {color:var(--accent);font-size:14px;padding-left:4px}
+.impact-bubble {position:absolute;top:28px;left:0;z-index:50;width:min(320px,calc(100vw - 48px));box-sizing:border-box;padding:16px 18px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:6px;box-shadow:0 8px 28px #1717171a;font-size:13px;line-height:1.65;font-weight:400;cursor:auto}
+.impact-bubble strong {font-size:13px;font-weight:600}
+.impact-bubble p {font-size:13px;margin:8px 0;color:#444}
+.impact-bubble a {font-size:11px;color:var(--accent)}
+.metric-card:last-child:not(:first-child) .impact-bubble {left:auto;right:0}
+@media(hover:hover){
+ .metric-help:hover::details-content {content-visibility:visible}
+ .metric-help:hover .impact-bubble {display:block}
+}
+@media(max-width:700px){
+ .metric-card:nth-child(odd) .impact-bubble {left:0;right:auto}
+ .metric-card:nth-child(even) .impact-bubble {left:auto;right:0}
+}
+.metric-label {position:relative}
+.impact-bubble {top:calc(100% + 6px)}
+
+/* Economy topics stay visible as a continuous editorial page. */
+.section-jump {display:flex;flex-wrap:wrap;gap:6px 24px;padding:2px 0 14px;margin:0 0 8px}
+.section-jump a {color:var(--muted);font-size:13px;text-decoration:none;min-height:36px;display:inline-flex;align-items:center;border-bottom:2px solid transparent}
+.section-jump a:hover,.section-jump a:focus-visible {color:var(--accent);border-bottom-color:var(--accent)}
+.section-jump a:focus-visible {outline:2px solid var(--accent);outline-offset:2px}
+.section-anchor {scroll-margin-top:16px}
+:is(.st-key-economic-rates,.st-key-economic-employment,.st-key-economic-construction,.st-key-economic-population) {padding:18px 0 32px;margin-bottom:10px}
+:is(.st-key-economic-rates,.st-key-economic-employment,.st-key-economic-construction,.st-key-economic-population) .metric-grid {gap:24px}
+@media(max-width:700px){.section-jump{gap:2px 18px}.section-jump a{font-size:12px}:is(.st-key-economic-rates,.st-key-economic-employment,.st-key-economic-construction,.st-key-economic-population){padding:12px 0 24px}}
