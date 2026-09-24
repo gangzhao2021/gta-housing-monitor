@@ -37,21 +37,21 @@ def session_valid(state, verifier, *, now=None):
             and isinstance(stamp, (int, float)) and 0 <= now - stamp < SESSION_SECONDS)
 
 
-def owner_gate(st):
+def owner_gate(st, *, title="管理端登录", logout_label="退出管理端"):
     """Called before opening the private database or rendering any owner content."""
     verifier = os.environ.get("HOUSING_OWNER_VERIFIER")
     if not verifier:
         st.error("管理入口未配置身份验证，已拒绝访问。")
         st.stop()
     if session_valid(st.session_state, verifier):
-        if st.button("退出管理端", key="owner-logout"):
+        if st.button(logout_label, key="owner-logout"):
             st.session_state.pop("owner_authenticated", None)
             st.session_state.pop("owner_authenticated_at", None)
             st.session_state.pop("owner_verifier_fingerprint", None)
             st.rerun()
         return
     st.session_state.pop("owner_authenticated", None)
-    st.title("管理端登录")
+    st.title(title)
     with st.form("owner-login"):
         password = st.text_input("管理密码", type="password")
         submitted = st.form_submit_button("登录")

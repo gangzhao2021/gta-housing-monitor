@@ -1,4 +1,5 @@
 import hashlib
+import csv
 import json
 import tempfile
 import unittest
@@ -32,6 +33,10 @@ class OfficialRefreshTests(unittest.TestCase):
                 self.assertEqual(second['status'], 'unchanged')
                 self.assertEqual(db.execute('SELECT COUNT(*) FROM observations').fetchone()[0], 3)
                 self.assertEqual(db.execute('SELECT COUNT(*) FROM raw_files').fetchone()[0], 1)
+                with (root / 'data/raw/manifest.csv').open(newline='') as source:
+                    registered = list(csv.DictReader(source))
+                self.assertEqual(len(registered), 1)
+                self.assertEqual(registered[0]['sha256'], first['sha256'])
                 self.assertTrue(list((root / 'data/backups').glob('*.sqlite3')))
                 self.assertEqual(db.execute("SELECT status FROM ingestion_runs ORDER BY id DESC LIMIT 1").fetchone()[0], 'unchanged')
             finally:

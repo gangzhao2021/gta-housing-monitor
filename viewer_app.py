@@ -17,6 +17,9 @@ from housing.publication import load_display_snapshot, monthly_display
 from housing.regions import MONTHLY_REGIONS, CMHC_REGIONS, asking_id, cmhc_id
 
 st.set_page_config(page_title="GTA Housing Monitor", layout="wide")
+if os.environ.get("HOUSING_REQUIRE_OWNER_AUTH") != "0":
+    from housing.owner_auth import owner_gate
+    owner_gate(st, title="展示端登录", logout_label="退出展示端")
 css()
 snapshot_path = Path(os.environ.get("HOUSING_DISPLAY_SNAPSHOT", ROOT / "data/display_snapshot.json"))
 if not snapshot_path.is_file():

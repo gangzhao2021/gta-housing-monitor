@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from .ingest import ingest, register_raw, validate_rows
+from .ingest import ingest, record_parse_failure, register_raw, validate_rows
 from .presentation import calendar_periods
 
 SOURCE = "Rentals.ca / Urbanation"
@@ -68,10 +68,17 @@ def parse_dataset(csv_path, chart_path):
 
 
 def import_dataset(db, csv_path, chart_path, report_url):
-    if not (re.fullmatch(r"https://rentals\.ca/blog/rentals-ca-[a-z]+-\d{4}-rent-report", report_url)
-            or report_url == "https://rentals.ca/national-rent-report"):
-        raise ValueError("A Rentals.ca report URL is required")
-    rows, chart_url, intro = parse_dataset(csv_path, chart_path)
+    try:
+        if not (re.fullmatch(r"https://rentals\.ca/blog/rentals-ca-[a-z]+-\d{4}-rent-report", report_url)
+                or report_url == "https://rentals.ca/national-rent-report"):
+            raise ValueError("A Rentals.ca report URL is required")
+        rows, chart_url, intro = parse_dataset(csv_path, chart_path)
+    except Exception as exc:
+        with db:
+            if Path(chart_path).is_file():
+                register_raw(db, chart_path, SOURCE, report_url, None, "rejected chart metadata")
+        record_parse_failure(db, SOURCE, csv_path, exc, report_url)
+        raise
     span = f"{min(r[1] for r in rows)}/{max(r[1] for r in rows)}"
     with db:
         register_raw(db, chart_path, SOURCE, chart_url, span, "public chart metadata; report: " + report_url)

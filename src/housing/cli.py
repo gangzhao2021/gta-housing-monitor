@@ -3,6 +3,7 @@ import csv
 from pathlib import Path
 
 from .db import connect
+from .manifest import write_manifest
 from .ingest import (ingest, parse_boc, parse_statcan, parse_statcan_construction,
                      parse_statcan_population, parse_cmhc_rental, parse_trreb, record_parse_failure)
 
@@ -15,20 +16,6 @@ def parse_or_record(db, source, path, parser_fn, source_url):
     except Exception as exc:
         record_parse_failure(db, source, path, exc, source_url)
         raise
-
-def manifest(db):
-    target = ROOT / "data/raw/manifest.csv"
-    with target.open("w", newline="") as output:
-        writer = csv.writer(output)
-        writer.writerow(["source", "source_url", "retrieved_at", "reference_period", "path", "sha256", "method"])
-        for row in db.execute("SELECT * FROM raw_files ORDER BY retrieved_at,source"):
-            saved_path = Path(row["path"])
-            if saved_path.is_absolute():
-                saved_path = saved_path.relative_to(ROOT)
-            writer.writerow([row["source"], row["source_url"], row["retrieved_at"],
-                             row["reference_period"], str(saved_path),
-                             row["sha256"], row["method"]])
-    return target
 
 def main():
     parser = argparse.ArgumentParser(description="Public data import for Toronto housing dashboard")
@@ -113,7 +100,8 @@ def main():
                     register_raw(db, pdf_file, "TRREB", pdf_url, item["period"], "official PDF")
         summary = ingest(db, "TRREB", path, url, f"{rows[0][1]}/{rows[-1][1]}", "PDF table extraction; page references in CSV", rows)
     print(args.source, summary)
-    print("manifest:", manifest(db))
+    if args.db.resolve() == DB.resolve():
+        print("manifest:", write_manifest(db, ROOT))
 
 if __name__ == "__main__":
     main()

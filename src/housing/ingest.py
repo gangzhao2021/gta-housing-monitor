@@ -3,8 +3,10 @@ import hashlib
 import io
 import json
 import math
+import os
 import posixpath
 import re
+import shutil
 import zipfile
 from xml.etree import ElementTree as ET
 from collections import defaultdict
@@ -22,11 +24,35 @@ def digest(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 def register_raw(db, path, source, url, reference_period, method):
+    path = Path(path)
     sha = digest(path)
     retrieved_at = datetime.fromtimestamp(Path(path).stat().st_mtime, timezone.utc).isoformat(timespec="seconds")
-    absolute = Path(path).resolve()
+    absolute = path.resolve()
+    database = next((row[2] for row in db.execute("PRAGMA database_list") if row[1] == "main"), "")
+    private_source = any(absolute.is_relative_to((ROOT / "data" / folder).resolve())
+                         for folder in ("raw", "manual"))
+    if (database and Path(database).resolve() == (ROOT / "data/housing.sqlite3").resolve()
+            and not private_source):
+        archive = ROOT / "data/raw/imported"
+        archive.mkdir(parents=True, exist_ok=True, mode=0o700)
+        archive.chmod(0o700)
+        saved = archive / f"{sha}{path.suffix.lower()}"
+        if not saved.exists():
+            temporary = archive / f".{saved.name}.{os.getpid()}.tmp"
+            try:
+                with path.open("rb") as source_file, temporary.open("xb") as output:
+                    shutil.copyfileobj(source_file, output)
+                temporary.chmod(0o600)
+                if digest(temporary) != sha:
+                    raise ValueError(f"Source changed during private copy: {path}")
+                temporary.replace(saved)
+            finally:
+                temporary.unlink(missing_ok=True)
+        elif digest(saved) != sha:
+            raise ValueError(f"Private source copy has wrong hash: {saved}")
+        absolute = saved.resolve()
     try:
-        saved_path = str(absolute.relative_to(ROOT))
+        saved_path = str(absolute.relative_to(ROOT.resolve()))
     except ValueError:
         saved_path = str(absolute)
     db.execute("""INSERT INTO raw_files VALUES (?,?,?,?,?,?,?)
@@ -38,6 +64,14 @@ def register_raw(db, path, source, url, reference_period, method):
       (sha, saved_path, source, url, retrieved_at, reference_period, method))
     return sha
 
+
+def sync_live_manifest(db):
+    """Keep the recoverable inventory current, including rejected imports."""
+    database = next((row[2] for row in db.execute("PRAGMA database_list") if row[1] == "main"), "")
+    if database and Path(database).resolve() == (ROOT / "data/housing.sqlite3").resolve():
+        from .manifest import write_manifest
+        write_manifest(db, ROOT)
+
 def put(db, series_id, period, value, sha):
     if series_id not in SERIES:
         raise ValueError(f"Unknown series: {series_id}")
@@ -47,6 +81,11 @@ def put(db, series_id, period, value, sha):
                          (series_id, period)).fetchone()
     if current and current["value"] == value:
         return "unchanged"
+    prior_file = db.execute(
+        "SELECT 1 FROM observations WHERE series_id=? AND period=? AND raw_sha256=? LIMIT 1",
+        (series_id, period, sha)).fetchone()
+    if prior_file:
+        raise ValueError(f"Stale source replay would replace a newer value: {series_id} {period}")
     version = 1 if current is None else current["version"] + 1
     db.execute("""INSERT INTO observations
       (series_id,period,value,version,raw_sha256,first_seen_at)
@@ -375,6 +414,8 @@ def ingest(db, source, raw_path, source_url, reference_period, method, rows):
             db.execute("INSERT INTO ingestion_runs (source,started_at,status,raw_sha256,error) VALUES (?,?,?,?,?)",
                        (source, started, "failed", sha, str(exc)))
         raise
+    finally:
+        sync_live_manifest(db)
     return dict(counts)
 
 def record_parse_failure(db, source, raw_path, error, source_url=None):
@@ -391,3 +432,6 @@ def record_parse_failure(db, source, raw_path, error, source_url=None):
           (source,started_at,status,raw_sha256,error) VALUES (?,?,?,?,?)""",
           (source, datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "failed", sha, str(error)))
+    # A failed parse can still register a rejected raw file. Keep the local
+    # recovery manifest aligned with that durable audit record.
+    sync_live_manifest(db)

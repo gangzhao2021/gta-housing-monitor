@@ -63,5 +63,6 @@ class RentalsTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     import_dataset(db, path, chart_path, REPORT)
                 self.assertEqual(db.execute('SELECT COUNT(*) FROM observations').fetchone()[0], 0)
-                self.assertEqual(db.execute('SELECT COUNT(*) FROM raw_files').fetchone()[0], 0)
+                self.assertEqual(db.execute('SELECT COUNT(*) FROM raw_files').fetchone()[0], 2)
+                self.assertEqual(db.execute("SELECT COUNT(*) FROM ingestion_runs WHERE status='failed'").fetchone()[0], 1)
                 db.close()

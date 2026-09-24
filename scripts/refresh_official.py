@@ -22,6 +22,7 @@ from housing.db import connect
 from housing.ingest import (ingest, now, parse_boc, parse_statcan,
                             parse_statcan_construction, parse_statcan_population,
                             record_parse_failure)
+from housing.manifest import write_manifest
 
 SOURCES = {
     'boc': ('BoC', 'boc', '.json', parse_boc, 'API JSON'),
@@ -102,6 +103,7 @@ def refresh_one(db, key, root=ROOT, today=None, fetcher=fetch):
         with db:
             db.execute('INSERT INTO ingestion_runs (source,started_at,status,raw_sha256) VALUES (?,?,?,?)',
                        (source, now(), 'unchanged', sha))
+        write_manifest(db, root)
         return {'source': key, 'status': 'unchanged', 'sha256': sha}
     stamp = datetime.now(ZoneInfo('America/Toronto')).strftime('%Y%m%dT%H%M%S%f')
     destination = directory / f'{key}-{stamp}-{sha[:12]}{suffix}'
@@ -119,6 +121,7 @@ def refresh_one(db, key, root=ROOT, today=None, fetcher=fetch):
     backup(db, root / 'data/backups' / f'housing-before-{key}-{backup_name}.sqlite3')
     summary = ingest(db, source, destination, url,
                      f'{min(row[1] for row in rows)}/{max(row[1] for row in rows)}', method, rows)
+    write_manifest(db, root)
     return {'source': key, 'status': 'success', 'sha256': sha, **summary}
 
 

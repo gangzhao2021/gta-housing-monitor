@@ -78,11 +78,18 @@ def regional_cmhc_details(path):
 
 
 def import_regional_csv(db, csv_path, chart_path, report_url):
-    from .ingest import register_raw, ingest
-    if not (re.fullmatch(r'https://rentals\.ca/blog/rentals-ca-[a-z]+-\d{4}-rent-report', report_url)
-            or report_url == 'https://rentals.ca/national-rent-report'):
-        raise ValueError('Rentals.ca report URL required')
-    rows, url, intro = parse_regional_csv(csv_path, chart_path)
+    from .ingest import register_raw, ingest, record_parse_failure
+    try:
+        if not (re.fullmatch(r'https://rentals\.ca/blog/rentals-ca-[a-z]+-\d{4}-rent-report', report_url)
+                or report_url == 'https://rentals.ca/national-rent-report'):
+            raise ValueError('Rentals.ca report URL required')
+        rows, url, intro = parse_regional_csv(csv_path, chart_path)
+    except Exception as exc:
+        with db:
+            if Path(chart_path).is_file():
+                register_raw(db, chart_path, 'Rentals.ca / Urbanation', report_url, None, 'rejected regional chart metadata')
+        record_parse_failure(db, 'Rentals.ca / Urbanation', csv_path, exc, report_url)
+        raise
     period = rows[0][1]
     with db:
         register_raw(db, chart_path, 'Rentals.ca / Urbanation', url, period, 'regional chart metadata; report: ' + report_url)

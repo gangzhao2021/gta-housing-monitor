@@ -5,13 +5,14 @@ import zipfile
 from xml.etree import ElementTree as ET
 from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 from housing.db import connect
 from housing.affordability import monthly_payment, historical_payment_rows
 from housing.dashboard import snlr_rolling_rows
 from housing.freshness import RULES, assess
 from housing.ingest import (ingest, parse_boc, parse_cmhc_rental, parse_cmhc_rental_details,
-                            parse_statcan, parse_trreb)
+                            parse_statcan, parse_trreb, register_raw)
 from housing.metrics import resale_metrics, year_over_year
 from housing.read_model import monthly
 from housing.snapshot import save, open_snapshot
@@ -19,6 +20,33 @@ from housing.snapshot import save, open_snapshot
 ROOT = Path(__file__).resolve().parents[1]
 
 class PipelineTests(unittest.TestCase):
+    def test_live_import_archives_external_source_for_recovery(self):
+        with tempfile.TemporaryDirectory() as folder, tempfile.TemporaryDirectory() as external:
+            root = Path(folder)
+            db = connect(root / "data/housing.sqlite3")
+            outside = Path(external) / "report.csv"
+            outside.write_text("example source", encoding="utf-8")
+            with patch("housing.ingest.ROOT", root):
+                sha = register_raw(db, outside, "test", "https://example.test/report", "2026-08", "CSV")
+            row = db.execute("SELECT path FROM raw_files WHERE sha256=?", (sha,)).fetchone()
+            self.assertEqual(row["path"], f"data/raw/imported/{sha}.csv")
+            self.assertEqual((root / row["path"]).read_text(), "example source")
+
+    def test_failed_live_import_updates_manifest_for_rejected_batch(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            raw = root / "data/raw/example.csv"
+            raw.parent.mkdir(parents=True)
+            raw.write_text("bad row")
+            db = connect(root / "data/housing.sqlite3")
+            with patch("housing.ingest.ROOT", root):
+                with self.assertRaises(ValueError):
+                    ingest(db, "test", raw, "https://example.test", "2026-08", "CSV",
+                           [("trreb_sales", "bad-period", 100)])
+            manifest = (root / "data/raw/manifest.csv").read_text()
+            self.assertIn("data/raw/example.csv", manifest)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM ingestion_runs WHERE status='failed'").fetchone()[0], 1)
+
     def test_canadian_mortgage_scenario_calculation(self):
         self.assertAlmostEqual(monthly_payment(0, 5, 25), 0)
         self.assertAlmostEqual(monthly_payment(300_000, 0, 25), 1000)
@@ -92,6 +120,22 @@ class PipelineTests(unittest.TestCase):
             rows = db.execute("SELECT version,value FROM observations ORDER BY version").fetchall()
             self.assertEqual([(r["version"], r["value"]) for r in rows], [(1, 5057), (2, 5060)])
             self.assertEqual(monthly(db)["2026-08"]["trreb_sales"], 5060)
+
+    def test_replaying_old_source_does_not_replace_a_revision(self):
+        with tempfile.TemporaryDirectory() as temp:
+            old, new = Path(temp) / "old.txt", Path(temp) / "new.txt"
+            old.write_text("original")
+            new.write_text("official revision")
+            db = connect(Path(temp) / "test.sqlite3")
+            for path, value in ((old, 5057), (new, 5060)):
+                ingest(db, "test", path, "https://example.org/report", "2026-08", "fixture",
+                       [("trreb_sales", "2026-08", value)])
+            with self.assertRaisesRegex(ValueError, "Stale source replay"):
+                ingest(db, "test", old, "https://example.org/report", "2026-08", "fixture",
+                       [("trreb_sales", "2026-08", 5057)])
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM observations").fetchone()[0], 2)
+            self.assertEqual(monthly(db)["2026-08"]["trreb_sales"], 5060)
+            self.assertEqual(db.execute("SELECT status FROM ingestion_runs ORDER BY id DESC LIMIT 1").fetchone()[0], "failed")
 
     def test_invalid_batch_is_atomic_and_records_failure(self):
         with tempfile.TemporaryDirectory() as temp:

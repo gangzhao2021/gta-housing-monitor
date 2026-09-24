@@ -26,7 +26,8 @@ class PublicationTests(unittest.TestCase):
 
     def test_display_app_has_no_management_or_download_surface(self):
         root = Path(__file__).resolve().parents[1]
-        app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
+        with patch.dict("os.environ", {"HOUSING_REQUIRE_OWNER_AUTH": "0"}):
+            app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
         self.assertFalse(list(app.exception))
         self.assertNotIn("数据与记录", app.radio(key="navigation").options)
         self.assertEqual(len(app.get("button")), 0)
@@ -34,16 +35,25 @@ class PublicationTests(unittest.TestCase):
 
     def test_display_rental_and_economy_scopes_render(self):
         root = Path(__file__).resolve().parents[1]
-        app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
-        app.radio(key="navigation").set_value("租赁市场").run()
+        with patch.dict("os.environ", {"HOUSING_REQUIRE_OWNER_AUTH": "0"}):
+            app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
+            app.radio(key="navigation").set_value("租赁市场").run()
+            self.assertFalse(list(app.exception))
+            app.radio(key="ui-租金口径").set_value("地区对比").run()
+            app.radio(key="ui-地区资料频率").set_value("年度 CMHC").run()
+            self.assertFalse(list(app.exception))
+            self.assertTrue(list(app.get("arrow_vega_lite_chart")))
+            app.radio(key="navigation").set_value("经济与供给").run()
+            self.assertFalse(list(app.exception))
+            self.assertIn("人口", {item.value for item in app.subheader})
+
+    def test_display_app_stops_before_snapshot_without_verifier(self):
+        root = Path(__file__).resolve().parents[1]
+        with patch.dict("os.environ", {"HOUSING_REQUIRE_OWNER_AUTH": "1", "HOUSING_OWNER_VERIFIER": ""}), \
+             patch("housing.publication.load_display_snapshot", side_effect=AssertionError("snapshot opened")):
+            app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
         self.assertFalse(list(app.exception))
-        app.radio(key="ui-租金口径").set_value("地区对比").run()
-        app.radio(key="ui-地区资料频率").set_value("年度 CMHC").run()
-        self.assertFalse(list(app.exception))
-        self.assertTrue(list(app.get("arrow_vega_lite_chart")))
-        app.radio(key="navigation").set_value("经济与供给").run()
-        self.assertFalse(list(app.exception))
-        self.assertIn("人口", {item.value for item in app.subheader})
+        self.assertFalse(list(app.radio))
 
     def test_snapshot_excludes_private_provenance_and_survives_failed_publish(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -114,3 +124,29 @@ class PublicationTests(unittest.TestCase):
             self.assertEqual(len(calls), 1)
             self.assertEqual(current.read_text(), "last-good")
             self.assertEqual(len(list((root / "data/run_reports").glob("*.json"))), 1)
+
+    def test_refresh_cycle_requires_recovery_check_before_publish(self):
+        from scripts.run_refresh_cycle import run_cycle
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "data").mkdir()
+            current = root / "data/display_snapshot.json"
+            current.write_text("last-good")
+            calls = []
+
+            def successful_refresh(command, **kwargs):
+                calls.append(command)
+                return SimpleNamespace(returncode=0, stdout="unchanged", stderr="")
+
+            with patch("scripts.run_refresh_cycle.verify_dataset", side_effect=ValueError("bad manifest")):
+                report = run_cycle(root, successful_refresh)
+            self.assertFalse(report["snapshot_published"])
+            self.assertIn("bad manifest", report["error"])
+            self.assertEqual(current.read_text(), "last-good")
+            self.assertEqual(len(calls), 1)
+
+            with patch("scripts.run_refresh_cycle.verify_dataset", return_value={"source_files": 1}):
+                report = run_cycle(root, successful_refresh)
+            self.assertTrue(report["snapshot_published"])
+            self.assertEqual(report["recovery_check"], {"source_files": 1})
+            self.assertEqual(len(calls), 3)

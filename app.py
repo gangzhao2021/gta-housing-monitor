@@ -70,10 +70,24 @@ def month_controls(fields, key, targets=None):
     return start, end
 
 
-def source_rows(fields, start, end, key):
+def source_rows(fields, start, end, key, month_key=None):
     with st.expander("查看与下载本节数据"):
         frame = pd.DataFrame(scoped_rows(data, fields, start, end)).rename(columns={"period": "所属月份", **{f: f"{label(f)} ({unit(f)})" for f in fields}})
-        st.dataframe(frame, hide_index=True, width="stretch")
+        if month_key and not frame.empty:
+            # The row index belongs to this exact slice. A new month/window
+            # gets a new widget key so a stale index cannot highlight another row.
+            table_key = f"source-table-{key}-{start}-{end}"
+
+            def select_month():
+                rows = st.session_state[table_key].selection.rows
+                if rows:
+                    st.session_state[month_key] = frame.iloc[rows[0]]["所属月份"]
+
+            st.dataframe(frame, hide_index=True, width="stretch", key=table_key,
+                         on_select=select_month, selection_mode="single-row")
+            st.caption("勾选左侧选择框可将观察月份设为该行月份；卡片、图表与其他数据表随之更新。")
+        else:
+            st.dataframe(frame, hide_index=True, width="stretch")
         st.download_button("下载 CSV", frame.to_csv(index=False).encode("utf-8-sig"), f"{key}-{start}-{end}.csv", "text/csv", key=f"download-{key}")
         st.caption("空白表示没有观测。按当前期间导出；历史对照使用当前数据库版本，不代表当时已知信息。")
 
@@ -136,7 +150,7 @@ if page == "市场总览":
         st.caption("连续三个月的原始成交／新挂牌比作算术平均；缺月不计算。均线仅帮助阅读短期波动，不是季节调整，也不是三个月成交合计除以挂牌合计。")
         snlr_rolling_chart(data, start, end)
     st.caption("同比按各期原始月报自算，可能不同于后续修订后的官方同比。库存月数与成交／新挂牌比使用原始月度公式，不等于 TRREB 的平滑 Trend。")
-    source_rows(resale_fields, start, end, "trreb")
+    source_rows(resale_fields, start, end, "trreb", "market-month")
     st.divider()
     st.subheader("各房型基准价")
     st.caption(f"{period_label(end)} · All TRREB Areas · HPI 房型分类")
@@ -346,7 +360,7 @@ elif page == "经济与供给":
                                 st.download_button("下载建设房型数据与来源", pd.DataFrame(details).to_csv(index=False).encode("utf-8-sig"), f"construction-types-{end}-{metric}.csv", "text/csv")
                     except ValueError as exc:
                         st.warning(f"建设房型原表未通过检查：{exc}")
-            source_rows(fields, start, end, "context-" + anchor)
+            source_rows(fields, start, end, "context-" + anchor, "context-" + anchor + "-month")
 
 elif page == "月供情景":
     st.subheader("比较两种利率下的月供")

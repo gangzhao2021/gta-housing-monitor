@@ -446,5 +446,6 @@
   "地区调查年份": "Area survey year",
   "该口径没有可展示观测；不以其他地区或房型替代。": "No display observation for this measure; no other area or bedroom type is substituted.",
   "CMHC 年度专建出租公寓调查区；组合调查区不能拆成单一城市。缺值可能是来源抑制，不填零。": "CMHC annual purpose-built apartment survey zones. Combined zones cannot be split into individual cities; suppressed values are not filled with zero.",
-  "全部卧室类型": "All bedroom types"
+  "全部卧室类型": "All bedroom types",
+  "勾选左侧选择框可将观察月份设为该行月份；卡片、图表与其他数据表随之更新。": "Select a row using the checkbox to set the observation month; cards, charts and other data tables update with it."
 }
