@@ -1,6 +1,18 @@
 # 已接入系列字典
 
-核对日期：2026-09-23。下表描述当前实际入库系列；原始文件与哈希见 `data/raw/manifest.csv`。所有 `value` 都保留来源单位，没有将百分数除以 100。发布时点未有逐观测可靠证据，因此数据库 `published_at` 留空；抓取时间不得替代发布日期。
+核对日期：2026-09-24；本次只读核对本地数据库、系列目录和解析器，没有刷新外部来源。原始文件与哈希见 `data/raw/manifest.csv`。所有 `value` 都保留来源单位，没有将百分数除以 100。当前全部观测的 `published_at`、`availability_evidence` 均为空；抓取时间不得替代发布日期。
+
+当前登记 **121 个系列**，其中 **119 个有数值观测**；两个 Markham 开间年度系列由来源持续抑制，登记定义但没有数值。数据库有 **5,384 条含版本观测、5,379 个不同系列／期间、108 份登记原件**。数值计数不包含抑制单元格，也不包含从原件即时解析的房型分项。
+
+| 系列族 | 登记数 | 当前覆盖 |
+| --- | ---: | --- |
+| 融资、就业、转售、建设、人口 | 15 | 逐系列定义见下表；覆盖期见[来源覆盖](SOURCE_COVERAGE.md) |
+| Toronto CMA 年度公寓租赁 | 16 | 两类市场、2022—2025，每系列 4 年，共 64 个数值 |
+| Toronto 月度公寓挂牌租金 | 4 | 总体 2022-07—2026-08；一／两／三卧 2025-11—2026-08 |
+| 其他地区月度公寓挂牌租金 | 16 | 六地区总体 2025-11—2026-08；除 Markham 外一／两卧 2026-04—2026-08 |
+| CMHC 地区年度专建出租公寓 | 70 | 七个原始调查区 × 租金／空置率 × 五房型；2022—2025 的 280 个目标单元格中 252 个数值、28 个抑制 |
+
+### 基础系列与 Toronto CMA 年度系列
 
 | 数据库 ID | 原系列／报告列 | 单位、频率 | 范围与口径 | 月图公式／来源 |
 | --- | --- | --- | --- | --- |
@@ -19,45 +31,94 @@
 | `toronto_cma_2011_completions` | 同表，Housing completions / Total units | 套，月 | 同上；竣工流量 | 不与开工混为一谈 |
 | `toronto_cma_2011_under_construction` | 同表，Housing under construction / Total units | 套，月末存量 | 同上；在建单位存量 | 不能累加为当期新增供应 |
 | `toronto_cma_2021_population` | StatsCan 表 17-10-0148-01，Total gender / All ages | 人，年 | Toronto CMA **2021 边界**；7 月 1 日人口估计 | 2001–2025；年度值不插值为月度 |
-| `toronto_pbr_rent_studio` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；Studio／开间平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_pbr_rent_1br` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；一卧平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_pbr_rent_2br` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；两卧平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_pbr_rent_3plus` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；三卧及以上平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_pbr_rent_total` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；全部房型平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_condo_rent_studio` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；Studio／开间平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_condo_rent_1br` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；一卧平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_condo_rent_2br` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；两卧平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_condo_rent_3plus` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；三卧及以上平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_condo_rent_total` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；全部房型平均租金 | 10 月调查，2024–2025；原表平均值，非新租约挂牌价 |
-| `toronto_pbr_vacancy_studio` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；Studio／开间 | 10 月调查，2024–2025 |
-| `toronto_pbr_vacancy_1br` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；一卧 | 10 月调查，2024–2025 |
-| `toronto_pbr_vacancy_2br` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；两卧 | 10 月调查，2024–2025 |
-| `toronto_pbr_vacancy_3plus` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；三卧及以上 | 10 月调查，2024–2025 |
-| `toronto_pbr_vacancy_rate` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；全部房型 | 10 月调查，2024–2025 |
-| `toronto_condo_vacancy_rate` | 同调查，表 4.1.1 | %，年 | Toronto CMA 2021 边界；出租公寓产权房；全部房型 | 10 月调查，2024–2025；没有按卧室数的独立空置率 |
+| `toronto_pbr_rent_studio` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；Studio／开间平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_pbr_rent_1br` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；一卧平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_pbr_rent_2br` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；两卧平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_pbr_rent_3plus` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；三卧及以上平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_pbr_rent_total` | CMHC Rental Market Survey，表 1.1.2 | CAD/月，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；全部房型平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_condo_rent_studio` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；Studio／开间平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_condo_rent_1br` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；一卧平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_condo_rent_2br` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；两卧平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_condo_rent_3plus` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；三卧及以上平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_condo_rent_total` | CMHC Rental Market Survey，表 4.1.3 | CAD/月，年 | Toronto CMA 2021 边界；出租公寓产权房（次级出租市场）；全部房型平均租金 | 10 月调查，2022–2025；原表平均值，非新租约挂牌价 |
+| `toronto_pbr_vacancy_studio` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；Studio／开间 | 10 月调查，2022–2025 |
+| `toronto_pbr_vacancy_1br` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；一卧 | 10 月调查，2022–2025 |
+| `toronto_pbr_vacancy_2br` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；两卧 | 10 月调查，2022–2025 |
+| `toronto_pbr_vacancy_3plus` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；三卧及以上 | 10 月调查，2022–2025 |
+| `toronto_pbr_vacancy_rate` | 同调查，表 1.1.1 | %，年 | Toronto CMA 2021 边界；私人专建出租公寓（3 套及以上）；全部房型 | 10 月调查，2022–2025 |
+| `toronto_condo_vacancy_rate` | 同调查，表 4.1.1 | %，年 | Toronto CMA 2021 边界；出租公寓产权房；全部房型 | 10 月调查，2022–2025；没有按卧室数的独立空置率 |
 
-派生字段：`moi_raw = active_listings / sales`，单位月；`snlr_raw = sales / new_listings × 100`，单位 %。零分母返回缺失。两者都只组合相同地区、房型、月份的这三个固定 TRREB 系列。TRREB 报告的 `SNLR Trend` 和 `Mos Inv (Trend)` 使用趋势／移动平均口径，**不是**这里的原始月度比率。数量及 HPI 同比为本期 / 上年同月 − 1；当前依据各月原始发布版，不是 TRREB 最新修订历史版，页面会显式提醒。
+派生字段：`moi_raw = active_listings / sales`，单位月；`snlr_raw = sales / new_listings × 100`，单位 %。零分母返回缺失。两者都只组合相同地区、房型、月份的这三个固定 TRREB 系列。TRREB 报告的 `SNLR Trend` 和 `Mos Inv (Trend)` 使用趋势／移动平均口径，**不是**这里的原始月度比率。数量及 HPI 自算同比为 `(本期 / 上年同月 − 1) × 100`，以百分数数值展示；当前依据各月原始发布版，不是 TRREB 最新修订历史版，页面会显式提醒。
 
 
 ### 租赁房型和质量字段
 
-当前租赁部分包含 16 个系列、32 个年度观测；全库为 31 个系列、4,905 个观测（2026-09-23 核对）。此前只导入两卧是实现范围遗漏，不能据此说来源没有其他房型。Condo 租金改用表 4.1.3，补回其 2024 年比较值；表 4.1.2 仍是有效的 2025 年跨市场比较表，但不再用作 Condo 历史主表。
+Toronto CMA 年度租赁目前包含 16 个系列、64 个观测（2022—2025）。历史上 2026-09-23 只核对 2025 工作簿时为 16 个系列、32 个年度观测，当时全库为 31 个系列、4,905 个观测；这些是历史计数，不能代替当前基线。此前只导入两卧是实现范围遗漏，不能据此说来源没有其他房型。Condo 租金改用表 4.1.3，补回其 2024 年比较值；表 4.1.2 仍是有效的 2025 年跨市场比较表，但不再用作 Condo 历史主表。
 
 - `total` 是 CMHC 直接公布的全部房型均值，不能把四种卧室类别作算术平均替代。
-- 本页“均值较上年”计算同一系列本年／上年 − 1，受样本与住房构成影响。表 1.1.5 的同样本租金变化是不同指标，尚未入库。例如专建两卧均值 $2,046／$1,974 对应约 3.65%，官方同样本涨幅是 3.4%。
+- 本页“均值较上年”计算 `(同一系列本年／上年 − 1) × 100`，单位 %，受样本与住房构成影响。表 1.1.5 的同样本租金变化是不同指标，尚未入库。例如专建两卧均值 $2,046／$1,974 对应约 3.65%，官方同样本涨幅是 3.4%。
 - 专建出租和 Condo 出租的调查总体不同；不合并为一个“Toronto 平均租金”。页面只覆盖公寓，原表中的私人 Townhouse、空置／已住单位租金、同样本涨幅仍是独立类别，不混入本表。
 - `parse_cmhc_rental_details` 从保留工作簿提供 `series_id`、`period`、`value`、`status`、`quality`、`significance`、`sheet`、`cell`。这些来源单元格证据可在租赁页面详情查看和导出；数值观测继续引用文件 SHA-256。
 - 质量 `a` 为 Excellent、`b` 为 Very Good、`c` 为 Good、`d` 为 Poor（谨慎使用）。2025 Condo Studio 为 c，三卧及以上为 b，其余租金类别为 a；专建出租各房型租金均为 a。
 - 原表 `↑`／`↓` 表示同比差异统计显著，`-`／`–` 表示有效样本不足以把变化解释为统计显著。标记为空表示该单元格未提供判断，不能解释为“不显著”。2025 Condo 租金五类均标 `-`。
-- `status=suppressed` 对应原表 `**`，`not_available` 对应空白或不可用标记；两者均不转换为零。未知文本、缺少数值质量等级、异常表头及年份不一致会使解析失败。当前 Toronto CMA 选取的 32 个单元格均有可用值。
+- `status=suppressed` 对应原表 `**`，`not_available` 对应空白或不可用标记；两者均不转换为零。未知文本、缺少数值质量等级、异常表头及年份不一致会使解析失败。当前两个工作簿的 Toronto CMA 64 个目标单元格均有可用值。地区调查区另有抑制，不能把 Toronto CMA 的完整性推广到所有地区。
 
 
 边界说明：人口使用 2021 CMA 边界，建设表的 Toronto DGUID 是 2011S0503535。两组各自可看历史变化，不能当成同一边界数据拼接或计算建设／人口比率。
 
 原始来源：[BoC Valet API](https://www.bankofcanada.ca/valet-api-how-to/)、[BoC 按揭定义与发布说明](https://www.bankofcanada.ca/rates/banking-and-financial-statistics/interest-rates-for-new-and-existing-lending-by-chartered-banks/)、[Statistics Canada 表 14-10-0460-01](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1410046001)、[表 34-10-0154-01](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015401)、[表 17-10-0148-01](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710014801)、[CMHC Rental Market Survey Data Tables](https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-data/data-tables/rental-market/rental-market-report-data-tables)、[TRREB Market Watch 档案](https://trreb.ca/market-data/market-watch/market-watch-archive/)。
 
+### 月度挂牌租金系列
 
-### 2026-09-23 新增月度挂牌租金
+所有这些系列均为 Rentals.ca／Urbanation 的专建出租公寓与 condo 挂牌样本均值，单位 `CAD/month`、月频、未季调。`total` 为来源总体均值，不能由房型均值合成；`3br` 只指三卧，不等于 CMHC 的 `3plus`。地区为来源市场名称，没有已验证的行政区边界等价关系。均值受挂牌构成影响，不是实际签约租金。
+
+| ID 模式／地区代码 | 已登记后缀 | 当前数值范围与主来源 |
+| --- | --- | --- |
+| `toronto_asking_rent_{room}` | `total`、`1br`、`2br`、`3br` | 总体 50 月，分房型各 10 月；历史总体图、六大城市公寓表及 Toronto 房型图 |
+| `regional_asking_{region}_{room}`；`region` 为 `north_york`、`scarborough`、`vaughan`、`mississauga`、`oakville` | `total`、`1br`、`2br` | 总体各 10 月，统一采用 Top 25 公寓／condo 排名图；一／两卧各 5 月，采用公寓城市表 |
+| `regional_asking_markham_total` | 只有 `total` | 10 月，Top 25 公寓／condo 排名图；没有已接入的一／两／三卧系列 |
+
+完整地区／房型月度计数见[月度覆盖审计](RENTAL_COVERAGE_AUDIT.csv)。无观测组合不是零，也不证明来源永远没有该资料；Downtown、Richmond Hill、Aurora 独立月度序列仍未核验。Top 25 图缺席不代表没有出租房；不把口径不同的旧全物业表接到公寓序列。2026-04 五个地区总体的来源选择变更保留了旧数值版本，原因及原图见[来源覆盖](SOURCE_COVERAGE.md)。
+
+### CMHC 地区年度系列
+
+ID 为 `regional_cmhc_{region}_pbr_{measure}_{suffix}`；`measure=rent` 时后缀为 `studio`、`1br`、`2br`、`3plus`、`total`，`measure=vacancy` 时总体后缀为 `rate`、其余相同。每区登记 10 个系列。租金单位为 `CAD/month`，空置率为 `%`；均为年度 10 月、私人专建出租公寓调查，采用表 1.1.2／1.1.1。地区表没有另行接入 condo 房型系列。
+
+| `region` | 原始调查区（2021 分区） |
+| --- | --- |
+| `north_york` | North York (Zones 13-17) |
+| `scarborough` | Scarborough (Zones 10-12) |
+| `mississauga` | Mississauga City (Zones 18-20) |
+| `oakville` | Zone 23 - Oakville |
+| `markham` | Zone 27 - Markham |
+| `richmond_vaughan_king` | Zone 25 - Richmond Hill/Vaughan/King |
+| `aurora_newmarket_whit` | Zone 26 - Aurora, Newmkt, Whit-St. |
+
+2023 和 2025 工作簿各提供相邻两年，合计 2022—2025；组合调查区不能拆为单城或与月度同名地区无条件拼接。Markham 开间租金和开间空置率四年均被抑制，其他地区／房型也有个别年份抑制。2025 年七区 70 个目标单元格中有 59 个数值、11 个抑制；以原件单元格状态判断，不用最后有数值的年份冒充最新年度。
+
+### 原件解析与派生字段（不计入 121 个登记系列）
+
+- TRREB HPI 房型分项由对应月份已存档 PDF 即时解析：综合、独立式、附连式、镇屋、公寓分别给指数、基准房价、原报告同比。原报告同比可能使用修订后的上年值，与跨原发布版自算同比分开。
+- 建设分项由已存档 StatsCan ZIP 即时解析：开工／竣工／在建 × 总体、独立屋、半独立屋、排屋、公寓及其他。保留原表状态、分项合计差异和源文件哈希；不强改分项使其等于总数。HPI 房型和建设房型不可视为同一分类。
+- MOI、SNLR、同比、三月均线、共同基期累计变化、共同起止期地区变化及月供情景由应用计算，没有独立持久化的 `derived_observations` 表。月供采用加拿大名义年利率半年复利换算月率，只含本息；历史月供固定本金及摊还期，并非历史实际贷款账单。
+
+### 当前存储字段和版本边界
+
+| 实体 | 已有字段及含义 | 当前限制 |
+| --- | --- | --- |
+| `series` | `id`、`label`、`source`、`source_series`、`geography`、`unit`、`frequency`、`seasonal_adjustment`、`smoothing`、`definition` | 房型、边界、用途主要编码在 ID／描述中；没有独立倍率、房型和边界版本字段；来源链接另由目录及 `raw_files` 提供 |
+| `raw_files` | `sha256`、`path`、`source`、`source_url`、`retrieved_at`、`reference_period`、`method` | `retrieved_at` 由本地文件修改时间转 UTC，不能证明官方下载发生时间或正式发布时点；按内容哈希登记，不是每次请求的不可变事件日志 |
+| `observations` | `id`、`series_id`、`period`、`value`、`version`、`raw_sha256`、`first_seen_at`、`published_at`、`availability_evidence` | `period` 为日／月／年字符串；`first_seen_at` 是本地插入时间；`version` 是本地数值变化顺序，不是官方版本号；暂无独立 `available_at`、质量／抑制列及元数据审计表 |
+| `ingestion_runs` | 来源、开始时间、成功／失败、原件哈希、新增／未变／修订行数、错误摘要 | 记录导入批次，不能单独证明每个值在历史判断时点已可获得 |
+
+同值再次导入返回 `unchanged`，不新建观测或替换该观测的原件引用；批次与原件登记可留下本次来源，但没有逐观测采集证据关系。数值变化保留旧行并新增本地版本；同值的官方版本、质量、可用时间或定义变更还没有完整独立审计机制。质量、显著性与抑制状态由 CMHC 原件在运行时解析，不存为 `observations.value`；原件缺失时不能只靠数值库重建完整质量解释。
+
+`research.as_known_at` 目前只是保守筛选原型：要求 `published_at` 和 `availability_evidence` 非 NULL、发布日期含时区且不晚于判断时点，再取符合条件的最高本地版本。它没有验证证据内容、独立可用时间或官方版本顺序；审计脚本的字段完整率不等于严格回测已具备全部条件。正式研究仍须按[项目规格](PROJECT_SPEC.md)补齐版本级证据、实际可用时点与研究验收。
+
+展示快照包含代码白名单内每个期间的最新数值及生成时间，当前白名单覆盖全部登记系列，尚未经受众专属内容审定；不含原件路径、哈希、观测版本、质量或抑制证据。生成时间不是来源发布时间；展示端当前只有一般缺值提示，不能宣称与管理端具有同等来源解释和新鲜度能力。
+
+
+### 2026-09-23 首次接入记录（历史，已被后续回补覆盖）
 
 - 来源：Rentals.ca / Urbanation，2026 年 8 月报告内的公开图表 CSV；商业挂牌样本统计，非政府调查或 MLS 实际成交租金。
 - `toronto_asking_rent_total`：2022-07—2026-07，49 个月，CAD/month；专建出租公寓与 condo 合并，全房型原始总体均值。
@@ -65,4 +126,4 @@
 - 地区：Toronto (Rentals.ca market definition)，不声明与 Toronto CMA、City of Toronto 或 All TRREB Areas 边界完全一致。
 - 历史图表：<https://datawrapper.dwcdn.net/cTPkd/1/>；房型图表：<https://datawrapper.dwcdn.net/o6p6T/1/>。原始 HTML 和 CSV 均保存到 `data/raw/rentals`。
 - 2026-07 总体 2,577，一卧 2,242、两卧 2,956、三卧 3,655 加元/月。总体均值不是房型均值的简单平均；样本结构变化可能影响均值。
-- 2026-08 尚未接入，不补值；也不把报告标题中的 8 月当成观测月份。数据与记录页显示新鲜度不足。
+- 当时 2026-08 尚未接入，不补值；也不把报告标题中的 8 月当成观测月份。当时数据与记录页显示新鲜度不足。后续已扩展到本页顶部所列当前范围；过程及原图链接见[来源覆盖](SOURCE_COVERAGE.md)。

@@ -4,13 +4,15 @@
 
 本文是当前状态入口。旧版本已归档到 [历史交接](docs/history/HANDOFF_BEFORE_FUNCTIONAL_AUDIT_2026-09-23.md)，其中的旧数据量、旧布局和测试数不代表现状。术语、文档分工与维护规则见 [README](README.md)。
 
+2026-09-24 后续文档复核基线为 `530a3ac`：只读核对代码、SQLite、覆盖 CSV 与文档，未重跑业务测试或浏览器。发现的实际缺口见[验收表](docs/PROJECT_ACCEPTANCE.md)；此前测试通过不代表这些缺口已关闭。
+
 ## 状态速览
 
 | 项目 | 现状 |
 | --- | --- |
 | 看板 | 本地可用：完整管理页 `app.py` 默认需密码；只读展示页 `viewer_app.py` 读取筛选快照；尚未公开部署 |
-| 预测／领先信号 | **未完成，仍在范围内**：已实现历史可用时点审计与严格读取门禁，但逐期发布日期及修订证据尚未补入；信号规则与样本外回测未做，按揭仍有末端缺口 |
-| 数据库 | SQLite：121 系列，5,384 条含版本观测（5,379 个不同系列／期间），108 份登记原件，1 个既有月度记录；完整性 `ok`，外键检查无异常 |
+| 预测／领先信号 | **未完成，仍在范围内**：已有字段覆盖审计与单观测时点筛选原型；逐期发布日期及修订证据尚未补入，信号规则与完整样本外回测未做，按揭仍有末端缺口 |
+| 数据库 | SQLite：121 登记系列、119 有数值系列，5,384 条含版本观测（5,379 个不同系列／期间），108 份登记原件，1 个既有月度记录；此前完整性 `ok`，外键检查无异常；本次只读计数一致 |
 | 自动化测试 | 2026-09-24 全量 62 项通过，含最新租金原图、展示快照、管理门禁与研究时点检查 |
 | 验收层级 | 本地看板已有功能记录；完整 MVP 待逐项复核；领先信号另行研究与验收，三者不混为一个结论 |
 | 数据更新 | BoC／StatsCan 有手动安全刷新周期入口；Rentals.ca 最新 8 月观测已由人工核验入库；其他报告类仍需人工处理 |
@@ -26,10 +28,10 @@
 | Downtown、Markham 月度一／两卧及 North York 更长历史 | P1 优先调查 | 按用户常用地区优先核验；Downtown 先明确边界与来源。不可承诺一定有合适数据，不用总体替代卧室分项 |
 | Richmond Hill／Aurora、MLS 实际成交租金、纯 condo 预售／未吸纳库存 | P1 后续 | 原计划保留；组合调查区不能拆分，缺合适输入时记录不可用结论 |
 | 看板分隔线、边框与控件装饰线 | P2 部分完成 | 现有 Figma 六处 Divider 已隐藏并检查四张桌面／手机画板，CSS 已同步去重复线；图表线保留。完整浏览器宽度及键盘核对待做 |
-| 预测研究 | R0/R1 部分完成 | 可执行审计查明全部核心观测缺 `published_at`／可用证据；严格读取会拒绝未知时点。R2/R3 规则和样本外报告仍待做 |
-| 更新、展示与私有后台 | P3／P4 部分完成 | 本地只读快照、密码管理入口和官方来源刷新周期入口已落地；定时调度、报告来源自动更新、展示功能等价、远端身份及部署仍待做 |
+| 预测研究 | 审计／筛选原型 | 字段覆盖审计与单观测时点筛选已实现；缺真实版本证据、明确目标及完整研究流程，不能称 R0/R1 全部完成；R2/R3 未实现 |
+| 更新、展示与私有后台 | P3／P4 部分完成 | 尚需修复旧文件重放倒退、刷新后 manifest 同步；定时调度、报告自动更新、快照质量解释及回滚、批准展示功能、远端授权和部署待做 |
 | 图、表与表格联动 | 第 10 节部分完成 | 管理页部分分析区已有共同筛选驱动卡片、趋势、数据表及 CSV，地图选区同步地区摘要／趋势；点击表格行联动另一表或图、跨页面统一筛选尚未实现，展示页只覆盖子集 |
-| Git 版本管理 | 已初始化 | 本地 Git 仓库已建立；`data/`、`.venv/`、本机密码验证器均忽略，原件另保留私有备份；尚未建立远端仓库 |
+| Git 版本管理 | 已初始化 | 本地 Git 已建立；`data/`、`.venv/`、本机密码验证器均忽略。原件不受 Git 保护，独立完整备份位置及恢复验收未登记；尚未建立远端仓库 |
 
 按揭主系列已存在，末端缺期不等于整个指标组未接入。完整 MVP 仍保留“待复核”状态，按规格第 11 节逐项判断；正常发布滞后按各来源登记规则处理，不以“全部齐到同一月”代替验收。预测有效性单独验收。
 
@@ -143,8 +145,12 @@ PYTHONPATH=src .venv/bin/python -m housing.cli status
 - 指标说明：[metric_help.py](src/housing/metric_help.py)；语言：[i18n.py](src/housing/i18n.py)／[en.json](src/housing/en.json)。
 - 地区：[regional_view.py](src/housing/regional_view.py)／[regional_ingest.py](src/housing/regional_ingest.py)。
 - 解析与导入：[ingest.py](src/housing/ingest.py)；数据库：[db.py](src/housing/db.py)；命令行：`housing.cli`（需 `PYTHONPATH=src`）；测试：`tests/`。
-- 官方刷新：`PYTHONPATH=src .venv/bin/python scripts/refresh_official.py --source all`；`--source boc` 只检查央行。恢复：`.venv/bin/python scripts/check_restore.py`。
-- [Figma 文件](https://www.figma.com/design/xKNAErf19Uep7K3z5Lqvco)及[设计说明](design/FIGMA_REDESIGN_BRIEF.md)。文件链接已从现有设计文档补入；本次未检查画板是否覆盖地图、ⓘ、历史月供和最新规划。
+- 官方刷新：`PYTHONPATH=src .venv/bin/python scripts/refresh_official.py --source all`；`--source boc` 只检查央行。
+- 周期与展示：[run_refresh_cycle.py](scripts/run_refresh_cycle.py)／[publication.py](src/housing/publication.py)／[viewer_app.py](viewer_app.py)。运行周期不等于已安装定时任务；快照为各期最新版本的全部数值历史，非仅最新一期。
+- 本机身份：[owner_auth.py](src/housing/owner_auth.py)／[setup_owner_password.py](scripts/setup_owner_password.py)／[run_owner_local.sh](scripts/run_owner_local.sh)。密码轮换需重启进程，详见使用指南。
+- 研究：[research.py](src/housing/research.py)／[audit_research.py](scripts/audit_research.py)。尚无完整回测引擎。
+- `check_restore.py` 仅为当前现场的临时复制演练，不生成持久备份或执行真实恢复。完整步骤及限制见[使用指南](docs/USER_GUIDE.md)。
+- [Figma 文件](https://www.figma.com/design/xKNAErf19Uep7K3z5Lqvco)及[设计说明](design/FIGMA_REDESIGN_BRIEF.md)。已有总览／地区桌面和手机及空状态画板，9 月 24 日装饰线检查限于四张总览／地区画板；未覆盖所有管理页和新增交互。
 
 ## 待核对的证据
 
