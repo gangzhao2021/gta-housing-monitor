@@ -10,10 +10,10 @@ const COLORS = ['#2855d9','#007f86','#bf6517','#7952be'];
 const ROOM = {total:'total',studio:'studio','1br':'one','2br':'two','3br':'three','3plus':'threePlus'};
 const AREAS = {toronto:'Toronto',north_york:'North York',scarborough:'Scarborough',markham:'Markham',vaughan:'Vaughan',mississauga:'Mississauga',oakville:'Oakville',richmond_vaughan_king:'Richmond Hill / Vaughan / King',aurora_newmarket_whit:'Aurora / Newmarket / Whit-St.'};
 const MAP_POINTS = {toronto:[-79.3832,43.6532],north_york:[-79.4111,43.7615],scarborough:[-79.2318,43.7764],markham:[-79.3370,43.8561],vaughan:[-79.5083,43.8372],mississauga:[-79.6441,43.5890],oakville:[-79.6877,43.4675],richmond_vaughan_king:[-79.4700,43.8800],aurora_newmarket_whit:[-79.4400,44.0200]};
-const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',regions:['north_york','scarborough'],regionFeedback:'',principal:500000,years:25,rate:5,end:{}};
+const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',regions:['north_york','scarborough'],regionFeedback:'',supplyMetric:'moi_raw',principal:500000,years:25,rate:5,end:{}};
 const initialState=JSON.parse(JSON.stringify(state));
-function restoreView(){try{const q=JSON.parse(decodeURIComponent(location.hash.slice(1)));for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency']){const allowed={lang:['zh','en'],page:['market','rent','economy','mortgage'],rentMode:['monthly','annual','region'],room:Object.keys(ROOM),annualRoom:Object.keys(ROOM),regionRoom:Object.keys(ROOM),regionFrequency:['monthly','annual']};if(allowed[key].includes(q[key]))state[key]=q[key]}if(Object.hasOwn(PROPERTY_TYPES,q.districtType))state.districtType=q.districtType;if(typeof q.districtRegion==='string'&&/^[A-Za-z0-9 ./'()&-]{1,100}$/.test(q.districtRegion))state.districtRegion=q.districtRegion;if(['average_price','sales','new_listings','active_listings','median_price','avg_ldom'].includes(q.districtMetric))state.districtMetric=q.districtMetric;if(Array.isArray(q.regions))state.regions=q.regions.filter(r=>Object.hasOwn(AREAS,r)).slice(0,3);if(q.end&&typeof q.end==='object')for(const [k,v]of Object.entries(q.end)){if(/^[a-zA-Z0-9_-]{1,100}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)&&/^\d{4}(-\d{2})?$/.test(v))state.end[k]=v}}catch{}}
-function viewLink(){const q={};for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','regions','end','districtType','districtRegion','districtMetric'])q[key]=state[key];return '#'+encodeURIComponent(JSON.stringify(q))}
+function restoreView(){try{const q=JSON.parse(decodeURIComponent(location.hash.slice(1)));for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency']){const allowed={lang:['zh','en'],page:['market','rent','economy','mortgage'],rentMode:['monthly','annual','region'],room:Object.keys(ROOM),annualRoom:Object.keys(ROOM),regionRoom:Object.keys(ROOM),regionFrequency:['monthly','annual']};if(allowed[key].includes(q[key]))state[key]=q[key]}if(['moi_raw','snlr_raw'].includes(q.supplyMetric))state.supplyMetric=q.supplyMetric;if(Object.hasOwn(PROPERTY_TYPES,q.districtType))state.districtType=q.districtType;if(typeof q.districtRegion==='string'&&/^[A-Za-z0-9 ./'()&-]{1,100}$/.test(q.districtRegion))state.districtRegion=q.districtRegion;if(['average_price','sales','new_listings','active_listings','median_price','avg_ldom'].includes(q.districtMetric))state.districtMetric=q.districtMetric;if(Array.isArray(q.regions))state.regions=q.regions.filter(r=>Object.hasOwn(AREAS,r)).slice(0,3);if(q.end&&typeof q.end==='object')for(const [k,v]of Object.entries(q.end)){if(/^[a-zA-Z0-9_-]{1,100}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)&&/^\d{4}(-\d{2})?$/.test(v))state.end[k]=v}}catch{}}
+function viewLink(){const q={};for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','regions','end','districtType','districtRegion','districtMetric','supplyMetric'])q[key]=state[key];return '#'+encodeURIComponent(JSON.stringify(q))}
 restoreView();
 let payload, observations, monthly;
 let chartModels = [];
@@ -61,15 +61,16 @@ function calendarViewPeriods(fields,end,annual=false) {
   return periods;
 }
 const value = (field,period,annual=false) => annual? observations[field]?.[period] : monthly[period]?.[field];
-function help(field,visible) {
+function help(field,visible,iconOnly=false) {
   const m=meta(field), h=m.help?.[state.lang];
   if(!h) return esc(visible||name(field));
   const link=m.url?`<a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.source)} ↗</a>`:'';
-  return `<details class="info"><summary>${esc(visible||name(field))}<span class="help-icon" aria-hidden="true">ⓘ</span></summary><div class="bubble"><strong>${esc(t('impact'))}</strong><p>${esc(h[0])}</p><p>${esc(h[1])}</p>${link}</div></details>`;
+  return `<details class="info"><summary aria-label="${esc(name(field))}">${iconOnly?'':esc(visible||name(field))}<span class="help-icon" aria-hidden="true">ⓘ</span></summary><div class="bubble"><strong>${esc(t('impact'))}</strong><p>${esc(h[0])}</p><p>${esc(h[1])}</p>${link}</div></details>`;
 }
 function shell(body) {
   document.documentElement.lang=state.lang;
-  $('#app').innerHTML=`<header class="masthead"><div class="brand">${state.lang==='zh'?'大多伦多房市观察':'GTA HOUSING MONITOR'}</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav><h1>${t(state.page)}</h1><p class="caption intro">${t('snapshot')} ${esc(payload.snapshot.created_at)} · ${t('fixed')}</p><div class="controls"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button><a href="${esc(viewLink())}">${state.lang==='zh'?'此视图链接':'Link to this view'}</a></div>${body}<footer>${t('notForecast')}</footer>`;
+  $('#app').classList.toggle('overview',state.page==='market');
+  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1><p class="caption intro">${t('snapshot')} ${esc(payload.snapshot.created_at)} · ${t('fixed')}</p>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button><a href="${esc(viewLink())}">${state.lang==='zh'?'保存视图链接':'Save view link'}</a></div><p>${t('snapshot')} ${esc(payload.snapshot.created_at)}</p><p>${t('notForecast')}</p></footer>`;
   attach();
 }
 function select(label,key,periods,annual=false) {
@@ -91,11 +92,11 @@ function tooltipValue(field,v) {
   const units={sales:state.lang==='zh'?'宗':'sales',units:state.lang==='zh'?'套':'units',persons:state.lang==='zh'?'人':'people','月':state.lang==='zh'?'个月':'months'};
   return `${shown}${unit?` ${units[unit]||unit}`:''}`;
 }
-function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null,compact=false}={}) {
+function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null,compact=false,width=null,legend=true,unit=null}={}) {
   const narrow=window.innerWidth<=480;
-  const W=narrow?Math.max(300,Math.min(440,window.innerWidth-40)):(compact?520:680);
+  const W=narrow?Math.max(300,Math.min(440,window.innerWidth-40)):(width||(compact?520:680));
   const H=narrow?220:height;
-  const pad={l:narrow?47:(compact?47:55),r:28,t:15,b:30},innerW=W-pad.l-pad.r,innerH=H-pad.t-pad.b;
+  const pad={l:unit?65:(narrow?47:(compact?47:55)),r:28,t:15,b:30},innerW=W-pad.l-pad.r,innerH=H-pad.t-pad.b;
   const vals=fields.flatMap(f=>periods.map(p=>value(f,p,annual))).filter(v=>Number.isFinite(v));
   if(!vals.length) return `<p class="chart-empty">${t('noData')}</p>`;
   let min=zero?0:Math.min(...vals),max=Math.max(...vals);
@@ -108,7 +109,7 @@ function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null
   const ticks=periods.map((p,i)=>i===0||i===periods.length-1||i%step===0?`<text class="axis-label" x="${x(i)}" y="${H-5}" text-anchor="middle">${annual?p:p.slice(2).replace('-','/')}</text>`:'').join('');
   const lines=fields.map((f,j)=>{let paths=[],part=[];periods.forEach((p,i)=>{const v=value(f,p,annual);if(v==null){if(part.length){paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);part=[]}return}part.push(`${part.length?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`)});if(part.length)paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);return paths.join('')}).join('');
   const index=chartModels.push({fields,periods,annual,labels,W,H,pad,innerW,innerH,y})-1;
-  return `<div class="chart-area"><div class="legend">${fields.map((f,i)=>`<span class="legend-item"><span class="legend-line" style="--color:${COLORS[i%COLORS.length]}"></span>${help(f,labels?.[f])}</span>`).join('')}</div><div class="chart-wrap"><svg class="chart" data-chart="${index}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(fields.map(f=>labels?.[f]||name(f)).join(', '))}">${grids}${ticks}${lines}<line class="chart-cursor" data-cursor x1="0" x2="0" y1="${pad.t}" y2="${H-pad.b}" visibility="hidden"/><g data-points></g><rect class="chart-hit" x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="transparent" tabindex="0" role="button" aria-label="${state.lang==='zh'?'图表数据；使用左右方向键查看各期':'Chart values; use left and right arrows to inspect periods'}"/></svg><div class="chart-tooltip" hidden></div></div></div>`;
+  return `<div class="chart-area">${legend?`<div class="legend">${fields.map((f,i)=>`<span class="legend-item"><span class="legend-line series-color-${i%COLORS.length}"></span>${help(f,labels?.[f])}</span>`).join('')}</div>`:''}<div class="chart-wrap"><svg class="chart" data-chart="${index}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(fields.map(f=>labels?.[f]||name(f)).join(', '))}">${grids}${ticks}${unit?`<text class="axis-label" transform="translate(12 ${H/2}) rotate(-90)" text-anchor="middle">${esc(unit)}</text>`:''}${lines}<line class="chart-cursor" data-cursor x1="0" x2="0" y1="${pad.t}" y2="${H-pad.b}" visibility="hidden"/><g data-points></g><rect class="chart-hit" x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="transparent" tabindex="0" role="button" aria-label="${state.lang==='zh'?'图表数据；使用左右方向键查看各期':'Chart values; use left and right arrows to inspect periods'}"/></svg><div class="chart-tooltip" hidden></div></div></div>`;
 }
 function attachChartTooltips() {
   document.querySelectorAll('[data-chart]').forEach(svg=>{
@@ -123,7 +124,7 @@ function attachChartTooltips() {
       const period=periods[active],xx=x(active);
       cursor.setAttribute('x1',xx);cursor.setAttribute('x2',xx);cursor.setAttribute('visibility','visible');
       points.innerHTML=fields.map((f,j)=>{const v=value(f,period,annual);return v==null?'':`<circle class="chart-point" cx="${xx}" cy="${y(v)}" r="4" fill="${COLORS[j%COLORS.length]}"/>`}).join('');
-      tooltip.innerHTML=`<strong>${annual?period:monthLabel(period)}</strong>${fields.map((f,j)=>`<div class="tooltip-row"><span class="tooltip-key"><i style="--color:${COLORS[j%COLORS.length]}"></i>${esc(labels?.[f]||name(f))}</span><b>${esc(tooltipValue(f,value(f,period,annual)))}</b></div>`).join('')}`;
+      tooltip.innerHTML=`<strong>${annual?period:monthLabel(period)}</strong>${fields.map((f,j)=>`<div class="tooltip-row"><span class="tooltip-key"><i class="series-color-${j%COLORS.length}"></i>${esc(labels?.[f]||name(f))}</span><b>${esc(tooltipValue(f,value(f,period,annual)))}</b></div>`).join('')}`;
       tooltip.hidden=false;
       const left=Math.max(8,Math.min(wrap.clientWidth-tooltip.offsetWidth-8,xx/W*svg.clientWidth+8));
       tooltip.style.left=`${left}px`;
@@ -141,7 +142,16 @@ function attachChartTooltips() {
 }
 function freshnessLabel(field){const f=payload.snapshot.freshness?.[field];if(!f)return '—';const labels={current:['已更新','Current'],pending:['待发布','Pending release'],overdue:['需核查更新','Update needs checking'],missing:['无观测','Missing'],unknown:['节奏待核验','Cadence unverified'],archived:['归档','Archived']};return (labels[f.status]||labels.unknown)[state.lang==='zh'?0:1]}
 function sourceNote(){return `<p class="note">${t('sourceNote')}</p>`}
-function marketPage(){const fields=['trreb_hpi_benchmark','trreb_sales','moi_raw'];const end=last(fields,false,'market');if(!end)return `<p>${t('noData')}</p>`;const periods=viewPeriods(fields,end);return `<div class="controls">${select(t('date'),'market',allPeriods(fields))}</div><div class="metrics">${metric('trreb_hpi_benchmark',end)}${metric('trreb_sales',end)}${metric('moi_raw',end,2)}</div><h2>${t('price')}</h2>${svgChart(['trreb_hpi_benchmark'],periods,{height:255})}<h2>${t('sales')}</h2>${svgChart(['trreb_sales','trreb_new_listings'],periods)}<h2>${t('supply')}</h2><div class="split">${svgChart(['moi_raw'],periods,{compact:true})}${svgChart(['snlr_raw'],periods,{compact:true})}</div>${sourceNote()}${districtSection()}`}
+function marketPage(){
+ const fields=['trreb_hpi_benchmark','trreb_sales','moi_raw'];
+ const end=last(fields,false,'market');if(!end)return `<p>${t('noData')}</p>`;
+ const periods=viewPeriods(fields,end),zh=state.lang==='zh', supply=state.supplyMetric==='snlr_raw'?'snlr_raw':'moi_raw';
+ return `<div class="overview-heading"><div><h1>${t('market')}</h1><p class="caption">${zh?'TRREB 全市场 · 全部房型':'All TRREB areas · All home types'}</p></div>${select(t('date'),'market',allPeriods(fields))}</div>
+ <div class="metrics overview-metrics">${metric('trreb_hpi_benchmark',end)}${metric('trreb_sales',end)}${metric('moi_raw',end,2)}</div>
+ <section class="price-panel"><div class="chart-heading"><h2>${t('price')}</h2><span class="caption">${esc(periods[0])} — ${esc(end)}</span></div>${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:'CAD'})}<p class="note">${zh?'基准价格，不是成交均价。悬停、触摸或使用左右方向键查看各期数值。':'Benchmark price, not average sale price. Hover, touch or use arrow keys to inspect each period.'}</p></section>
+ <div class="split overview-support"><section><h2>${t('sales')}</h2>${svgChart(['trreb_sales','trreb_new_listings'],periods,{height:230,width:616,zero:true,unit:zh?'笔 / 套':'Sales / listings'})}</section><section><h2>${zh?'供需状况':'Market balance'}</h2><div class="supply-options" role="group" aria-label="${zh?'供需指标':'Supply measure'}">${['moi_raw','snlr_raw'].map(f=>`<span><button data-supply="${f}" aria-pressed="${supply===f}">${esc(name(f))}</button>${help(f,null,true)}</span>`).join('')}</div>${svgChart([supply],periods,{height:230,width:616,zero:true,legend:false,unit:supply==='moi_raw'?(zh?'月':'Months'):'%'})}</section></div>
+ ${districtSection()}<details class="overview-sources"><summary>${zh?'来源与口径':'Sources and definitions'}</summary>${sourceNote()}<p class="note">${t('fixed')}</p><a href="https://trreb.ca/market-data/market-watch/" target="_blank" rel="noopener noreferrer">TRREB Market Watch ↗</a></details>`;
+}
 function districtSection(){
  const rows=payload.snapshot.districts||[]; if(!rows.length)return '';
  state.districtType ||= 'all_types';state.districtRegion ||= 'Markham';state.districtMetric ||= 'average_price';
@@ -229,6 +239,7 @@ function monthlyPayment(principal,rate,years){if(principal<=0)return 0;const r=M
 function mortgagePage(){const {principal,years,rate}=state;return `<div class="controls"><label class="control">${t('principal')}<input data-number="principal" type="number" min="0" step="10000" value="${principal}"></label><label class="control">${t('years')}<input data-number="years" type="number" min="1" max="40" step="1" value="${years}"></label><label class="control">${t('rate')}<input data-number="rate" type="number" min="0" max="30" step="0.1" value="${rate}"></label></div><h2>${t('payment')}</h2><div class="payment-result">$${number(monthlyPayment(principal,rate,years),2)}</div><p class="note">${t('paymentNote')}</p>`}
 function render(){chartModels=[];shell(({market:marketPage,rent:rentPage,economy:economyPage,mortgage:mortgagePage})[state.page]());attachChartTooltips()}
 function attach(){
+  document.querySelectorAll("[data-supply]").forEach(el=>el.onclick=()=>{state.supplyMetric=el.dataset.supply;render();document.querySelector(`[data-supply="${state.supplyMetric}"]`)?.focus()});
   document.querySelector('[data-reset]').onclick=()=>{const lang=state.lang;Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,JSON.parse(JSON.stringify(initialState)),{lang});history.replaceState(null,'',location.pathname);render()};
   document.querySelectorAll('[data-district-month]').forEach(el=>el.onclick=()=>{state.end.district=el.dataset.districtMonth;render();document.querySelector('#district-section')?.setAttribute('open','')});
   document.querySelectorAll('[data-lang]').forEach(el=>el.onclick=()=>{state.lang=el.dataset.lang;render()});

@@ -76,3 +76,9 @@ Metric explanations must remain available when charts replace cards or use an ex
 ## Remaining design coverage
 
 Future implementation should extend this same file for missing approved display flows: filter summary/reset, table-row selection and clearing, loading/error/stale-data states, source/quality disclosure, and responsive economy/mortgage views. Specify selected, focus, empty, unavailable and keyboard-equivalent states before changing those interactions. Keep private record and administration actions outside display compositions. Record the frame IDs, screenshots, source-data date and which live route was compared; a Figma render alone does not verify the Streamlit interaction.
+
+## 2026-09-26 单页评审稿（尚未实施）
+
+按用户同意的先做单页方案，在原文件新增市场总览桌面画板 `26:35` 与手机画板 `26:160`，保留旧画板和线上版本。主图突出 HPI，成交与供需作为次级图；保持白底无图框、同色实线图例、原纵轴单位和帮助入口。地区转售入口默认收起是本次提案，尚未视为用户接受。详细链接、截图、快照时间和实施边界见 [评审说明](review-2026-09-26/README.md)。本次没有修改代码或发布网站，也未验证提案交互。
+
+2026-09-26 后续：用户已同意上述单页稿，已实现到 `site/dist/` 的市场总览并完成中英文响应式及交互检查。Streamlit 和其余业务页未套用该单页布局；Sites 发布记录以当前部署状态为准。
