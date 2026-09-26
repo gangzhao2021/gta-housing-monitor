@@ -73,9 +73,10 @@ function shell(body) {
   $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1><p class="caption intro">${t('snapshot')} ${esc(payload.snapshot.created_at)} · ${t('fixed')}</p>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button><a href="${esc(viewLink())}">${state.lang==='zh'?'保存视图链接':'Save view link'}</a></div><p>${t('snapshot')} ${esc(payload.snapshot.created_at)}</p><p>${t('notForecast')}</p></footer>`;
   attach();
 }
-function select(label,key,periods,annual=false) {
+function select(label,key,periods,annual=false,availablePeriods=periods) {
   const current=state.end[key]||periods.at(-1);
-  return `<label class="control">${esc(label)}<select data-end="${esc(key)}">${[...periods].reverse().map(p=>`<option value="${esc(p)}" ${p===current?'selected':''}>${annual?p:monthLabel(p)}</option>`).join('')}</select></label>`;
+  const available=new Set(availablePeriods);
+  return `<label class="control">${esc(label)}<select data-end="${esc(key)}">${[...periods].reverse().map(p=>`<option value="${esc(p)}" ${p===current?'selected':''} ${available.has(p)?'':'disabled'}>${annual?p:monthLabel(p)}</option>`).join('')}</select></label>`;
 }
 function metric(field,period,digits=0) {
   const v=value(field,period), prev=value(field,`${Number(period.slice(0,4))-1}${period.slice(4)}`), delta=(v!=null&&prev)?(v/prev-1)*100:null;
@@ -92,11 +93,40 @@ function tooltipValue(field,v) {
   const units={sales:state.lang==='zh'?'宗':'sales',units:state.lang==='zh'?'套':'units',persons:state.lang==='zh'?'人':'people','月':state.lang==='zh'?'个月':'months'};
   return `${shown}${unit?` ${units[unit]||unit}`:''}`;
 }
-function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null,compact=false,width=null,legend=true,unit=null}={}) {
+function hpiAnnotation(periods,x,y,plotH,W,narrow) {
+  const i=periods.indexOf('2025-04');
+  if(i<0)return '';
+  const zh=state.lang==='zh';
+  const lines=zh?(narrow?[
+    '注：2025-04 综合指数',
+    '341.7→320.0（−6.4%）为 TRREB',
+    '官方发布原值；同期基准房价',
+    '$1,068,500→$1,009,400（−5.5%）。',
+    '跨期解读注意口径可能变化。'
+  ]:[
+    '注：2025-04 综合指数 341.7→320.0（−6.4%）为 TRREB 官方发布原值；',
+    '同期基准房价 $1,068,500→$1,009,400（−5.5%）。跨期解读注意口径可能变化。'
+  ]):(narrow?[
+    'Note: TRREB published the 2025-04',
+    'composite index at 320.0, down from',
+    '341.7 (−6.4%). The benchmark price',
+    'fell from $1,068,500 to $1,009,400',
+    '(−5.5%). Compare periods with care;',
+    'the methodology may differ.'
+  ]:[
+    'Note: TRREB published the 2025-04 composite index at 320.0, down from 341.7 (−6.4%).',
+    'The benchmark price fell from $1,068,500 to $1,009,400 (−5.5%). Methodology may differ across periods.'
+  ]);
+  const xx=x(i),yy=y(value('trreb_hpi_benchmark','2025-04'));
+  const tx=narrow?12:55,ty=plotH+23;
+  return `<g class="hpi-annotation"><title>${esc(lines.join(' '))}</title><line class="hpi-guide" x1="${xx}" x2="${xx}" y1="${yy+6}" y2="${plotH-30}"/><circle class="hpi-marker" cx="${xx}" cy="${yy}" r="5"/>${lines.map((line,index)=>`<text class="hpi-note" x="${tx}" y="${ty+index*16}">${esc(line)}</text>`).join('')}</g>`;
+}
+function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null,compact=false,width=null,legend=true,unit=null,hpiNote=false}={}) {
   const narrow=window.innerWidth<=480;
   const W=narrow?Math.max(300,Math.min(440,window.innerWidth-40)):(width||(compact?520:680));
-  const H=narrow?220:height;
-  const pad={l:unit?65:(narrow?47:(compact?47:55)),r:28,t:15,b:30},innerW=W-pad.l-pad.r,innerH=H-pad.t-pad.b;
+  const noteHeight=hpiNote&&periods.includes('2025-04')?(narrow?122:72):0;
+  const H=(narrow?220:height)+noteHeight,plotH=H-noteHeight;
+  const pad={l:unit?65:(narrow?47:(compact?47:55)),r:28,t:15,b:30},innerW=W-pad.l-pad.r,innerH=plotH-pad.t-pad.b;
   const vals=fields.flatMap(f=>periods.map(p=>value(f,p,annual))).filter(v=>Number.isFinite(v));
   if(!vals.length) return `<p class="chart-empty">${t('noData')}</p>`;
   let min=zero?0:Math.min(...vals),max=Math.max(...vals);
@@ -106,10 +136,10 @@ function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null
   const y=v=>pad.t+(max-v)/(max-min)*innerH;
   const grids=Array.from({length:5},(_,i)=>{const yy=pad.t+i*innerH/4, vv=max-i*(max-min)/4;return `<line class="grid-line" x1="${pad.l}" x2="${W-pad.r}" y1="${yy}" y2="${yy}"/><text class="axis-label" x="${pad.l-9}" y="${yy+4}" text-anchor="end">${axisNumber(vv)}</text>`}).join('');
   const step=Math.max(1,Math.ceil((periods.length-1)/(narrow?2:4)));
-  const ticks=periods.map((p,i)=>i===0||i===periods.length-1||i%step===0?`<text class="axis-label" x="${x(i)}" y="${H-5}" text-anchor="middle">${annual?p:p.slice(2).replace('-','/')}</text>`:'').join('');
+  const ticks=periods.map((p,i)=>i===0||i===periods.length-1||i%step===0?`<text class="axis-label" x="${x(i)}" y="${plotH-5}" text-anchor="middle">${annual?p:p.slice(2).replace('-','/')}</text>`:'').join('');
   const lines=fields.map((f,j)=>{let paths=[],part=[];periods.forEach((p,i)=>{const v=value(f,p,annual);if(v==null){if(part.length){paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);part=[]}return}part.push(`${part.length?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`)});if(part.length)paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);return paths.join('')}).join('');
   const index=chartModels.push({fields,periods,annual,labels,W,H,pad,innerW,innerH,y})-1;
-  return `<div class="chart-area">${legend?`<div class="legend">${fields.map((f,i)=>`<span class="legend-item"><span class="legend-line series-color-${i%COLORS.length}"></span>${help(f,labels?.[f])}</span>`).join('')}</div>`:''}<div class="chart-wrap"><svg class="chart" data-chart="${index}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(fields.map(f=>labels?.[f]||name(f)).join(', '))}">${grids}${ticks}${unit?`<text class="axis-label" transform="translate(12 ${H/2}) rotate(-90)" text-anchor="middle">${esc(unit)}</text>`:''}${lines}<line class="chart-cursor" data-cursor x1="0" x2="0" y1="${pad.t}" y2="${H-pad.b}" visibility="hidden"/><g data-points></g><rect class="chart-hit" x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="transparent" tabindex="0" role="button" aria-label="${state.lang==='zh'?'图表数据；使用左右方向键查看各期':'Chart values; use left and right arrows to inspect periods'}"/></svg><div class="chart-tooltip" hidden></div></div></div>`;
+  return `<div class="chart-area">${legend?`<div class="legend">${fields.map((f,i)=>`<span class="legend-item"><span class="legend-line series-color-${i%COLORS.length}"></span>${help(f,labels?.[f])}</span>`).join('')}</div>`:''}<div class="chart-wrap"><svg class="chart" data-chart="${index}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(fields.map(f=>labels?.[f]||name(f)).join(', '))}">${grids}${ticks}${unit?`<text class="axis-label" transform="translate(12 ${plotH/2}) rotate(-90)" text-anchor="middle">${esc(unit)}</text>`:''}${lines}${hpiNote?hpiAnnotation(periods,x,y,plotH,W,narrow):''}<line class="chart-cursor" data-cursor x1="0" x2="0" y1="${pad.t}" y2="${plotH-pad.b}" visibility="hidden"/><g data-points></g><rect class="chart-hit" x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="transparent" tabindex="0" role="button" aria-label="${state.lang==='zh'?'图表数据；使用左右方向键查看各期':'Chart values; use left and right arrows to inspect periods'}"/></svg><div class="chart-tooltip" hidden></div></div></div>`;
 }
 function attachChartTooltips() {
   document.querySelectorAll('[data-chart]').forEach(svg=>{
@@ -148,7 +178,7 @@ function marketPage(){
  const periods=viewPeriods(fields,end),zh=state.lang==='zh', supply=state.supplyMetric==='snlr_raw'?'snlr_raw':'moi_raw';
  return `<div class="overview-heading"><div><h1>${t('market')}</h1><p class="caption">${zh?'TRREB 全市场 · 全部房型':'All TRREB areas · All home types'}</p></div>${select(t('date'),'market',allPeriods(fields))}</div>
  <div class="metrics overview-metrics">${metric('trreb_hpi_benchmark',end)}${metric('trreb_sales',end)}${metric('moi_raw',end,2)}</div>
- <section class="price-panel"><div class="chart-heading"><h2>${t('price')}</h2><span class="caption">${esc(periods[0])} — ${esc(end)}</span></div>${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:'CAD'})}<p class="note">${zh?'基准价格，不是成交均价。悬停、触摸或使用左右方向键查看各期数值。':'Benchmark price, not average sale price. Hover, touch or use arrow keys to inspect each period.'}</p></section>
+ <section class="price-panel"><div class="chart-heading"><h2>${t('price')}</h2><span class="caption">${esc(periods[0])} — ${esc(end)}</span></div>${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:'CAD',hpiNote:true})}<p class="note">${zh?'基准价格，不是成交均价。悬停、触摸或使用左右方向键查看各期数值。':'Benchmark price, not average sale price. Hover, touch or use arrow keys to inspect each period.'}</p></section>
  <div class="split overview-support"><section><h2>${t('sales')}</h2>${svgChart(['trreb_sales','trreb_new_listings'],periods,{height:230,width:616,zero:true,unit:zh?'笔 / 套':'Sales / listings'})}</section><section><h2>${zh?'供需状况':'Market balance'}</h2><div class="supply-options" role="group" aria-label="${zh?'供需指标':'Supply measure'}">${['moi_raw','snlr_raw'].map(f=>`<span><button data-supply="${f}" aria-pressed="${supply===f}">${esc(name(f))}</button>${help(f,null,true)}</span>`).join('')}</div>${svgChart([supply],periods,{height:230,width:616,zero:true,legend:false,unit:supply==='moi_raw'?(zh?'月':'Months'):'%'})}</section></div>
  ${districtSection()}<details class="overview-sources"><summary>${zh?'来源与口径':'Sources and definitions'}</summary>${sourceNote()}<p class="note">${t('fixed')}</p><a href="https://trreb.ca/market-data/market-watch/" target="_blank" rel="noopener noreferrer">TRREB Market Watch ↗</a></details>`;
 }
@@ -224,11 +254,12 @@ function rentPage(){
   const present=fields.filter(f=>observations[f]);
   const periods=present.length?allPeriods(present,annual):[];
   const end=present.length?last(present,annual):null;
+  const chartPeriods=end?(annual?viewPeriods(present,end,true):calendarViewPeriods(present,end)):[];
   const names=Object.fromEntries(state.regions.map((r,i)=>[fields[i],AREAS[r]]));
-  out+=`<div class="controls"><label class="control">${t('annual')} / ${t('monthly')}<select data-state="regionFrequency"><option value="monthly" ${!annual?'selected':''}>${t('monthly')}</option><option value="annual" ${annual?'selected':''}>${t('annual')}</option></select></label>${roomSelect('regionRoom',annual)}${periods.length?select(annual?t('year'):t('date'),present.join('-'),periods,annual):''}</div>`;
+  out+=`<div class="controls"><label class="control">${t('annual')} / ${t('monthly')}<select data-state="regionFrequency"><option value="monthly" ${!annual?'selected':''}>${t('monthly')}</option><option value="annual" ${annual?'selected':''}>${t('annual')}</option></select></label>${roomSelect('regionRoom',annual)}${chartPeriods.length?select(annual?t('year'):t('date'),present.join('-'),chartPeriods,annual,periods):''}</div>`;
   out+=areaMap(choices,annual,end||periods.at(-1));
   out+=`<div class="region-options" role="group" aria-label="${t('regionLabel')}">${choices.map(([id,label])=>`<label><input type="checkbox" data-region="${id}" ${state.regions.includes(id)?'checked':''}>${esc(label)}</label>`).join('')}</div>`;
-  out+=end?svgChart(present,calendarViewPeriods(present,end,annual),{annual,height:260,labels:names}):`<p class="chart-empty">${t('noData')}</p>`;
+  out+=end?svgChart(present,chartPeriods,{annual,height:260,labels:names}):`<p class="chart-empty">${t('noData')}</p>`;
   out+=sourceNote();
   return out;
 }
@@ -252,7 +283,14 @@ function attach(){
     el.onclick=()=>toggleRegion(el.dataset.mapRegion,Object.entries(AREAS).filter(([id])=>state.regionFrequency==='annual'?id!=='toronto':!id.includes('richmond')&&!id.includes('aurora')));
     el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();el.click()}};
   });
-  document.querySelectorAll('[data-number]').forEach(el=>el.onchange=()=>{const value=Number(el.value);state[el.dataset.number]=Number.isFinite(value)?value:0;render()});
+  document.querySelectorAll('[data-number]').forEach(el=>el.oninput=()=>{
+    const value=Number(el.value);
+    const valid=el.value!==''&&Number.isFinite(value);
+    if(valid)state[el.dataset.number]=value;
+    const allValid=[...document.querySelectorAll('[data-number]')].every(input=>input.value!==''&&Number.isFinite(Number(input.value)))&&state.years>0;
+    document.querySelector('.payment-result').textContent=allValid
+      ? `$${number(monthlyPayment(state.principal,state.rate,state.years),2)}` : '—';
+  });
 }
 fetch('data.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json()}).then(data=>{payload=data;prepare();render()}).catch(()=>{$('#app').innerHTML='<p class="message">已发布的资料快照暂时无法读取。 / Published data snapshot could not be loaded.</p>'});
 
