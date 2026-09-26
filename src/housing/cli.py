@@ -1,5 +1,7 @@
 import argparse
 import csv
+import fcntl
+from contextlib import nullcontext
 from pathlib import Path
 
 from .db import connect
@@ -26,7 +28,19 @@ def main():
     parser.add_argument("--pdf", type=Path, help="TRREB source PDF paired with manual CSV")
     parser.add_argument("--source-url", help="Required with a custom file")
     args = parser.parse_args()
-    db = connect(args.db)
+    args.db.parent.mkdir(parents=True, exist_ok=True)
+    lock_context = (args.db.parent / '.refresh-official.lock').open('w') if args.source != 'status' else nullcontext(None)
+    with lock_context as lock:
+        if lock is not None:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        db = connect(args.db)
+        try:
+            _run(db, args, parser)
+        finally:
+            db.close()
+
+
+def _run(db, args, parser):
     if args.file and not args.source_url:
         parser.error("--source-url is required with --file")
     if args.source == "status":

@@ -120,7 +120,7 @@ class ExternalFactorsTests(unittest.TestCase):
                 result = run_cycle(root, runner)
             self.assertTrue(result["snapshot_published"])
             self.assertEqual(result["factors_exit_code"], 1)
-            self.assertEqual(len(calls), 3)
+            self.assertEqual(len(calls), 5)
 
 
 if __name__ == "__main__":

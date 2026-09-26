@@ -44,6 +44,13 @@ RENT = ('租金上升可能反映租赁需求强于供应，也可能提高出�
 VACANCY = ('空置率上升通常意味着租客选择增加，租金上涨压力减弱，也可能削弱出租物业的收入预期。','对房价的影响是间接的；需结合地区、房型、租金和融资成本判断。','Higher vacancy generally gives renters more choice, easing rent pressure and potentially weakening expected rental income.','The effect on home prices is indirect and depends on location, unit type, rents and financing costs.', BOC)
 
 
+from .background_series import CONFIG as BACKGROUND_CONFIG, url_for
+for c in BACKGROUND_CONFIG.values():
+    if not c.get('archived'):
+        HELP[c['id']] = (c['definition'], '描述性背景，尚未验证预测价值；按来源地区与所属期解释。',
+                        c['title'], 'Descriptive context; not a validated forecast. Respect the source geography and reference period.', url_for(c))
+
+
 def explanation(field):
     if field in HELP:
         return HELP[field]
@@ -63,7 +70,7 @@ def help_label(field, text):
     zh, caveat_zh, en, caveat_en, url = content
     heading, reference = ('How it relates to home prices', 'Background · Bank of Canada') if english() else ('如何影响房价', '机制参考 · 加拿大央行')
     if field in ('wti_cushing_spot_price', 'usd_cad_monthly', 'boc_energy_price_index',
-                 'toronto_residential_construction_cost_index'):
+                 'toronto_residential_construction_cost_index') or field in {c['id'] for c in BACKGROUND_CONFIG.values()}:
         reference = ('Official source · ' if english() else '官方来源 · ') + SERIES[field][1]
     body, caveat = (en, caveat_en) if english() else (zh, caveat_zh)
     # Native disclosure supplies touch/keyboard toggling; CSS adds pointer-hover preview.

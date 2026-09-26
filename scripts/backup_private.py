@@ -29,7 +29,7 @@ def backup(destination, root=ROOT):
         finally:
             copy.close()
             original.close()
-        for folder in ("raw", "manual", "observations", "display_history", "run_reports", "backups"):
+        for folder in ("raw", "manual", "observations", "display_history", "run_reports", "backups", "research", "audit"):
             source = root / "data" / folder
             if source.exists():
                 shutil.copytree(source, data / folder)
@@ -38,6 +38,9 @@ def backup(destination, root=ROOT):
         for folder in ("src", "scripts", "docs", "design", "tests"):
             shutil.copytree(root / folder, destination / folder,
                             ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        if (root / "site").exists():
+            shutil.copytree(root / "site", destination / "site",
+                            ignore=shutil.ignore_patterns(".git", "node_modules", "__pycache__", "*.pyc"))
         for name in ("app.py", "viewer_app.py", "README.md", "HANDOFF.md",
                      "requirements.lock", "requirements.txt"):
             shutil.copy2(root / name, destination / name)

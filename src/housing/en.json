@@ -473,5 +473,11 @@
   "美国 WTI 现货月均价；国际能源背景，不等于 Ontario 零售能源或 GTA 建筑成本；尚未验证房价预测增量价值": "U.S. WTI monthly spot price: international energy context, not Ontario retail energy or GTA construction cost. Forecast value is unproven.",
   "1 美元兑换的加元数；上升代表加元相对美元走弱，不直接表示 GTA 外国买家需求": "Canadian dollars per U.S. dollar. A higher value means a weaker Canadian dollar against the U.S. dollar; it does not measure GTA foreign-buyer demand.",
   "加拿大商品价格指数能源组；不是 WTI 或本地能源账单。底层缺源时可能沿用前值，后续会修订": "Energy component of Canada's commodity price index, not WTI or a local energy bill. Some underlying missing values may carry forward, and historical values may be revised.",
-  "住宅建筑 Division composite 报价指数；季度以首月登记，非地价、融资成本或转售房价": "Residential building composite construction cost index. Stored by the quarter's first month; it excludes land and financing costs and is not a resale home price."
+  "住宅建筑 Division composite 报价指数；季度以首月登记，非地价、融资成本或转售房价": "Residential building composite construction cost index. Stored by the quarter's first month; it excludes land and financing costs and is not a resale home price.",
+  "特许银行最优惠贷款利率": "Chartered bank prime rate",
+  "传统五年期按揭公布利率": "Conventional five-year mortgage rate",
+  "Toronto 新房价格指数（房屋及土地）": "Toronto new housing price index (house and land)",
+  "Ontario 居住成本 CPI": "Ontario shelter CPI",
+  "Toronto 住宅许可新增单位（停更历史表）": "Toronto residential units authorized (archived)",
+  "Toronto 住宅许可新增单位": "Toronto residential units authorized"
 }

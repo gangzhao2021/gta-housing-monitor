@@ -14,7 +14,7 @@ from housing.i18n import st, english
 from housing.catalog import SERIES, SERIES_URLS
 from housing.dashboard import css, cards, indicator_legend, line_chart, label, note
 from housing.presentation import available_periods, period_label
-from housing.publication import load_display_snapshot, monthly_display
+from housing.publication import load_display_snapshot, monthly_display, CONTEXT_SERIES
 from housing.regions import MONTHLY_REGIONS, CMHC_REGIONS, asking_id, cmhc_id
 from housing.metric_help import help_label
 
@@ -78,6 +78,8 @@ if page == "市场总览":
             indicator_legend(["snlr_raw"])
             line_chart(data, ["snlr_raw"], start, end, external_legend=True)
         st.caption("TRREB 全市场月度资料。价格为 HPI 基准价，非平均成交价；历史序列为当前所存版本。")
+    from housing.district_view import render as render_districts
+    render_districts(snapshot.get('districts', []))
     if snapshot.get("context"):
         st.info("新增能源、汇率与建筑造价背景资料：见“经济与供给”页底部。")
 elif page == "租赁市场":
@@ -175,8 +177,7 @@ elif page == "经济与供给":
     st.subheader("外部背景（研究中）")
     st.caption("仅供解释市场背景；油价暂不上图，这些指标尚未用于评分或预测。不同地区、频率与单位不能直接合并。")
     context_html_rows = []
-    context_fields = ("wti_cushing_spot_price", "usd_cad_monthly", "boc_energy_price_index",
-                      "toronto_residential_construction_cost_index")
+    context_fields = sorted(CONTEXT_SERIES)
     for field in context_fields:
         item = snapshot.get("context", {}).get(field)
         decimals = 4 if field == "usd_cad_monthly" else 1 if field == "toronto_residential_construction_cost_index" else 2
@@ -187,9 +188,7 @@ elif page == "经济与供给":
         row = {"指标": SERIES[field][0],
                "最近值": f"{item['value']:,.{decimals}f}" if item else "—",
                "单位": SERIES[field][4], "资料期": period,
-               "地区": ("Cushing, US" if field == "wti_cushing_spot_price" else
-                       "Toronto CMA" if field == "toronto_residential_construction_cost_index" else
-                       "Canada")}
+               "地区": SERIES[field][3]}
         context_html_rows.append(
             '<tr><th scope="row">' + help_label(field, row["指标"]) + '</th>'
             + ''.join(f'<td data-label="{escape(column)}">{escape(row[column])}</td>'

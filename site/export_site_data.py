@@ -42,6 +42,7 @@ for field in fields:
         "en": translate(name),
         "unit": unit,
         "source": source_name,
+        "geography": source[3] if source else "All TRREB Areas",
         "url": url,
     }
     if details := explanation(field):
@@ -50,5 +51,7 @@ for field in fields:
 
 payload = {"snapshot": snapshot, "series": metadata}
 output = Path(__file__).resolve().parent / "dist/data.json"
-output.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+temporary = output.with_suffix('.json.tmp')
+temporary.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+temporary.replace(output)
 print(f"Exported {len(snapshot['observations'])} history series and {len(snapshot.get('context', {}))} context values to {output}")

@@ -41,13 +41,18 @@ def run_cycle(root=ROOT, runner=subprocess.run):
             lock_path.chmod(0o600)
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             refresh = runner([sys.executable, str(root / "scripts/refresh_official.py"), "--source", "core"],
-                             cwd=root, capture_output=True, text=True)
+                             cwd=root, capture_output=True, text=True, timeout=900)
             report.update({"refresh_exit_code": refresh.returncode,
                            "refresh_stdout": refresh.stdout[-4000:], "refresh_stderr": refresh.stderr[-4000:]})
             if refresh.returncode == 0:
                 report["recovery_check"] = verify_dataset(root)
+                trreb = runner([sys.executable, str(root / 'scripts/refresh_trreb.py')],
+                               cwd=root, capture_output=True, text=True, timeout=900)
+                report.update(trreb_exit_code=trreb.returncode, trreb_stdout=trreb.stdout[-4000:],
+                              trreb_stderr=trreb.stderr[-4000:])
+                report['trreb_recovery_check'] = verify_dataset(root)
                 publish = runner([sys.executable, str(root / "scripts/publish_display.py")],
-                                 cwd=root, capture_output=True, text=True)
+                                 cwd=root, capture_output=True, text=True, timeout=900)
                 report["publish_exit_code"] = publish.returncode
                 report["snapshot_published"] = publish.returncode == 0
                 if publish.returncode:
@@ -55,7 +60,7 @@ def run_cycle(root=ROOT, runner=subprocess.run):
                 if report["snapshot_published"]:
                     factors = runner([sys.executable, str(root / "scripts/refresh_official.py"),
                                       "--source", "factors"],
-                                     cwd=root, capture_output=True, text=True)
+                                     cwd=root, capture_output=True, text=True, timeout=900)
                     report.update({"factors_exit_code": factors.returncode,
                                    "factors_stdout": factors.stdout[-4000:],
                                    "factors_stderr": factors.stderr[-4000:]})
@@ -64,10 +69,15 @@ def run_cycle(root=ROOT, runner=subprocess.run):
                     report["factor_recovery_check"] = verify_dataset(root)
                     if factors.returncode == 0:
                         context_publish = runner([sys.executable, str(root / "scripts/publish_display.py")],
-                                                 cwd=root, capture_output=True, text=True)
+                                                 cwd=root, capture_output=True, text=True, timeout=900)
                         report["context_publish_exit_code"] = context_publish.returncode
                         if context_publish.returncode:
                             report["context_publish_error"] = context_publish.stderr[-4000:]
+                    export = runner([sys.executable, str(root / 'site/export_site_data.py')],
+                                    cwd=root, capture_output=True, text=True, timeout=120)
+                    report.update(site_export_exit_code=export.returncode,
+                                  site_export_error=export.stderr[-4000:],
+                                  site_deployment='not_deployed_local_export_only')
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"
     finally:
@@ -80,4 +90,5 @@ if __name__ == "__main__":
     result = run_cycle()
     print(json.dumps(result, ensure_ascii=False))
     raise SystemExit(0 if result["snapshot_published"] and result.get("factors_exit_code") == 0
-                     and result.get("context_publish_exit_code") == 0 else 1)
+                     and result.get("context_publish_exit_code") == 0
+                     and result.get('trreb_exit_code') == 0 and result.get('site_export_exit_code') == 0 else 1)

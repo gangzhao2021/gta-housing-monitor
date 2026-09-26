@@ -1,0 +1,41 @@
+{
+  "version": "2026-09-26-v1",
+  "status": "frozen_experiment_not_validated",
+  "cutoff": "calendar month end 23:59:59 America/Toronto",
+  "targets": [
+    "trreb_sales",
+    "trreb_hpi_benchmark"
+  ],
+  "horizons_months": [
+    3,
+    6
+  ],
+  "target_formula": "100 * (value(t+h) / value(t) - 1)",
+  "target_vintage": "earliest evidenced official publication for each target period",
+  "neutral_band_pct": {
+    "trreb_sales": 5,
+    "trreb_hpi_benchmark": 1
+  },
+  "seasonality": "unadjusted; compare with seasonal-naive baseline, do not interpret raw sales growth as seasonally adjusted",
+  "training_end": "2024-08",
+  "test_start": "2024-09",
+  "minimum_training_samples": 12,
+  "minimum_test_samples": 12,
+  "baselines": [
+    "no_change",
+    "seasonal_naive"
+  ],
+  "candidate": "previous-three-month momentum using t-1 and t-4 observations available by cutoff; continued over horizon",
+  "missing": "exclude case; no imputation; record reason",
+  "revision_order": "official evidenced availability time, never local ingestion version",
+  "metrics": [
+    "MAE percentage points",
+    "direction accuracy",
+    "false up",
+    "missed up",
+    "non-overlapping origin subset"
+  ],
+  "adoption": "experimental only; no automatic adoption from a short single-cycle sample",
+  "feature_lag_months": 1,
+  "seasonal_naive": "100 * (value(t+h-13) / value(t-13) - 1), using only evidenced vintages at cutoff"
+}

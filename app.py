@@ -168,6 +168,9 @@ if page == "市场总览":
     except (ValueError, FileNotFoundError) as exc:
         st.warning(f"该月房型原表未通过来源检查：{exc}")
 
+    from housing.districts import display_rows
+    from housing.district_view import render as render_districts
+    render_districts(display_rows(db))
 elif page == "租赁市场":
     with st.container(key="rental-view-nav"):
         view = st.radio("租金数据口径", ["月度挂牌租金", "年度存量租金（CMHC）", "地区租金对比"],

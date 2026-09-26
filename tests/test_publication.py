@@ -230,5 +230,5 @@ class PublicationTests(unittest.TestCase):
                 report = run_cycle(root, successful_refresh)
             self.assertTrue(report["snapshot_published"])
             self.assertEqual(report["recovery_check"], {"source_files": 1})
-            self.assertEqual(len(calls), 5)
+            self.assertEqual(len(calls), 7)
             self.assertEqual(report["context_publish_exit_code"], 0)

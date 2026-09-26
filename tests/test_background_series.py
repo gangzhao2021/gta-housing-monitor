@@ -78,7 +78,8 @@ class BackgroundSeriesTests(unittest.TestCase):
         self.assertEqual(_due_date(RULES['toronto_permits_units'].release_rule, '2026-08'), date(2026, 10, 31))
         for c in CONFIG.values():
             self.assertIn(c['id'], RULES)
-            self.assertNotIn(c['id'], DISPLAY_SERIES | CONTEXT_SERIES)
+            self.assertNotIn(c['id'], DISPLAY_SERIES)
+            self.assertEqual(c['id'] in CONTEXT_SERIES, not c.get('archived', False))
         db.close()
 
 

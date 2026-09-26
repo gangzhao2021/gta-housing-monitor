@@ -177,3 +177,9 @@ schema 2 展示快照包含原有 121 个白名单展示系列每个期间的最
 | `source_pdf`, `source_pdf_sha256` | 原 PDF 文件名与完整 SHA256 |
 
 房型代码：`all_types`, `detached`, `semi_detached`, `townhouse`, `condo_townhouse`, `condo_apartment`, `link`, `coop_apartment`, `detached_condo`, `coownership_apartment`。不同房型页未提供的趋势／PDOM 列保持空白；零成交行不臆造均价、中位价或成交额。地区包含父级、子级和 Toronto district，不能把全部行相加。全房型 All TRREB Areas 才与首页全市场销量比较；单房型总计分别保留。
+
+## 地区转售版本表与展示契约（2026-09-26）
+
+`district_observations` 以 `(ym, house_type, region, version)` 为主键；`values_json` 保存提取 CSV 的 11 个数值字段，`raw_sha256` 绑定不可变 CSV，`pdf_sha256` 绑定该期官方 PDF。重复相同值不新增版本，已见旧原件不能覆盖新版本。该表独立于总市场 `observations`，不改变总表历史值。
+
+展示快照可选字段 `districts` 只含年月、房型、地区与上述数值；不含文件路径、哈希或导入记录。`freshness` 只发布来源节奏对应的状态、最新／预期期间、落后期数及缺期列表。`unknown` 表示节奏未核验；`pending` 只是本地发布规则尚未到期，不证明官网一定未发布。

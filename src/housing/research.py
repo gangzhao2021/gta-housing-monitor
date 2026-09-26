@@ -32,9 +32,11 @@ def as_known_at(db, series_id, period, cutoff):
     ).fetchall()
     eligible = []
     for row in rows:
+        if not row["availability_evidence"].strip():
+            continue
         published = datetime.fromisoformat(row["published_at"])
         if published.tzinfo is None:
             raise ValueError("published_at must include a timezone")
         if published <= cutoff:
-            eligible.append(row)
-    return eligible[0] if eligible else None
+            eligible.append((published, row))
+    return max(eligible, key=lambda item: item[0])[1] if eligible else None

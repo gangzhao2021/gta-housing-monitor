@@ -27,6 +27,8 @@ CONTEXT_SERIES = frozenset({
     "wti_cushing_spot_price", "usd_cad_monthly", "boc_energy_price_index",
     "toronto_residential_construction_cost_index",
 })
+from .background_series import CONFIG as BACKGROUND_CONFIG
+CONTEXT_SERIES |= frozenset(c['id'] for c in BACKGROUND_CONFIG.values() if not c.get('archived'))
 
 
 def build_display_snapshot(db, *, created_at=None):
@@ -42,15 +44,51 @@ def build_display_snapshot(db, *, created_at=None):
         if rows:
             row = rows[-1]
             context[key] = {"period": row["period"], "value": row["value"]}
+    from .districts import display_rows
+    from .freshness import assess
     return {
         "schema_version": 2,
         "created_at": created_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "observations": observations,
         "context": context,
+        "districts": display_rows(db),
+        "freshness": {key: assess(db, key) for key in sorted(DISPLAY_SERIES | CONTEXT_SERIES)},
     }
 
 
 def validate_display_snapshot(value):
+    if set(value) - {'schema_version', 'created_at', 'observations', 'context', 'districts', 'freshness'}:
+        raise ValueError('Unexpected display snapshot fields')
+    from .districts import FIELDS, TYPES
+    seen = set()
+    for row in value.get('districts', []):
+        if set(row) != {'ym', 'house_type', 'region', *FIELDS}:
+            raise ValueError('Unexpected district display fields')
+        if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', row['ym']) or row['house_type'] not in TYPES:
+            raise ValueError('Invalid district period or type')
+        if not isinstance(row['region'], str) or not re.fullmatch(r"[A-Za-z0-9 ./'()&-]{1,100}", row['region']):
+            raise ValueError('Invalid district region')
+        key = (row['ym'], row['house_type'], row['region'])
+        if key in seen:
+            raise ValueError('Duplicate district display row')
+        seen.add(key)
+        if any(row[k] is not None and (not isinstance(row[k], (int, float)) or isinstance(row[k], bool)
+                                      or not math.isfinite(row[k]) or row[k] < 0) for k in FIELDS):
+            raise ValueError('Invalid district display value')
+    for key, state in value.get('freshness', {}).items():
+        if key not in DISPLAY_SERIES | CONTEXT_SERIES or set(state) - {'status', 'latest_period', 'expected_period', 'lag', 'missing_periods', 'internal_gaps'}:
+            raise ValueError('Invalid display freshness metadata')
+        if state.get('status') not in {'current', 'pending', 'overdue', 'missing', 'unknown', 'archived'}:
+            raise ValueError('Invalid freshness status')
+        for field in ('latest_period', 'expected_period'):
+            period = state.get(field)
+            if period is not None and (not isinstance(period, str) or not re.fullmatch(r'\d{4}(-(?:0[1-9]|1[0-2]))?', period)):
+                raise ValueError('Invalid freshness period')
+        for field in ('missing_periods', 'internal_gaps'):
+            if not isinstance(state.get(field, []), list) or any(not isinstance(p, str) or not re.fullmatch(r'\d{4}(-(?:0[1-9]|1[0-2]))?', p) for p in state.get(field, [])):
+                raise ValueError('Invalid freshness gaps')
+        if state.get('lag') is not None and (not isinstance(state['lag'], int) or isinstance(state['lag'], bool)):
+            raise ValueError('Invalid freshness lag')
     if value.get("schema_version") not in (1, 2) or not isinstance(value.get("observations"), dict):
         raise ValueError("Unsupported display snapshot")
     if value["schema_version"] == 2:
@@ -73,6 +111,8 @@ def validate_display_snapshot(value):
         for period, number in periods.items():
             if not isinstance(period, str) or not isinstance(number, (int, float)) or isinstance(number, bool):
                 raise ValueError(f"Invalid display observation for {series}")
+            if not math.isfinite(number):
+                raise ValueError('Non-finite display value')
     return value
 
 
