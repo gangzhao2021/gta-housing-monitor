@@ -37,6 +37,8 @@ FACTOR_SOURCES = {
     'wti': ('EIA WTI', 'eia', '.html', parse_wti, 'EIA monthly HTML table'),
     'building_cost': ('StatsCan BCPI', 'statcan', '.zip', parse_building_cost, 'official CSV ZIP'),
 }
+from housing.background_series import CONFIG as BACKGROUND_CONFIG, refresh_background
+FACTOR_SOURCES.update({key: None for key in BACKGROUND_CONFIG if not BACKGROUND_CONFIG[key].get('archived')})
 SOURCES = {**CORE_SOURCES, **FACTOR_SOURCES}
 TABLES = {'employment': '14100460', 'construction': '34100154', 'population': '17100148'}
 
@@ -101,6 +103,8 @@ def backup(db, destination):
 
 def refresh_one(db, key, root=ROOT, today=None, fetcher=fetch):
     today = today or datetime.now(ZoneInfo('America/Toronto')).date()
+    if key in BACKGROUND_CONFIG:
+        return refresh_background(db, key, root, today)
     source, folder, suffix, parser, method = SOURCES[key]
     url = source_url(key, today)
     directory = root / 'data/raw' / folder

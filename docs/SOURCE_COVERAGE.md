@@ -1,5 +1,7 @@
 # 来源覆盖与核对
 
+> 2026-09-26 增补：本次新增六条独立系列（含一条停更历史表），全库 131 个系列、5,944 条含版本观测。最新口径与验证见文末“2026-09-26”小节；下列更早日期的计数保留为历史记录。
+
 基础来源验证：2026-09-23；月度租金及四项外部背景增量：2026-09-24。较早文档复核只读；随后四项外部背景已真实取数。以 2026-09-24 为基准，目标展示最近 36 个完整月（2023-09 至 2026-08）；同比需要 2022-09 起的 12 个月前置资料。这个目标不表示所有系列均有 36 个月历史，季度背景也不插值成月度。当前为本地公开数据实现，数据会修订。带日期的接入／检查段落记录当时证据；当前覆盖以本节和文末增量为准。
 
 ## 当前覆盖摘要（2026-09-24）
@@ -164,3 +166,46 @@ CMHC 地区映射位于 `src/housing/regions.py`。年度调用原始表 1.1.1/1
 | Toronto 住宅建筑造价 | [StatsCan 表 18-10-0289-01](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810028901)，Residential buildings / Division composite，2023=100 | 2017Q1—2026Q2，38 季；2026Q2 为 105.7 | Toronto CMA 2021；不含全部土地／融资成本，非转售房价 |
 
 四源首次真实导入新增 182 条观测与四份原件；第二次检查均 `unchanged`。完整恢复检查为 5,566 条观测、112 份原件、1 份记录，管理页状态为 113 当前、1 按揭过期、11 来源抑制。原件是本次取得的历史快照，**不是**各历史期的原始发布版本；`published_at` 与 `availability_evidence` 仍全部为空，不能用来做严格当时信息集回测。信贷、财富／信心、人口流动、地方燃油等仍是[横向研究候选](FACTOR_RESEARCH.md)，不计入已接入覆盖。
+
+
+## 2026-09-26 新增背景系列
+
+本节为新增记录；前文 2026-09-24 及更早计数是历史基线，以本节本次核验为准。新增五条当前背景系列和一条停更许可历史系列，共 **253 条观测**。仅增加新系列，没有改写既有系列数值；已有 TRREB 提取器和 `trreb-extracted-*.csv` 保持原样。
+
+| 新系列 | 官方入口与已核验标识 | 口径 | 本次入库覆盖 | 限制与管理端状态（2026-09-26） |
+| --- | --- | --- | --- | --- |
+| 特许银行最优惠贷款利率 | [官方入口](https://www.bankofcanada.ca/valet/observations/V80691311/json)；`V80691311` | Canada；%；月度，未季调 | 2022-09—2026-08，48 期 | 每月最后有效周三报价；不是央行政策利率；最近应发布期已到 |
+| 传统五年期按揭公布利率 | [官方入口](https://www.bankofcanada.ca/valet/observations/V80691335/json)；`V80691335` | Canada；%；月度，未季调 | 2022-09—2026-08，48 期 | 每月最后有效周三报价；不是新增贷款金额加权实际利率；最近应发布期已到 |
+| Toronto 新房价格指数（房屋及土地） | [官方入口](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810020501)；`111955499` | Toronto CMA 2011 boundary；index, 2016=100；月度，未季调 | 2022-09—2026-08，48 期 | 新建住宅房屋与土地综合指数；非转售 HPI，非全部 condo 市场；最近应发布期已到 |
+| Ontario 居住成本 CPI | [官方入口](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810000401)；`41691952` | Ontario；index, 2002=100；月度，未季调 | 2022-09—2026-08，48 期 | 居住消费成本指数，包含租金和自有住房成本；不是房价指数；最近应发布期已到 |
+| Toronto 住宅许可新增单位（停更历史表） | [官方入口](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410006601)；`122233956` | Toronto CMA 2011 boundary；units；月度，未季调 | 2022-09—2023-10，14 期 | 住宅总体、全部工作类型、新增住宅单位；表于 2023-10 停更，独立保存不拼接；来源已停更（历史表） |
+| Toronto 住宅许可新增单位 | [官方入口](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410029201)；`1675206466` | Toronto CMA 2011 boundary；units；月度，未季调 | 2022-09—2026-07，47 期 | 现行后继表 34-10-0292；住宅总体、全部工作类型、新增住宅单位；不是许可证张数、净增量、开工或竣工；未到保守检查日，等待更新 |
+
+**原请求标识纠错**：WDS `getSeriesInfoFromVector` 确认 `v111955442` 是 Canada 的 Total (house and land)，不是 Toronto；Toronto 正确 vector 为 `v111955499`，坐标 `20.1.0.0.0.0.0.0.0.0`。`v41691006` 是 Canada 的 Rice and rice-based mixes，不是 Ontario 居住成本；采用 `v41691952`，表 18-10-0004-01，坐标 `14.79.0.0.0.0.0.0.0.0`。
+
+**许可口径纠错**：34-10-0066-01 已于 2023-10 截止；其后 34-10-0285 也已停更。现行表 34-10-0292-01 的选项不是名为 “Total units” 的单一维度，实际选择 Toronto / Total residential / Types of work, total / Number of dwelling-units created / Unadjusted, current（坐标 `45.4.1.2.1.0.0.0.0.0`）。单位是新增住宅单位数，不是许可张数或千加元，也没有扣除拆除与损失单位。两个表分别登记、不拼接、不覆盖。WDS 地理元数据对 NHPI 及两个许可表的 Toronto 均标 2011 vintage；不冒充人口系列的 2021 边界。
+
+**覆盖与聚合**：本轮有意只接入 2022-09 起至最近完整月，不代表官方没有更早历史。NHPI 官方全表始于 1981-01；许可旧表始于 2011-01、现行表始于 2018-01。BoC 两条为周三报价，月值取最后有效报价，与现有政策利率月末取值原则一致；没有用国债收益率的日均方法混算。原周值完整保存在该次下载 JSON。缺失月份不插值、抑制不置零；本次六系列在各自入库起止期间均无缺月。
+
+**运行与维护**：独立命令如下，先启用项目 `.venv`（或用 `.venv/bin/python` 替换 `python3`）。
+
+```sh
+python3 scripts/extract_boc_prime.py
+python3 scripts/extract_boc_conventional_mortgage.py
+python3 scripts/extract_toronto_nhpi.py
+python3 scripts/extract_ontario_shelter.py
+python3 scripts/extract_toronto_permits_archive.py
+python3 scripts/extract_toronto_permits.py
+```
+
+每条脚本下载并验证元数据、单位、倍率、地区和频率，再验证数值后入库；异常退出非零并记录失败，旧观测仍保留。原 API 响应（WDS 同时含元数据与数据响应）保存于 `data/raw/background/<来源>-<SHA前12位>.json`，独立 CSV 输出于 `data/manual/<来源>-<SHA前12位>.csv`；原件与 CSV 均登记 `data/raw/manifest.csv`，观测引用原 JSON 的完整 SHA256。CSV 字段为 `series_id,period,value,source_url,source_sha256`，不影响 TRREB CSV 格式。写入前备份 SQLite；重复同值导入不增加观测版本。需要网络，无需 key。
+
+五条当前系列已加入 `refresh_official.py --source factors`，沿用现有每日刷新周期；停更旧许可表仅按独立命令重取。管理页“数据与记录 → 来源覆盖与更新时间”自动列出六条系列；许可当前表以所属月后第二个月末作本地保守检查日，价格指数为次月底，报价为当月底。旧许可表显示“来源已停更”，不伪报最新。保守检查日不是官方发布日期承诺。
+
+本轮没有增加访客图表、修改 Sites 数据白名单或发布站点；这些是本次明确要求的后台背景接入和管理页状态。也没有替代现有实际新增按揭序列缺月。WDS `releaseTime`、质量标记和原始日期保留于 JSON，但最新历史下载不是逐期首次发布版本；不自动填充数据库 `published_at`/`availability_evidence`，不能声称已满足当时信息集回测。官方免费访问不等于无条件再分发：[BoC 使用条款](https://www.bankofcanada.ca/terms/)、[StatCan 开放许可](https://www.statcan.gc.ca/en/reference/licence)随来源保留。
+
+**TRREB 地区明细的独立待完成项**：已执行 `python3 scripts/download_trreb.py 2022-09 2026-08`，退出 0，48 份 PDF 全部已存在。本仓库下载器要求起止参数，裸命令不能运行。当前会话没有收到所指的 `extract_trreb_districts.py` 附件，不能以自编脚本冒充附件；依赖 `pymupdf` 已加入，`pypdf` 保留。收到附件后还须运行完整 48 期、核对指定 16 列，以及 All TRREB Areas 的 sales / dollar_volume 对应首页当月总计（只对全房型总计行，不把单房型总计错比全市场）。在此之前不宣称地区明细验收通过。
+
+本次全库：**131 个登记系列、129 个有值系列、5,944 条含版本观测、5,939 个不同系列／期间、166 份登记文件**。
+
+**本轮验证记录**：六个独立提取命令均退出 0、分别生成 CSV，输出无 PROBLEM 或告警；新增 253、修订 0。85 项完整单元／应用测试通过，新增解析器专项 5 项再次通过；完整测试会出现 Streamlit bare-mode 提示，不能把它描述为整个测试过程没有日志警告。另用隔离数据库运行管理页，确认六行新鲜度实际显示且无应用异常。`check_restore.py` 通过（5,944 条观测、166 份文件、1 条月度记录）。与执行前快照逐行比对，既有 5,691 条观测及 TRREB 提取器／CSV 哈希完全未变；48 份 PDF 均可打开。TRREB 地区明细脚本尚缺附件，其 16 列与首页金额比对验收未执行。

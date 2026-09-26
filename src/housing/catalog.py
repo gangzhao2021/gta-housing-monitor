@@ -117,3 +117,11 @@ for region, name in CMHC_REGIONS.items():
                 'annual', 'October survey', 'none',
                 '专建出租公寓；沿用 CMHC 原始调查分区，组合地区不可当作其中单一城市。')
             SERIES_URLS[field] = CMHC_RENTAL_URL
+
+
+# Additional background series have independent provenance and are owner-only.
+from .background_series import CONFIG as BACKGROUND_CONFIG, url_for
+for config in BACKGROUND_CONFIG.values():
+    SERIES[config['id']] = (config['label'], config['source'], str(config['vector']),
+        config['geo'], config['unit'], 'monthly', 'not adjusted', 'none', config['definition'])
+    SERIES_URLS[config['id']] = url_for(config)

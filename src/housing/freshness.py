@@ -76,6 +76,11 @@ def _due_date(rule, period):
     if rule == "month_end":
         from calendar import monthrange
         return date(year, month, monthrange(year, month)[1])
+    if rule == 'two_months_end':
+        from calendar import monthrange
+        target = year * 12 + month - 1 + 2
+        y, m = target // 12, target % 12 + 1
+        return date(y, m, monthrange(y, m)[1])
     year, month = (year + 1, 1) if month == 12 else (year, month + 1)
     if rule == "next_month_end":
         from calendar import monthrange
@@ -95,6 +100,10 @@ def assess(db, series_id, today=None):
                 "lag": None, "missing_periods": []}
 
     observations = latest(db, series_id)
+    if rule.cadence == 'archived':
+        return {'status': 'archived', 'latest_period': observations[-1]['period'] if observations else None,
+                'expected_period': '2023-10', 'lag': None, 'missing_periods': [], 'internal_gaps': []}
+
     if rule.cadence == "annual":
         expected_period = str(today.year - 1)
         usable = [row for row in observations if row["period"] <= expected_period]
@@ -168,3 +177,12 @@ STATUS_LABELS = {
 
 RULES.update({series_id: FreshnessRule("monthly", "day_15", "每月报告；次月 15 日为本地检查日，不是官方承诺")
               for series_id in SERIES if series_id.startswith(("toronto_asking_rent_", "regional_asking_"))})
+
+
+from .background_series import CONFIG as BACKGROUND_CONFIG
+STATUS_LABELS['archived'] = '来源已停更（历史表）'
+for key, config in BACKGROUND_CONFIG.items():
+    archived = config.get('archived', False)
+    rule = 'month_end' if key.startswith('boc_') else 'two_months_end' if key == 'toronto_permits' else 'next_month_end'
+    RULES[config['id']] = FreshnessRule('archived' if archived else 'monthly', rule,
+        '历史表于 2023-10 停更' if archived else '本地保守检查日：报价当月底、价格指数次月底、建筑许可隔月底；不是官方保证')
