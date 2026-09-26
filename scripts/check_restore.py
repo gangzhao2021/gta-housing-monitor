@@ -5,10 +5,13 @@ import hashlib
 import json
 import shutil
 import sqlite3
+import sys
 import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+from housing.publication import validate_display_snapshot
 
 
 def verify_dataset(root):
@@ -68,14 +71,12 @@ def verify_dataset(root):
         display = data / "display_snapshot.json"
         if display.exists():
             snapshot = json.loads(display.read_text(encoding="utf-8"))
-            if snapshot.get("schema_version") != 1 or not isinstance(snapshot.get("observations"), dict):
-                raise ValueError("Invalid display snapshot in backup")
+            validate_display_snapshot(snapshot)
         for path in (data / "display_history").glob("*.json"):
             if hashlib.sha256(path.read_bytes()).hexdigest() != path.stem:
                 raise ValueError(f"Wrong archived display snapshot hash: {path.name}")
             snapshot = json.loads(path.read_text(encoding="utf-8"))
-            if snapshot.get("schema_version") != 1 or not isinstance(snapshot.get("observations"), dict):
-                raise ValueError(f"Invalid archived display snapshot: {path.name}")
+            validate_display_snapshot(snapshot)
         return {"observations": db.execute("SELECT COUNT(*) FROM observations").fetchone()[0],
                 "source_files": len(entries), "monthly_records": len(records)}
     finally:

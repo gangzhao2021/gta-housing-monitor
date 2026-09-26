@@ -14,6 +14,7 @@ def monthly(db):
         "trreb_hpi_composite", "trreb_hpi_benchmark",
         "toronto_cma_2011_starts", "toronto_cma_2011_completions",
         "toronto_cma_2011_under_construction",
+        "wti_cushing_spot_price", "usd_cad_monthly", "boc_energy_price_index",
         "toronto_asking_rent_total", "toronto_asking_rent_1br",
         "toronto_asking_rent_2br", "toronto_asking_rent_3br",
     ) + tuple(s for s in SERIES if s.startswith("regional_asking_")):

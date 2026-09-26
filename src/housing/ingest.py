@@ -107,6 +107,10 @@ def validate_rows(rows):
         "toronto_cma_2011_completions": (0, 100000),
         "toronto_cma_2011_under_construction": (0, 1000000),
         "toronto_cma_2021_population": (1000000, 20000000),
+        "wti_cushing_spot_price": (1, 1000),
+        "usd_cad_monthly": (0.1, 10),
+        "boc_energy_price_index": (1, 10000),
+        "toronto_residential_construction_cost_index": (1, 1000),
     }
     bounds.update({series_id: ((0, 100) if definition[4] == "%" else (300, 10000))
                    for series_id, definition in SERIES.items() if definition[1] == "CMHC"})
@@ -125,6 +129,10 @@ def validate_rows(rows):
                 datetime.strptime(period, "%Y-%m-%d")
             elif frequency == "annual":
                 datetime.strptime(period, "%Y")
+            elif frequency == "quarterly":
+                datetime.strptime(period + "-01", "%Y-%m-%d")
+                if period[5:] not in ("01", "04", "07", "10"):
+                    raise ValueError("Quarter must begin in Jan, Apr, Jul or Oct")
             else:
                 datetime.strptime(period + "-01", "%Y-%m-%d")
         except ValueError as exc:

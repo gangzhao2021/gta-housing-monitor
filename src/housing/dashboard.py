@@ -31,6 +31,12 @@ def series_color(field):
         "trreb_active_listings": ORANGE, "moi_raw": "#7952be", "snlr_raw": TEAL,
         "boc_policy_rate": BLUE, "goc_5y_yield": TEAL,
         "mortgage_uninsured_fixed_5plus": ORANGE,
+        "toronto_unemployment_rate": ORANGE,
+        "toronto_employment_rate": BLUE,
+        "toronto_participation_rate": TEAL,
+        "toronto_cma_2011_starts": BLUE,
+        "toronto_cma_2011_completions": TEAL,
+        "toronto_cma_2011_under_construction": ORANGE,
     }.get(field, BLUE)
 
 LABELS = {
@@ -103,7 +109,17 @@ def cards(data, fields, period, notes=None):
     st.html(f'<div class="metric-grid" style="--cards:{len(fields)}">{"".join(items)}</div>')
 
 
-def line_chart(data, fields, start, end, height=270, names=None, points=False):
+def indicator_legend(fields):
+    """Compact chart legend with the same explanatory disclosure as metric cards."""
+    items = ''.join(
+        f'<div class="help-legend-item" style="--series-color:{series_color(field)}">'
+        f'<span class="help-legend-line" aria-hidden="true"></span>{help_label(field, label(field))}</div>'
+        for field in fields
+    )
+    st.html(f'<div class="help-legend">{items}</div>')
+
+
+def line_chart(data, fields, start, end, height=270, names=None, points=False, zero_y=False, external_legend=False):
     rows = []
     annual = len(start) == 4
     for field in fields:
@@ -114,12 +130,13 @@ def line_chart(data, fields, start, end, height=270, names=None, points=False):
         st.info("所选期间没有可用观测。")
         return
     display_unit = "数量（笔 / 套）" if len({unit(f) for f in fields}) > 1 else UNITS.get(unit(fields[0]), unit(fields[0]))
+    series_names = [(names or {}).get(field, label(field)) for field in fields]
+    legend = alt.Legend(title=None, orient="top", columns=1, labelLimit=280, symbolSize=900, symbolStrokeWidth=2.4) if len(fields) > 1 and not external_legend else None
     year_ticks = [f"{y}-01-01" for y in range(int(start), int(end) + 1)] if annual and int(end) - int(start) <= 5 else alt.Undefined
     chart = alt.Chart(frame).mark_line(strokeWidth=2.4, point=alt.OverlayMarkDef(filled=True, size=65) if annual or points else False).encode(
         x=alt.X("date:T", title=None, scale=alt.Scale(type="utc", domain=[start + ("-01-01" if annual else "-01"), end + ("-12-31" if annual and start == end else "-01-01" if annual else "-01")]), axis=alt.Axis(format="%Y" if annual else "%y/%m", values=year_ticks, tickCount=5, labelAngle=0, labelOverlap=True, labelSeparation=18, grid=False)),
-        y=alt.Y("value:Q", title=display_unit, scale=alt.Scale(zero=False), axis=alt.Axis(tickCount=5, format=",.1f" if unit(fields[0]) == "%" else "~s")),
-        color=alt.Color("指标:N", scale=alt.Scale(domain=[(names or {}).get(f, label(f)) for f in fields], range=[series_color(f) for f in fields]), legend=alt.Legend(title=None, orient="top", columns=1, labelLimit=280) if len(fields)>1 else None),
-        strokeDash=alt.StrokeDash("指标:N", legend=None),
+        y=alt.Y("value:Q", title=display_unit, scale=alt.Scale(zero=zero_y), axis=alt.Axis(tickCount=5, format=",.1f" if unit(fields[0]) == "%" else "~s")),
+        color=alt.Color("指标:N", scale=alt.Scale(domain=series_names, range=[series_color(f) for f in fields]), legend=legend),
         detail="segment:N", tooltip=[alt.Tooltip("period:N", title="所属期"), "指标:N", alt.Tooltip("value:Q", title=display_unit, format=",.2f")],
     ).properties(height=height).configure_view(stroke=None).configure_axis(gridColor="#ededed", labelColor="#666666", titleColor="#666666", domain=False, labelFontSize=11, titleFontWeight="normal")
     st.altair_chart(chart, use_container_width=True)
@@ -150,8 +167,7 @@ def snlr_rolling_chart(data, start, end):
     chart = alt.Chart(frame).mark_line(strokeWidth=2.2, point=alt.OverlayMarkDef(filled=True, size=36)).encode(
         x=alt.X('日期:T', title=None, scale=alt.Scale(type='utc'), axis=alt.Axis(format='%y/%m', grid=False)),
         y=alt.Y('比例（%）:Q', title='成交／新挂牌比（%）', scale=alt.Scale(zero=False)),
-        color=alt.Color('系列:N', scale=alt.Scale(domain=['原始月度比值', '连续三个月均线'], range=[TEAL, BLUE]), legend=alt.Legend(title=None, orient='top')),
-        strokeDash=alt.StrokeDash('系列:N', scale=alt.Scale(domain=['原始月度比值', '连续三个月均线'], range=[[1, 0], [5, 3]]), legend=None),
+        color=alt.Color('系列:N', scale=alt.Scale(domain=['原始月度比值', '连续三个月均线'], range=[TEAL, BLUE]), legend=alt.Legend(title=None, orient='top', symbolSize=900, symbolStrokeWidth=2.2)),
         detail='segment:N',
         tooltip=['所属月份:N', '系列:N', alt.Tooltip('比例（%）:Q', format=',.1f'),
                  alt.Tooltip('当月成交:Q', format=',.0f'), alt.Tooltip('当月新挂牌:Q', format=',.0f'),

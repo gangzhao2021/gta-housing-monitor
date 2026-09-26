@@ -4,3 +4,5 @@ __pycache__/
 data/
 .streamlit/owner_auth.env
 .DS_Store
+site/dist/data.json
+site/.openai/hosting.json

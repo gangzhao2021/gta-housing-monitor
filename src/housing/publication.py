@@ -5,6 +5,8 @@ import fcntl
 import os
 import shutil
 import sqlite3
+import math
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,6 +23,10 @@ DISPLAY_SERIES = frozenset(
         "toronto_participation_rate", "toronto_cma_2021_population",
     }
 )
+CONTEXT_SERIES = frozenset({
+    "wti_cushing_spot_price", "usd_cad_monthly", "boc_energy_price_index",
+    "toronto_residential_construction_cost_index",
+})
 
 
 def build_display_snapshot(db, *, created_at=None):
@@ -30,16 +36,35 @@ def build_display_snapshot(db, *, created_at=None):
         rows = latest(db, key)
         if rows:
             observations[key] = {row["period"]: row["value"] for row in rows}
+    context = {}
+    for key in sorted(CONTEXT_SERIES):
+        rows = latest(db, key)
+        if rows:
+            row = rows[-1]
+            context[key] = {"period": row["period"], "value": row["value"]}
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "created_at": created_at or datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "observations": observations,
+        "context": context,
     }
 
 
 def validate_display_snapshot(value):
-    if value.get("schema_version") != 1 or not isinstance(value.get("observations"), dict):
+    if value.get("schema_version") not in (1, 2) or not isinstance(value.get("observations"), dict):
         raise ValueError("Unsupported display snapshot")
+    if value["schema_version"] == 2:
+        context = value.get("context")
+        if not isinstance(context, dict) or set(context) - CONTEXT_SERIES:
+            raise ValueError("Display snapshot contains invalid context")
+        for series, item in context.items():
+            if not isinstance(item, dict) or set(item) != {"period", "value"}:
+                raise ValueError(f"Invalid display context for {series}")
+            pattern = r"\d{4}-(?:01|04|07|10)" if series == "toronto_residential_construction_cost_index" else r"\d{4}-(?:0[1-9]|1[0-2])"
+            if (not isinstance(item["period"], str) or not re.fullmatch(pattern, item["period"])
+                    or not isinstance(item["value"], (int, float)) or isinstance(item["value"], bool)
+                    or not math.isfinite(item["value"])):
+                raise ValueError(f"Invalid display context value for {series}")
     if set(value["observations"]) - DISPLAY_SERIES:
         raise ValueError("Display snapshot contains a non-approved series")
     for series, periods in value["observations"].items():

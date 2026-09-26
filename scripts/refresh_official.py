@@ -23,22 +23,40 @@ from housing.ingest import (ingest, now, parse_boc, parse_statcan,
                             parse_statcan_construction, parse_statcan_population,
                             record_parse_failure)
 from housing.manifest import write_manifest
+from housing.external_factors import parse_fx, parse_energy, parse_wti, parse_building_cost
 
-SOURCES = {
+CORE_SOURCES = {
     'boc': ('BoC', 'boc', '.json', parse_boc, 'API JSON'),
     'employment': ('StatsCan', 'statcan', '.zip', parse_statcan, 'official CSV ZIP'),
     'construction': ('StatsCan construction', 'statcan', '.zip', parse_statcan_construction, 'official CMHC/StatsCan CSV ZIP'),
     'population': ('StatsCan population', 'statcan', '.zip', parse_statcan_population, 'official CSV ZIP'),
 }
+FACTOR_SOURCES = {
+    'fx': ('BoC FX', 'boc', '.json', parse_fx, 'BoC monthly Valet JSON'),
+    'energy': ('BoC BCPI', 'boc', '.json', parse_energy, 'BoC monthly Valet JSON'),
+    'wti': ('EIA WTI', 'eia', '.html', parse_wti, 'EIA monthly HTML table'),
+    'building_cost': ('StatsCan BCPI', 'statcan', '.zip', parse_building_cost, 'official CSV ZIP'),
+}
+SOURCES = {**CORE_SOURCES, **FACTOR_SOURCES}
 TABLES = {'employment': '14100460', 'construction': '34100154', 'population': '17100148'}
 
 
 def source_url(key, today):
-    if key != 'boc':
+    if key in TABLES:
         return f'https://www150.statcan.gc.ca/n1/en/tbl/csv/{TABLES[key]}-eng.zip'
+    if key == 'building_cost':
+        return 'https://www150.statcan.gc.ca/n1/en/tbl/csv/18100289-eng.zip'
+    if key == 'wti':
+        return 'https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=PET&s=RWTC&f=M'
     complete_month = today.year * 12 + today.month - 2
     year, month = divmod(complete_month, 12)
     end = f'{year:04d}-{month + 1:02d}-{monthrange(year, month + 1)[1]:02d}'
+    if key == 'fx':
+        return ('https://www.bankofcanada.ca/valet/observations/group/'
+                f'FX_RATES_MONTHLY/json?start_date=2022-09-01&end_date={end}')
+    if key == 'energy':
+        return ('https://www.bankofcanada.ca/valet/observations/group/'
+                f'BCPI_MONTHLY/json?start_date=2022-09-01&end_date={end}')
     return ('https://www.bankofcanada.ca/valet/observations/'
             'V39079,BD.CDN.5YR.DQ.YLD,V122667786/json'
             f'?start_date=2022-09-01&end_date={end}')
@@ -49,7 +67,9 @@ def fetch(url, temporary, attempts=3):
     last_error = None
     for attempt in range(attempts):
         try:
-            request = Request(url, headers={'User-Agent': 'TorontoHousingMonitor/0.1 (public data research)'})
+            agent = ('Mozilla/5.0 (compatible; TorontoHousingMonitor/0.1)'
+                     if 'eia.gov' in url else 'TorontoHousingMonitor/0.1 (public data research)')
+            request = Request(url, headers={'User-Agent': agent})
             with urlopen(request, timeout=90) as response, temporary.open('xb') as output:
                 digest = hashlib.sha256()
                 size = 0
@@ -127,7 +147,7 @@ def refresh_one(db, key, root=ROOT, today=None, fetcher=fetch):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', choices=[*SOURCES, 'all'], default='all')
+    parser.add_argument('--source', choices=[*SOURCES, 'core', 'factors', 'all'], default='all')
     args = parser.parse_args()
     lock_path = ROOT / 'data/.refresh-official.lock'
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -139,7 +159,9 @@ def main():
         db = connect(ROOT / 'data/housing.sqlite3')
         failures = 0
         try:
-            keys = list(SOURCES) if args.source == 'all' else [args.source]
+            keys = (list(SOURCES) if args.source == 'all' else
+                    list(CORE_SOURCES) if args.source == 'core' else
+                    list(FACTOR_SOURCES) if args.source == 'factors' else [args.source])
             for key in keys:
                 try:
                     print(refresh_one(db, key), flush=True)

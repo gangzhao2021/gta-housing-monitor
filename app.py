@@ -445,6 +445,24 @@ else:
             with col:
                 st.metric(name, str(count))
     st.dataframe(pd.DataFrame(freshness_rows), hide_index=True, width="stretch")
+    st.subheader("外部因素背景（研究中）")
+    st.caption("这些数值用于解释市场背景，尚未计入预测或买卖评分；来源地区和资料频率不同，不直接与本地房价合并。油价暂不上图。")
+    factor_rows = []
+    for field in ("wti_cushing_spot_price", "usd_cad_monthly", "boc_energy_price_index",
+                  "toronto_residential_construction_cost_index"):
+        observations = latest(db, field)
+        item = observations[-1] if observations else None
+        if item is None:
+            value = "暂无数据"
+        else:
+            decimals = 4 if field == "usd_cad_monthly" else 1 if field == "toronto_residential_construction_cost_index" else 2
+            value = f"{item['value']:,.{decimals}f}"
+        factor_rows.append({"指标": SERIES[field][0], "数值": value,
+                            "单位": SERIES[field][4],
+                            "资料期": item["period"] if item else "—",
+                            "地区": SERIES[field][3],
+                            "来源": SERIES[field][1]})
+    st.dataframe(pd.DataFrame(factor_rows), hide_index=True, width="stretch")
     with st.expander("指标定义与原始来源"):
         field = st.selectbox("指标", list(SERIES), format_func=label)
         details = SERIES[field]

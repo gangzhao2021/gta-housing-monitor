@@ -1,16 +1,24 @@
 # 本地看板使用指南
 
-当前版本：2026-09-24。页面使用已保存的官方数据及 Rentals.ca / Urbanation 公开报告，打开页面不会自动抓取来源更新或给出复苏预测；地图底图等外部资源仍可能联网加载。所有命令在项目目录执行。以下操作按现有脚本说明，文档复核本身没有执行初始化、改密或恢复。
+当前版本：2026-09-24。页面使用已保存的官方数据及 Rentals.ca / Urbanation 公开报告，打开页面不会自动抓取来源更新或给出复苏预测；地图底图等外部资源仍可能联网加载。所有命令在项目目录执行。以下操作按现有脚本说明，本轮新增外部背景数据已实际导入并完成恢复检查；以下启动与改密步骤未再次执行。
 
 ## 本地展示与私有后台（部分实施）
 
-当前仅供本人在本机演示。页面装饰线已先在 Figma 精简、再落实代码；图表数据曲线保留。管理端和独立只读展示端都设本机密码门禁并仅监听 `127.0.0.1`；展示页读取经筛选快照，不能访问管理页“数据与记录”、保存和完整下载功能。两个进程仍使用同一本机账户；远程身份与独立存储权限需待选定主机后验收。具体计划见[实施计划第 7 节](IMPLEMENTATION_ROADMAP.md#7-p4展示端私有后台与交付)。尚未迁移数据或部署网站。
+四项外部背景的管理入口是 `http://127.0.0.1:8501/` → “数据与记录” → “外部因素背景（研究中）”；本人演示入口是 `http://127.0.0.1:8502/` → 登录 → “经济与供给” → “外部背景（研究中）”。展示端表格列出每项最近值、单位、所属期和地区；点名称旁的 ⓘ 可查看可能的影响路径、不能直接推断房价的限制及该项官方来源，表格下方也保留直接来源链接。展示端不提供这四项的摘要复制／下载控件；首页另有入口提示。需运行发布脚本或成功完成更新周期，才会把后台新值写入展示快照；仅刷新网页不会抓取官网。[页面验收证据](PROJECT_ACCEPTANCE.md)记录了本机实际结果。
+
+本机两端仅供本人演示。页面装饰线已先在 Figma 精简、再落实代码；图表数据曲线保留。管理端和本机只读展示端都设本机密码门禁并仅监听 `127.0.0.1`；展示页读取经筛选快照，不能访问管理页“数据与记录”、保存和完整下载功能。两个本机进程仍使用同一本机账户；此外已部署仅所有者账号可访问的 Codex Sites 静态只读版，未迁移后台。具体计划见[实施计划第 7 节](IMPLEMENTATION_ROADMAP.md#7-p4展示端私有后台与交付)。
+
+## Codex Sites 私有展示版
+
+打开 [GTA Housing Monitor](https://gta-housing-monitor-ryan.yashirq.chatgpt.site)。Sites 展示版提供市场、租赁、经济与供给、月供四页，含中英文、部分日期和地区／房型筛选、指标说明及四项背景最近值。租赁市场 → 地区对比可在 OpenStreetMap 地理底图的位置点或下方勾选框选最多三个地区，选择同步到曲线；灰点表示所选期无观测，点位不是统计边界。地图按需从 OpenStreetMap 加载瓦片并显示署名，底图加载失败时仍可用位置点与勾选框。鼠标在图内移动可按月份查看数值；触摸点图可查看，键盘聚焦图表后用左右方向键逐期查看。静态网站**不是**把 8502 的 Streamlit 程序原样搬到云端：来源明细表及其选行联动、私人记录、后台管理和完整导出仍不在网站。站点访问受 Sites 策略控制；本机管理密码不用于网站。访客范围须以当前 Sites 设置核对，不能凭此前私有部署记录推断。
+
+线上数据是发布时的 `data/display_snapshot.json` 经 `site/export_site_data.py` 导出的只读副本，页面显示快照生成时间。电脑上的 09:00 更新及本机快照重发均不会自动更新 Sites；如需同步，先核验本机数据并发布快照，再从项目根目录运行 `python3 site/export_site_data.py`，检查 `site/dist/data.json` 的范围并重新发布站点。具体边界见 [site/README.md](../site/README.md)。发布包仅包含筛选后的数值与公开指标说明，不含 SQLite、原件、记录、本机路径或口令；已有浏览器可读取页面发送的数值，私有访问控制不能代替对发布范围的审核。
 
 ## 中英文切换 / Language
 
-在页头右侧的 **语言 / Language** 选择 **中文** 或 **EN**。手机端可横向滚动顶部导航查看其他页面。页面、图表、说明与 CSV 表头随语言切换；当前页面、日期筛选和月供输入保留。原始来源名称、单元格与 JSON 观察记录保留原样，方便追溯。语言偏好保留在当前浏览会话中。
+在页头右侧的 **语言 / Language** 选择 **中文** 或 **EN**。`GTA HOUSING MONITOR` 是固定产品名称，不随语言切换；导航、图表、说明与 CSV 表头随语言切换。手机端可横向滚动顶部导航查看其他页面。当前页面、日期筛选和月供输入保留。原始来源名称、单元格与 JSON 观察记录保留原样，方便追溯。语言偏好保留在当前浏览会话中。
 
-Use **语言 / Language** at the top right to choose **中文** or **EN**. On mobile, scroll the top navigation horizontally to reach other pages. Your current page, period filters and mortgage inputs are retained. CSV headings follow the selected language; original source references and JSON observation records remain unchanged.
+Use **语言 / Language** at the top right to choose **中文** or **EN**. `GTA HOUSING MONITOR` remains the product name in both languages. On mobile, scroll the top navigation horizontally to reach other pages. Your current page, period filters and mortgage inputs are retained. CSV headings follow the selected language; original source references and JSON observation records remain unchanged.
 
 ## 第一次打开
 
@@ -50,9 +58,9 @@ Use **语言 / Language** at the top right to choose **中文** or **EN**. On mo
    sh scripts/run_viewer_local.sh
    ```
 
-   打开 `http://127.0.0.1:8502` 并输入与管理端相同的本机密码；未配置验证器时默认拒绝访问。展示页在代码中只读取 `data/display_snapshot.json`，没有记录、原件及完整下载入口。快照保存各历史期间的最新版本，当前代码系列白名单覆盖全部 121 个登记系列（有数值的才输出），尚无按受众配置的期间白名单。`created_at` 是快照生成时间，不是资料所属期、正式发布日期或新鲜度证明。成功的官方来源刷新周期会重发快照；人工入库后需自行重发并刷新展示页面。正式分享前仍需确定内容范围并验收身份与服务权限。
+   打开 `http://127.0.0.1:8502` 并输入与管理端相同的本机密码；未配置验证器时默认拒绝访问。展示页在代码中只读取 `data/display_snapshot.json`，没有记录、原件及完整下载入口。schema 2 快照保存原有展示系列各历史期间的最新版本（有数值的才输出），并额外保存四项外部背景各自的最近一期摘要；不发布这些背景的完整历史，也没有按受众配置的期间白名单。旧 schema 1 快照仍可读取，但没有背景摘要。`created_at` 是快照生成时间，不是资料所属期、正式发布日期或新鲜度证明。成功的官方来源刷新周期会在核心数据核验后发布一次，并在背景四源刷新及核验成功后再次发布；人工入库后需自行重发并刷新展示页面。正式分享前仍需确定内容范围并验收身份与服务权限。
 
-5. 官方 BoC／StatsCan 来源可手动执行 `.venv/bin/python scripts/run_refresh_cycle.py`。它顺序调用安全刷新、核查数据库／manifest／全部原件／记录引用，然后只在全周期成功时原子发布展示快照，结果写到私有的 `data/run_reports/`。本机 LaunchAgent 已安装，每天系统本地时间 09:00 检查四个官方来源；电脑关闭时不会运行，睡眠期间的日历触发会在唤醒后合并执行。报告类来源仍需各自人工核验；刷新网页不会抓取官网。
+5. 官方 BoC／StatsCan 来源可手动执行 `.venv/bin/python scripts/run_refresh_cycle.py`。它顺序调用安全刷新、核查数据库／manifest／全部原件／记录引用，并在核心四源成功及核验通过后原子发布展示快照，随后刷新背景四源并再次核验，结果写到私有的 `data/run_reports/`。本机 LaunchAgent 已安装，每天系统本地时间 09:00 检查四个核心来源和四个外部背景来源；电脑关闭时不会运行，睡眠期间的日历触发会在唤醒后合并执行。报告类来源仍需各自人工核验；刷新网页不会抓取官网。
 
 6. 私有完整备份已保存于 `~/Library/Application Support/TorontoHousing/backups/`。新建备份可运行 `.venv/bin/python scripts/backup_private.py --output-parent "$HOME/Library/Application Support/TorontoHousing/backups"`，随后用 `.venv/bin/python scripts/check_restore.py --backup-dir "备份目录绝对路径"` 复验；备份包含数据库、原件、manifest、记录和恢复所需代码，不含密码验证器。该路径与项目同机，不能抵御整机或磁盘故障。恢复到新目录后先运行上述校验，再单独设置本机密码。
 
@@ -73,8 +81,8 @@ Use **语言 / Language** at the top right to choose **中文** or **EN**. On mo
 | --- | --- | --- |
 | 导航 | 五页，含数据与记录 | 四个分析主题 |
 | 市场分析 | 时间窗口、季节图、HPI 房型及来源等 | 主要价格／成交／供需趋势，窗口较简化 |
-| 租赁／地区 | 地图、共同期间变化、覆盖和来源表、导出 | 月度／年度及地区趋势，无地图和来源细目 |
-| 经济与供给 | 四主题、建设三面板／房型、页内跳转 | 四主题基本图；建设仍合在一图，与管理端不等价 |
+| 租赁／地区 | 底图点选、共同期间变化、覆盖和来源表、导出 | 月度／年度及地区趋势、可联动的位置示意点；无来源细目 |
+| 经济与供给 | 四主题、建设三面板／房型、页内跳转 | 四主题基本图；就业按量级分两图，建设按当月流量／月末存量分两图，无房型分项 |
 | 月供 | 两利率比较、固定条件历史情景 | 单利率计算器，默认 5% 是输入示例，不是最新报价 |
 | 记录与数据 | 来源新鲜度、保存记录、完整导出 | 不提供私人记录或完整导出；图表显示数值仍可读取 |
 
@@ -94,10 +102,12 @@ Use **语言 / Language** at the top right to choose **中文** or **EN**. On mo
 
 ### 理解变化与缺失
 
-- 指标名称旁的 **ⓘ** 可悬停查看影响房价的机制，点击可保持展开／收起，键盘可聚焦后按Enter；手机点击。说明支持中英文，是机制解释，不是确定的涨跌预测。
+- 指标名称旁的 **ⓘ** 可悬停查看影响房价的机制，点击可保持展开／收起，键盘可聚焦后按Enter；手机点击。展示页的经济与供给图例、总览的成交／挂牌及库存比图例也保留这些说明。说明支持中英文，是机制解释，不是确定的涨跌预测。
 - 数据来源总表将原表抑制值显示为“来源抑制发布”，同时列出应有所属期；“最近所属期”仍是最近有数值的期间。这与尚未更新或零值不同。
 
 - 卡片严格显示所选月份或年份。该期缺值时显示“暂无数据”，不会用较早值顶替；融资页会另行提示最近较早的值及其所属月份。趋势图在缺期处断开，表格与 CSV 保留空白，不填零。
+- 趋势图中不同颜色只用于区分指标，不表示预测、数据质量或先后等级；普通指标曲线统一为实线。图例保留指标全名。就业页把不同分母和数值范围的失业率单列，建设页把当月开工／竣工与月末在建存量分列；两组各自共用观察期，但纵轴不能直接比较或相加。
+- 按用户最后反馈，单位恢复原有纵轴标题方式；不在每个刻度后追加“人／套”，也不另放到图表标题旁。后续如再调整，先改一张图供用户查看，再决定是否推广。
 - 同比对照上年同月或上一年度；缺少该期对照时不计算。利率、失业率及空置率用百分点变化，库存月数用月数变化，其他数量和金额用百分比。变化使用中性颜色，不自动解释为好坏。
 - TRREB 总量“较上年同期”由各月原始发布版自算，可能不同于后续修订后的官方同比。MOI、SNLR 是本项目的原始月公式，不等于报告中的 `Trend`。
 - “各房型基准价”是标准化住宅的 HPI 基准价，不是平均成交价。展开“房型数值与来源”可看原报告同比、原始分类和页码。该图沿所选观测的 CSV、PDF 来源哈希核对数据，不直接采用后来下载的同月报告；HPI 的 Attached 不替换为成交表的 Semi-Detached。
@@ -119,16 +129,16 @@ Use **语言 / Language** at the top right to choose **中文** or **EN**. On mo
 
 ## 月度更新
 
-BoC与三张StatsCan表现在可以通过独立入口检查和安全导入，网页浏览本身不会触发下载。入口使用官方URL，下载内容哈希去重；新内容先保存原件、解析，再用SQLite backup API备份数据库后事务入库。网络／解析失败会留下运行记录，不会把缺值填零。一次运行的四个来源分别报告成功、无变化或失败：
+BoC、StatsCan 与 EIA 的八项已选官方来源可以通过独立入口检查和安全导入，网页浏览本身不会触发下载。入口使用官方URL，下载内容哈希去重；新内容先保存原件、解析，再用SQLite backup API备份数据库后事务入库。网络／解析失败会留下运行记录，不会把缺值填零。一次运行的每个来源分别报告成功、无变化或失败：
 
-需要手动补跑官方检查并更新只读展示快照时，运行 `PYTHONPATH=src .venv/bin/python scripts/run_refresh_cycle.py`。它会加锁、核验恢复所需文件并在 `data/run_reports/` 留私有报告；失败时保留上一版展示快照。相同周期入口也由已安装的本机 LaunchAgent 每日 09:00 调用，不处理报告类来源。
+需要手动补跑官方检查并更新只读展示快照时，运行 `PYTHONPATH=src .venv/bin/python scripts/run_refresh_cycle.py`。它会加锁、核验恢复所需文件并在 `data/run_reports/` 留私有报告；核心刷新或验证失败时保留上一版展示快照；背景刷新在核心快照发布后运行，背景失败会使周期退出非零，但不撤回已发布的核心快照。相同周期入口也由已安装的本机 LaunchAgent 每日 09:00 调用，不处理报告类来源。
 
 ```bash
 PYTHONPATH=src .venv/bin/python scripts/refresh_official.py --source all
 PYTHONPATH=src .venv/bin/python scripts/refresh_official.py --source boc
 ```
 
-`all`包括BoC（含新增固定按揭）、就业、建设、人口。此刷新入口返回的 `unchanged` 表示响应哈希与已成功导入文件相同；它与下文导入摘要中“同值重复”的计数含义不同，两者均不直接证明官方尚未发布。直接调用本脚本不会自动发布展示快照；应优先使用上面的周期入口。定时任务只覆盖该周期的四个官方来源，不处理TRREB PDF、Rentals.ca图表或CMHC年度工作簿；这些仍需按下述来源步骤核验。本地电脑关机或长期不登录可能漏检，应查看最近运行报告。
+`all` 包括核心四源（BoC 含新增固定按揭、就业、建设、人口）及背景四源（WTI、BoC 能源／汇率、Toronto 住宅建筑造价）；只运行原四源用 `--source core`，只运行背景四源用 `--source factors`。此刷新入口返回的 `unchanged` 表示响应哈希与已成功导入文件相同；它与下文导入摘要中“同值重复”的计数含义不同，两者均不直接证明官方尚未发布。直接调用本脚本不会自动发布展示快照；应优先使用上面的周期入口。定时任务覆盖该周期的八个已选官方来源，不处理TRREB PDF、Rentals.ca图表或CMHC年度工作簿；这些仍需按下述来源步骤核验。本地电脑关机或长期不登录可能漏检，应查看最近运行报告。
 
 先确认官方新一期已经发布；对每个新文件使用新名字，保留原有文件。当前示例的 2026-09 月份尚未完成，不能混入完整月比较。
 
@@ -201,7 +211,7 @@ PYTHONPATH=src .venv/bin/python -m housing.cli rentals \
 
 入口：租赁市场 → 地区对比。点击“编辑地区”或地图位置点选择最多三个地区；已选的对比地区可再点一次移除，主要地区从“编辑地区”更换。“口径与时间”内选择月度挂牌或年度CMHC及期间，年度另可选择平均租金／空置率。外部房型菜单选择同一房型。地图点只帮助选区，不代表统计边界；地区控件仅作用本视图。
 
-- 月度保持专建出租公寓＋condo同口径：North York、Scarborough、Markham、Vaughan、Mississauga、Oakville 总体各覆盖 2025-11—2026-08（10 个月）；除 Markham 外一／两卧各覆盖 2026-04—08（5 个月）。Markham 月度分房型未接入。Toronto 总体 50 个月、房型 10 个月。明细见[地区覆盖审计](RENTAL_COVERAGE_AUDIT.csv)。
+- 月度保持专建出租公寓＋condo同口径：North York、Scarborough、Markham、Vaughan、Mississauga、Oakville 总体已核验 2024-01—2026-08，其中五地区各 31 个观测、Markham 30 个；2024-09 和 Markham 2024-07 留缺口；除 Markham 外一／两卧各覆盖 2026-04—08（5 个月）。Markham 月度分房型未接入。Toronto 总体 50 个月、房型 10 个月。明细见[地区覆盖审计](RENTAL_COVERAGE_AUDIT.csv)。
 - CMHC 专建出租公寓：2022—2025，五类房型租金及空置率。North York、Scarborough、Mississauga、Oakville、Markham；另有 Richmond Hill/Vaughan/King 和 Aurora/Newmarket/Whitchurch-Stouffville 组合调查区。组合值不能拆给某个城市，部分数据抑制。
 - Downtown 无已核定边界和对应数据；Richmond Hill/Aurora 无独立月度数据。选择不可用组合会明确提示，不能借用 Toronto。Oakview 暂按 Oakville 理解。
 - 地区定义沿用来源名称；不能把相邻/包含地区相加。挂牌均值也不能把各地区简单平均生成 GTA 均值。

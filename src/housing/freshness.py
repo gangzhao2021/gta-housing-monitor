@@ -33,6 +33,10 @@ RULES = {
     "toronto_cma_2011_completions": FreshnessRule("monthly", "cmhc_day_11", "每月第 11 个工作日；按次月 18 日保守检查"),
     "toronto_cma_2011_under_construction": FreshnessRule("monthly", "cmhc_day_11", "每月第 11 个工作日；按次月 18 日保守检查"),
     "toronto_cma_2021_population": FreshnessRule("annual", "jan_31", "年度 7 月 1 日估计；次年 1 月内保守等待"),
+    "wti_cushing_spot_price": FreshnessRule("monthly", "day_15", "EIA 月度均价；次月 15 日为本地检查日，非官方保证"),
+    "usd_cad_monthly": FreshnessRule("monthly", "month_end", "BoC 月均汇率通常于当月最后营业日公布"),
+    "boc_energy_price_index": FreshnessRule("monthly", "next_month_end", "BoC 月度能源指数；次月底为本地检查日，历史值可能修订"),
+    "toronto_residential_construction_cost_index": FreshnessRule("quarterly", "quarter_plus_45", "StatsCan 季度建筑造价；季度结束后 45 日为本地检查日，非官方保证"),
 }
 
 RULES.update({series_id: FreshnessRule("annual", "jan_31", "CMHC 年度 10 月租赁调查；保守等待至次年 1 月底")
@@ -62,11 +66,20 @@ def _month_string(index):
 def _due_date(rule, period):
     if rule == "jan_31":
         return date(int(period) + 1, 1, 31)
+    if rule == "quarter_plus_45":
+        from calendar import monthrange
+        from datetime import timedelta
+        year, month = map(int, period.split("-"))
+        end_month = month + 2
+        return date(year, end_month, monthrange(year, end_month)[1]) + timedelta(days=45)
     year, month = map(int, period.split("-"))
     if rule == "month_end":
         from calendar import monthrange
         return date(year, month, monthrange(year, month)[1])
     year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    if rule == "next_month_end":
+        from calendar import monthrange
+        return date(year, month, monthrange(year, month)[1])
     if rule == "lfs_calendar":
         return LFS_RELEASES.get(period, date(year, month, 15))
     day = {"day_15": 15, "day_21": 21, "cmhc_day_11": 18}[rule]
@@ -95,6 +108,22 @@ def assess(db, series_id, today=None):
             status = "pending" if today < _due_date(rule.release_rule, expected_period) else "overdue"
         return {"status": status, "latest_period": latest_period,
                 "expected_period": expected_period, "lag": (int(expected_period) - int(latest_period)) if latest_period else None,
+                "missing_periods": missing_periods, "internal_gaps": []}
+
+    if rule.cadence == "quarterly":
+        current_quarter = (today.month - 1) // 3
+        target_quarter = today.year * 4 + current_quarter - 1
+        expected_period = f"{target_quarter // 4:04d}-{target_quarter % 4 * 3 + 1:02d}"
+        usable = [row for row in observations if row["period"] <= expected_period]
+        latest_period = usable[-1]["period"] if usable else None
+        lag = (target_quarter - (int(latest_period[:4]) * 4 + (int(latest_period[5:]) - 1) // 3)
+               if latest_period else None)
+        missing_periods = [f"{q // 4:04d}-{q % 4 * 3 + 1:02d}"
+                           for q in range(target_quarter - lag + 1, target_quarter + 1)] if lag else [expected_period] if latest_period is None else []
+        status = ("missing" if latest_period is None else "current" if not lag else
+                  "pending" if today < _due_date(rule.release_rule, missing_periods[0]) else "overdue")
+        return {"status": status, "latest_period": latest_period,
+                "expected_period": expected_period, "lag": lag,
                 "missing_periods": missing_periods, "internal_gaps": []}
 
     target_index = today.year * 12 + today.month - 2  # last completed month

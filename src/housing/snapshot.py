@@ -12,6 +12,8 @@ from .read_model import monthly
 def _reference_month(series_id, source_period):
     """Observation month, independent of the later date a release became public."""
     details = SERIES[series_id]
+    if details[5] == "quarterly":
+        return f"{source_period[:4]}-{int(source_period[5:]) + 2:02d}"
     if details[5] != "annual":
         return source_period[:7]
     # Annual observations refer to a particular month, not the whole year.
@@ -37,7 +39,7 @@ def build(db, period):
             missing.append(series_id)
             continue
         source_period = selected[-1]["period"]
-        source_month = source_period if details[5] == "annual" else source_period[:7]
+        source_month = source_period if details[5] == "annual" else _reference_month(series_id, source_period)
         if source_month != (period[:4] if details[5] == "annual" else period):
             not_current.append(series_id)
         if details[5] == "daily" and series_id == "goc_5y_yield":
@@ -51,7 +53,7 @@ def build(db, period):
             "ids": [r["id"] for r in used],
             "versions": [r["version"] for r in used],
             "raw_sha256": sorted(set(r["raw_sha256"] for r in used)),
-            "value": selected[-1]["value"] if details[5] == "annual" else values.get(source_month, {}).get(series_id),
+            "value": selected[-1]["value"] if details[5] in ("annual", "quarterly") else values.get(source_month, {}).get(series_id),
         }
     return {
         "kind": "monthly_observation",

@@ -11,7 +11,7 @@ from streamlit.testing.v1 import AppTest
 
 from housing.db import connect
 from housing.owner_auth import make_verifier, verify, session_valid, SESSION_SECONDS
-from housing.publication import build_display_snapshot, load_display_snapshot, monthly_display, publish, restore_display_snapshot
+from housing.publication import build_display_snapshot, load_display_snapshot, monthly_display, publish, restore_display_snapshot, validate_display_snapshot
 from housing.research import as_known_at
 
 
@@ -49,6 +49,31 @@ class PublicationTests(unittest.TestCase):
             self.assertFalse(list(app.exception))
             self.assertIn("人口", {item.value for item in app.subheader})
 
+    def test_display_context_is_visible_in_both_languages_with_quarter_label(self):
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as folder:
+            snapshot = Path(folder) / "display.json"
+            snapshot.write_text(json.dumps({
+                "schema_version": 2, "created_at": "2026-09-24T00:00:00Z", "observations": {},
+                "context": {
+                    "wti_cushing_spot_price": {"period": "2026-08", "value": 83.9},
+                    "toronto_residential_construction_cost_index": {"period": "2026-04", "value": 105.7},
+                },
+            }))
+            with patch.dict("os.environ", {"HOUSING_REQUIRE_OWNER_AUTH": "0",
+                                           "HOUSING_DISPLAY_SNAPSHOT": str(snapshot)}):
+                app = AppTest.from_file(str(root / "viewer_app.py"), default_timeout=20).run()
+                self.assertFalse(list(app.exception))
+                app.radio(key="navigation").set_value("经济与供给").run()
+                self.assertFalse(list(app.exception))
+                self.assertTrue(any("2026年第2季度" in item.proto.body for item in app.get("html")))
+                self.assertFalse(list(app.dataframe))
+                self.assertFalse(any("复制或下载摘要数据" in item.label for item in app.expander))
+                app.radio(key="language").set_value("English").run()
+                self.assertFalse(list(app.exception))
+                self.assertTrue(any("2026 Q2" in item.proto.body for item in app.get("html")))
+                self.assertFalse(list(app.dataframe))
+
     def test_display_app_stops_before_snapshot_without_verifier(self):
         root = Path(__file__).resolve().parents[1]
         with patch.dict("os.environ", {"HOUSING_REQUIRE_OWNER_AUTH": "1", "HOUSING_OWNER_VERIFIER": ""}), \
@@ -73,6 +98,8 @@ class PublicationTests(unittest.TestCase):
             db = connect(root / "private.sqlite3")
             db.execute("INSERT INTO raw_files VALUES (?,?,?,?,?,?,?)", ("secret-hash", "/private/secret.csv", "test", "https://example.test", "2026-09-01", "2026-08", "manual"))
             db.execute("INSERT INTO observations (series_id,period,value,version,raw_sha256,first_seen_at) VALUES (?,?,?,?,?,?)", ("trreb_sales", "2026-08", 1234, 1, "secret-hash", "2026-09-01"))
+            db.execute("INSERT INTO observations (series_id,period,value,version,raw_sha256,first_seen_at) VALUES (?,?,?,?,?,?)", ("wti_cushing_spot_price", "2026-07", 80.0, 1, "secret-hash", "2026-09-01"))
+            db.execute("INSERT INTO observations (series_id,period,value,version,raw_sha256,first_seen_at) VALUES (?,?,?,?,?,?)", ("wti_cushing_spot_price", "2026-08", 83.9, 1, "secret-hash", "2026-09-01"))
             db.commit()
             db.close()
             output = publish(root / "private.sqlite3", root / "display.json")
@@ -81,9 +108,25 @@ class PublicationTests(unittest.TestCase):
             self.assertNotIn("/private/", raw)
             self.assertNotIn("raw_files", raw)
             self.assertEqual(load_display_snapshot(output)["observations"]["trreb_sales"]["2026-08"], 1234)
+            self.assertEqual(load_display_snapshot(output)["context"]["wti_cushing_spot_price"],
+                             {"period": "2026-08", "value": 83.9})
+            self.assertNotIn('"2026-07"', json.dumps(load_display_snapshot(output)["context"]))
             with self.assertRaises(sqlite3.OperationalError):
                 publish(root / "missing.sqlite3", output)
             self.assertEqual(json.loads(output.read_text())["observations"]["trreb_sales"]["2026-08"], 1234)
+
+    def test_display_context_contract_rejects_unapproved_or_invalid_values(self):
+        valid = {"schema_version": 2, "created_at": "2026-09-24T00:00:00Z", "observations": {},
+                 "context": {"toronto_residential_construction_cost_index":
+                             {"period": "2026-04", "value": 105.7}}}
+        self.assertEqual(validate_display_snapshot(valid), valid)
+        for item in ({"period": "2026-05", "value": 105.7}, {"period": "2026-04", "value": float("nan")}):
+            altered = {**valid, "context": {"toronto_residential_construction_cost_index": item}}
+            with self.assertRaises(ValueError):
+                validate_display_snapshot(altered)
+        with self.assertRaises(ValueError):
+            validate_display_snapshot({**valid, "context": {"private_record": {"period": "2026-08", "value": 1}}})
+        self.assertEqual(validate_display_snapshot({"schema_version": 1, "observations": {}})["schema_version"], 1)
 
     def test_display_publish_archives_and_can_restore_previous_good_version(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -187,4 +230,5 @@ class PublicationTests(unittest.TestCase):
                 report = run_cycle(root, successful_refresh)
             self.assertTrue(report["snapshot_published"])
             self.assertEqual(report["recovery_check"], {"source_files": 1})
-            self.assertEqual(len(calls), 3)
+            self.assertEqual(len(calls), 5)
+            self.assertEqual(report["context_publish_exit_code"], 0)

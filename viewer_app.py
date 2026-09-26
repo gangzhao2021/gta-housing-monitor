@@ -2,6 +2,7 @@
 import os
 import sys
 from datetime import datetime
+from html import escape
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -10,11 +11,12 @@ import streamlit as native_st
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
 from housing.i18n import st, english
-from housing.catalog import SERIES_URLS
-from housing.dashboard import css, cards, line_chart, label, note
+from housing.catalog import SERIES, SERIES_URLS
+from housing.dashboard import css, cards, indicator_legend, line_chart, label, note
 from housing.presentation import available_periods, period_label
 from housing.publication import load_display_snapshot, monthly_display
 from housing.regions import MONTHLY_REGIONS, CMHC_REGIONS, asking_id, cmhc_id
+from housing.metric_help import help_label
 
 st.set_page_config(page_title="GTA Housing Monitor", layout="wide")
 if os.environ.get("HOUSING_REQUIRE_OWNER_AUTH") != "0":
@@ -65,14 +67,19 @@ if page == "市场总览":
         st.subheader("房价走势")
         line_chart(data, ["trreb_hpi_benchmark"], start, end, height=330)
         st.subheader("成交与新增挂牌")
-        line_chart(data, ["trreb_sales", "trreb_new_listings"], start, end)
+        indicator_legend(["trreb_sales", "trreb_new_listings"])
+        line_chart(data, ["trreb_sales", "trreb_new_listings"], start, end, external_legend=True)
         st.subheader("库存月数与成交／新挂牌比")
         a, b = st.columns(2)
         with a:
-            line_chart(data, ["moi_raw"], start, end)
+            indicator_legend(["moi_raw"])
+            line_chart(data, ["moi_raw"], start, end, external_legend=True)
         with b:
-            line_chart(data, ["snlr_raw"], start, end)
+            indicator_legend(["snlr_raw"])
+            line_chart(data, ["snlr_raw"], start, end, external_legend=True)
         st.caption("TRREB 全市场月度资料。价格为 HPI 基准价，非平均成交价；历史序列为当前所存版本。")
+    if snapshot.get("context"):
+        st.info("新增能源、汇率与建筑造价背景资料：见“经济与供给”页底部。")
 elif page == "租赁市场":
     mode = st.radio("租金口径", ["月度挂牌", "年度存量", "地区对比"], horizontal=True)
     if mode == "月度挂牌":
@@ -123,23 +130,75 @@ elif page == "租赁市场":
                                names={field: regions[region] for region, field in zip(chosen, fields) if field in present})
                     st.caption("仅比较同一月度挂牌口径。地区无值即缺失，不以总体均值代替。")
 elif page == "经济与供给":
-    groups = [
-        ("利率与融资", ["boc_policy_rate", "goc_5y_yield", "mortgage_uninsured_fixed_5plus"]),
-        ("就业", ["toronto_unemployment_rate", "toronto_employment_rate", "toronto_participation_rate"]),
-        ("住宅建设", ["toronto_cma_2011_starts", "toronto_cma_2011_completions", "toronto_cma_2011_under_construction"]),
-    ]
-    for title, fields in groups:
-        st.subheader(title)
-        scope = period_control(fields, f"viewer-{title}")
-        if scope:
-            line_chart(data, fields, *scope, height=290)
+    st.subheader("利率与融资")
+    rates = ["boc_policy_rate", "goc_5y_yield", "mortgage_uninsured_fixed_5plus"]
+    scope = period_control(rates, "viewer-利率与融资")
+    if scope:
+        indicator_legend(rates)
+        line_chart(data, rates, *scope, height=290, external_legend=True)
+    st.subheader("就业")
+    employment = ["toronto_unemployment_rate", "toronto_employment_rate", "toronto_participation_rate"]
+    scope = period_control(employment, "viewer-就业")
+    if scope:
+        left, right = st.columns(2)
+        with left:
+            st.markdown("**失业率**")
+            indicator_legend(employment[:1])
+            line_chart(data, employment[:1], *scope, height=260, external_legend=True)
+        with right:
+            st.markdown("**就业率与劳动参与率**")
+            indicator_legend(employment[1:])
+            line_chart(data, employment[1:], *scope, height=260, external_legend=True)
+        st.caption("三项均为百分比，但失业率的数值范围与另外两项不同；分图比较变化。")
+    st.subheader("住宅建设")
+    construction = ["toronto_cma_2011_starts", "toronto_cma_2011_completions", "toronto_cma_2011_under_construction"]
+    scope = period_control(construction, "viewer-住宅建设")
+    if scope:
+        left, right = st.columns(2)
+        with left:
+            st.markdown("**当月开工与竣工**")
+            indicator_legend(construction[:2])
+            line_chart(data, construction[:2], *scope, height=260, zero_y=True, external_legend=True)
+        with right:
+            st.markdown("**月末在建住宅**")
+            indicator_legend(construction[2:])
+            line_chart(data, construction[2:], *scope, height=260, external_legend=True)
+        st.caption("开工、竣工是当月流量；在建是月末存量。两图共用观察期，纵轴各自缩放，不能相加。")
     st.subheader("人口")
     population = snapshot["observations"].get("toronto_cma_2021_population", {})
     if population:
         annual_population = {year: {"toronto_cma_2021_population": value} for year, value in sorted(population.items())}
         end = st.selectbox("人口估计年份", list(reversed(annual_population)), key="viewer-population-year")
-        line_chart(annual_population, ["toronto_cma_2021_population"], min(annual_population), end, height=290)
+        indicator_legend(["toronto_cma_2021_population"])
+        line_chart(annual_population, ["toronto_cma_2021_population"], min(annual_population), end, height=290, external_legend=True)
     st.caption("利率为加拿大背景；就业为 Toronto CMA 2021 边界；建设为 CMA 2011 边界。不同总体不计算交叉比率。")
+    st.subheader("外部背景（研究中）")
+    st.caption("仅供解释市场背景；油价暂不上图，这些指标尚未用于评分或预测。不同地区、频率与单位不能直接合并。")
+    context_html_rows = []
+    context_fields = ("wti_cushing_spot_price", "usd_cad_monthly", "boc_energy_price_index",
+                      "toronto_residential_construction_cost_index")
+    for field in context_fields:
+        item = snapshot.get("context", {}).get(field)
+        decimals = 4 if field == "usd_cad_monthly" else 1 if field == "toronto_residential_construction_cost_index" else 2
+        period = item["period"] if item else "—"
+        if item and field == "toronto_residential_construction_cost_index":
+            quarter = (int(period[5:]) - 1) // 3 + 1
+            period = f"{period[:4]} Q{quarter}" if english() else f"{period[:4]}年第{quarter}季度"
+        row = {"指标": SERIES[field][0],
+               "最近值": f"{item['value']:,.{decimals}f}" if item else "—",
+               "单位": SERIES[field][4], "资料期": period,
+               "地区": ("Cushing, US" if field == "wti_cushing_spot_price" else
+                       "Toronto CMA" if field == "toronto_residential_construction_cost_index" else
+                       "Canada")}
+        context_html_rows.append(
+            '<tr><th scope="row">' + help_label(field, row["指标"]) + '</th>'
+            + ''.join(f'<td data-label="{escape(column)}">{escape(row[column])}</td>'
+                      for column in ("最近值", "单位", "资料期", "地区")) + '</tr>')
+    if context_html_rows:
+        headings = ''.join(f'<th scope="col">{column}</th>' for column in ("指标", "最近值", "单位", "资料期", "地区"))
+        st.html('<table class="context-table"><thead><tr>' + headings + '</tr></thead><tbody>'
+                + ''.join(context_html_rows) + '</tbody></table>')
+        st.caption("官方来源：" + " · ".join(f"[{SERIES[field][1]}]({SERIES_URLS[field]})" for field in context_fields))
 else:
     from housing.affordability import monthly_payment
     st.subheader("固定本金的月供情景")

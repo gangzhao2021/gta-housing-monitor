@@ -40,7 +40,7 @@ def run_cycle(root=ROOT, runner=subprocess.run):
             lock_path = data / ".refresh-cycle.lock"
             lock_path.chmod(0o600)
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            refresh = runner([sys.executable, str(root / "scripts/refresh_official.py"), "--source", "all"],
+            refresh = runner([sys.executable, str(root / "scripts/refresh_official.py"), "--source", "core"],
                              cwd=root, capture_output=True, text=True)
             report.update({"refresh_exit_code": refresh.returncode,
                            "refresh_stdout": refresh.stdout[-4000:], "refresh_stderr": refresh.stderr[-4000:]})
@@ -52,6 +52,22 @@ def run_cycle(root=ROOT, runner=subprocess.run):
                 report["snapshot_published"] = publish.returncode == 0
                 if publish.returncode:
                     report["publish_error"] = publish.stderr[-4000:]
+                if report["snapshot_published"]:
+                    factors = runner([sys.executable, str(root / "scripts/refresh_official.py"),
+                                      "--source", "factors"],
+                                     cwd=root, capture_output=True, text=True)
+                    report.update({"factors_exit_code": factors.returncode,
+                                   "factors_stdout": factors.stdout[-4000:],
+                                   "factors_stderr": factors.stderr[-4000:]})
+                    # These context series stay in the owner database. A factor
+                    # failure must not roll back a verified core display update.
+                    report["factor_recovery_check"] = verify_dataset(root)
+                    if factors.returncode == 0:
+                        context_publish = runner([sys.executable, str(root / "scripts/publish_display.py")],
+                                                 cwd=root, capture_output=True, text=True)
+                        report["context_publish_exit_code"] = context_publish.returncode
+                        if context_publish.returncode:
+                            report["context_publish_error"] = context_publish.stderr[-4000:]
     except Exception as exc:
         report["error"] = f"{type(exc).__name__}: {exc}"
     finally:
@@ -63,4 +79,5 @@ def run_cycle(root=ROOT, runner=subprocess.run):
 if __name__ == "__main__":
     result = run_cycle()
     print(json.dumps(result, ensure_ascii=False))
-    raise SystemExit(0 if result["snapshot_published"] else 1)
+    raise SystemExit(0 if result["snapshot_published"] and result.get("factors_exit_code") == 0
+                     and result.get("context_publish_exit_code") == 0 else 1)

@@ -1,6 +1,7 @@
 """Qualitative explanations, not model forecasts or investment recommendations."""
 from html import escape
 from .i18n import english, tr
+from .catalog import SERIES
 
 BOC = 'https://www.bankofcanada.ca/2008/06/real-estate-mortgage-markets-monetary-policy/'
 RATES = 'https://www.bankofcanada.ca/2020/05/whats-behind-your-mortgage-rate/'
@@ -33,6 +34,10 @@ HELP = {
     'toronto_cma_2011_completions': ('竣工增加意味着更多住房可以进入使用阶段，通常有助于缓解住房和租赁供给压力。','影响取决于位置、房型、用途及同期新增家庭数量；不代表这些住房全部挂牌出售。','More completions make additional homes available for use and can ease housing and rental supply pressures.','Location, type, tenure and household growth matter. Completed homes are not all listed for sale.', BOC),
     'toronto_cma_2011_under_construction': ('在建住宅反映未来供应管线，较多项目最终交付可能缓解房价和租金压力。','在建增加也可能源于工期变长；不能把在建总量当作短期上市量或 condo 预售库存。','Homes under construction represent a supply pipeline that may ease price and rent pressures when delivered.','A larger pipeline can also reflect longer build times. It is not near-term listed supply or condo presale inventory.', BOC),
     'toronto_cma_2021_population': ('人口增长通常增加居住需求。若新增家庭增长快于可用住房供应，房价和租金可能面临上行压力。','人口不等于家庭数量，也不等于购房者数量；收入、年龄结构和合住情况都会影响需求。','Population growth generally increases housing needs. Prices and rents may face upward pressure if household growth outpaces available supply.','People are not the same as households or buyers; incomes, age and shared housing affect demand.', BOC),
+    'wti_cushing_spot_price': ('油价变化可能经运输、部分建材、通胀和利率影响住房成本与需求，也可能影响能源相关收入。','这是美国 WTI 月均价，不是 Ontario 零售能源或 GTA 建筑成本；传导方向与净影响尚未验证，不能据此预测房价。','Oil prices can affect transport, some materials, inflation and rates, as well as energy-sector income.','This U.S. WTI monthly average is not Ontario retail energy or GTA construction cost. Its net housing effect is unverified.', 'https://www.eia.gov/dnav/pet/hist/rwtcm.htm'),
+    'usd_cad_monthly': ('汇率变化可能改变进口建材和设备成本，也会影响贸易收入及购买力。','数值是每美元对应的加元；上升代表加元走弱，不直接衡量外国买家需求，也不能单独推断 GTA 房价。','Exchange rates can affect imported materials and equipment costs, trade income and purchasing power.','The value is Canadian dollars per U.S. dollar; a rise means a weaker Canadian dollar. It does not directly measure foreign-buyer demand or predict GTA prices.', 'https://www.bankofcanada.ca/rates/exchange/monthly-exchange-rates/'),
+    'boc_energy_price_index': ('能源商品价格可能经通胀、运输及建造投入影响住房市场，也可能影响能源行业收入。','这是加拿大央行能源商品指数，不是 WTI 或本地账单；底层缺源可能沿用前值，历史数据也会修订。','Energy commodity prices can affect housing through inflation, transport and building inputs, and energy-sector income.','This Bank of Canada index is neither WTI nor a local energy bill. Some missing inputs may carry forward, and history may be revised.', 'https://www.bankofcanada.ca/rates/price-indexes/bcpi/'),
+    'toronto_residential_construction_cost_index': ('住宅建造报价成本上升可能降低项目可行性，经过开发和交付时滞影响未来供应。','季度指数以首月存储，基期为 2023=100；不含地价和融资成本，也不是转售房价或新房供给数量。','Higher residential construction quotes can affect project viability and, after a lag, future housing supply.','This quarterly index is stored by its first month and uses 2023=100. It excludes land and financing costs and is neither a resale price nor a count of new homes.', 'https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810028901'),
 }
 PRICE = ('HPI 描述标准化住宅价格变化，是市场结果指标。','它本身不是推动房价的原因；应结合需求、供应和融资条件分析，不直接外推未来涨跌。','HPI tracks standardized home prices and is an outcome measure.','It is not itself a driver of prices. Read it alongside demand, supply and financing rather than extrapolating future gains or losses.', BOC)
 RENT = ('租金上升可能反映租赁需求强于供应，也可能提高出租物业的潜在收入，对投资需求形成支持。','租金与房价并非同步变化；利率、费用、空置风险以及挂牌样本构成都很重要。','Higher rents may reflect rental demand exceeding supply and can support investment demand through potential rental income.','Rents and home prices need not move together. Interest rates, costs, vacancy risk and the sample mix also matter.', BOC)
@@ -57,6 +62,9 @@ def help_label(field, text):
         return escape(text)
     zh, caveat_zh, en, caveat_en, url = content
     heading, reference = ('How it relates to home prices', 'Background · Bank of Canada') if english() else ('如何影响房价', '机制参考 · 加拿大央行')
+    if field in ('wti_cushing_spot_price', 'usd_cad_monthly', 'boc_energy_price_index',
+                 'toronto_residential_construction_cost_index'):
+        reference = ('Official source · ' if english() else '官方来源 · ') + SERIES[field][1]
     body, caveat = (en, caveat_en) if english() else (zh, caveat_zh)
     # Native disclosure supplies touch/keyboard toggling; CSS adds pointer-hover preview.
     return (f'<details class="metric-help"><summary>{escape(tr(text))} <span class="help-icon" aria-hidden="true">ⓘ</span></summary>'

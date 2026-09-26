@@ -16,6 +16,10 @@ SERIES = {
     "toronto_cma_2011_completions": ("住宅竣工", "StatsCan", "34-10-0154-01", "Toronto CMA 2011 boundary", "units", "monthly", "actual", "none", "CMHC Starts and Completions Survey；Total units"),
     "toronto_cma_2011_under_construction": ("在建住宅", "StatsCan", "34-10-0154-01", "Toronto CMA 2011 boundary", "units", "monthly", "stock", "none", "CMHC Starts and Completions Survey；月末存量，Total units"),
     "toronto_cma_2021_population": ("Toronto CMA 人口估计", "StatsCan", "17-10-0148-01", "Toronto CMA 2021 boundary", "persons", "annual", "July 1 estimate", "none", "Total gender、All ages；年度值不插值为月度值"),
+    "wti_cushing_spot_price": ("WTI 原油现货月均价", "EIA", "RWTC monthly", "Cushing, Oklahoma", "USD/barrel", "monthly", "not adjusted", "none", "美国 WTI 现货月均价；国际能源背景，不等于 Ontario 零售能源或 GTA 建筑成本；尚未验证房价预测增量价值"),
+    "usd_cad_monthly": ("美元兑加元月均汇率", "BoC FX", "FXMUSDCAD", "Canada", "CAD/USD", "monthly", "monthly average", "none", "1 美元兑换的加元数；上升代表加元相对美元走弱，不直接表示 GTA 外国买家需求"),
+    "boc_energy_price_index": ("加拿大央行能源商品价格指数", "BoC BCPI", "M.ENER", "Canada", "index", "monthly", "not adjusted", "none", "加拿大商品价格指数能源组；不是 WTI 或本地能源账单。底层缺源时可能沿用前值，后续会修订"),
+    "toronto_residential_construction_cost_index": ("Toronto 住宅建筑造价指数", "StatsCan BCPI", "18-10-0289-01 v1617912612", "Toronto CMA 2021 boundary", "index", "quarterly", "2023=100", "none", "住宅建筑 Division composite 报价指数；季度以首月登记，非地价、融资成本或转售房价"),
 }
 
 
@@ -70,6 +74,10 @@ SERIES_URLS = {
     "toronto_cma_2011_completions": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015401",
     "toronto_cma_2011_under_construction": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=3410015401",
     "toronto_cma_2021_population": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710014801",
+    "wti_cushing_spot_price": "https://www.eia.gov/dnav/pet/hist/rwtcm.htm",
+    "usd_cad_monthly": "https://www.bankofcanada.ca/rates/exchange/monthly-exchange-rates/",
+    "boc_energy_price_index": "https://www.bankofcanada.ca/rates/price-indexes/bcpi/",
+    "toronto_residential_construction_cost_index": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810028901",
 }
 
 CMHC_RENTAL_URL = "https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-data/data-tables/rental-market/rental-market-report-data-tables"
