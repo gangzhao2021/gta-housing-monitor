@@ -159,3 +159,21 @@ schema 2 展示快照包含原有 121 个白名单展示系列每个期间的最
 新 CSV 的 `source_sha256` 指向同批官方 JSON 内容哈希，`source_url` 是可访问的官方系列／表入口；WDS 请求方法、vector 和返回元数据由提取器及 JSON 保存。`period` 为所属月，不是获取月或发布时间；质量、修订、保密标记保留在 JSON，数值表不伪造缺失值，遇未支持的数值质量状态会失败。旧表与现行许可表有不同数据库 ID；重叠期间不去重合并，因为可能存在修订与方法差异。
 
 本次核验全库 131 个系列（129 个有值），5,944 条含版本观测、5,939 个不同系列／期间、166 份登记文件；前文较早基线保留为历史。
+
+
+### TRREB 地区／房型独立 CSV（2026-09-26）
+
+文件 `data/manual/trreb-districts-<起月>-to-<止月>-<内容哈希>.csv`；不是既有 `trreb-extracted-*.csv` 格式，不计入数据库系列与观测数。
+
+| 字段 | 含义与单位 |
+| --- | --- |
+| `ym`, `house_type`, `region` | 所属月 YYYY-MM、房型代码、原报告地区标签；三者共同唯一 |
+| `sales`, `dollar_volume` | 当月成交笔数、成交总金额 CAD；不是交割量 |
+| `average_price`, `median_price` | 平均价、中位价，CAD；保留原报告整数 |
+| `new_listings`, `active_listings` | 当月新增挂牌、月末在售挂牌数 |
+| `snlr_trend`, `moi_trend` | 原报告趋势口径，分别为百分数和月；不能当自算原始 SNLR／MOI |
+| `avg_sp_lp` | 平均成交价／挂牌价百分数，保留百分数数值，不除以 100 |
+| `avg_ldom`, `avg_pdom` | 平均挂牌天数、平均物业上市天数，日；两种口径不混用 |
+| `source_pdf`, `source_pdf_sha256` | 原 PDF 文件名与完整 SHA256 |
+
+房型代码：`all_types`, `detached`, `semi_detached`, `townhouse`, `condo_townhouse`, `condo_apartment`, `link`, `coop_apartment`, `detached_condo`, `coownership_apartment`。不同房型页未提供的趋势／PDOM 列保持空白；零成交行不臆造均价、中位价或成交额。地区包含父级、子级和 Toronto district，不能把全部行相加。全房型 All TRREB Areas 才与首页全市场销量比较；单房型总计分别保留。
