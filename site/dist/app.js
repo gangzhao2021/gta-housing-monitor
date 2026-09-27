@@ -10,10 +10,10 @@ const COLORS = ['#2855d9','#007f86','#bf6517','#7952be'];
 const ROOM = {total:'total',studio:'studio','1br':'one','2br':'two','3br':'three','3plus':'threePlus'};
 const AREAS = {toronto:'Toronto',north_york:'North York',scarborough:'Scarborough',markham:'Markham',vaughan:'Vaughan',mississauga:'Mississauga',oakville:'Oakville',richmond_vaughan_king:'Richmond Hill / Vaughan / King',aurora_newmarket_whit:'Aurora / Newmarket / Whit-St.'};
 const MAP_POINTS = {toronto:[-79.3832,43.6532],north_york:[-79.4111,43.7615],scarborough:[-79.2318,43.7764],markham:[-79.3370,43.8561],vaughan:[-79.5083,43.8372],mississauga:[-79.6441,43.5890],oakville:[-79.6877,43.4675],richmond_vaughan_king:[-79.4700,43.8800],aurora_newmarket_whit:[-79.4400,44.0200]};
-const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',regions:['north_york','scarborough'],regionFeedback:'',supplyMetric:'moi_raw',principal:500000,years:25,rate:5,end:{}};
+const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',regions:['north_york','markham','scarborough'],regionFeedback:'',supplyMetric:'moi_raw',marketView:'level',principal:500000,years:25,rate:5,end:{}};
 const initialState=JSON.parse(JSON.stringify(state));
-function restoreView(){try{const q=JSON.parse(decodeURIComponent(location.hash.slice(1)));for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency']){const allowed={lang:['zh','en'],page:['market','rent','economy','mortgage'],rentMode:['monthly','annual','region'],room:Object.keys(ROOM),annualRoom:Object.keys(ROOM),regionRoom:Object.keys(ROOM),regionFrequency:['monthly','annual']};if(allowed[key].includes(q[key]))state[key]=q[key]}if(['moi_raw','snlr_raw'].includes(q.supplyMetric))state.supplyMetric=q.supplyMetric;if(Object.hasOwn(PROPERTY_TYPES,q.districtType))state.districtType=q.districtType;if(typeof q.districtRegion==='string'&&/^[A-Za-z0-9 ./'()&-]{1,100}$/.test(q.districtRegion))state.districtRegion=q.districtRegion;if(['average_price','sales','new_listings','active_listings','median_price','avg_ldom'].includes(q.districtMetric))state.districtMetric=q.districtMetric;if(Array.isArray(q.regions))state.regions=q.regions.filter(r=>Object.hasOwn(AREAS,r)).slice(0,3);if(q.end&&typeof q.end==='object')for(const [k,v]of Object.entries(q.end)){if(/^[a-zA-Z0-9_-]{1,100}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)&&/^\d{4}(-\d{2})?$/.test(v))state.end[k]=v}}catch{}}
-function viewLink(){const q={};for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','regions','end','districtType','districtRegion','districtMetric','supplyMetric'])q[key]=state[key];return '#'+encodeURIComponent(JSON.stringify(q))}
+function restoreView(){try{const q=JSON.parse(decodeURIComponent(location.hash.slice(1)));for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency']){const allowed={lang:['zh','en'],page:['market','rent','economy','mortgage'],rentMode:['monthly','annual','region'],room:Object.keys(ROOM),annualRoom:Object.keys(ROOM),regionRoom:Object.keys(ROOM),regionFrequency:['monthly','annual']};if(allowed[key].includes(q[key]))state[key]=q[key]}if(['moi_raw','snlr_raw'].includes(q.supplyMetric))state.supplyMetric=q.supplyMetric;if(['level','mom','yoy'].includes(q.marketView))state.marketView=q.marketView;if(Object.hasOwn(PROPERTY_TYPES,q.districtType))state.districtType=q.districtType;if(typeof q.districtRegion==='string'&&/^[A-Za-z0-9 ./'()&-]{1,100}$/.test(q.districtRegion))state.districtRegion=q.districtRegion;if(['average_price','sales','new_listings','active_listings','median_price','avg_ldom'].includes(q.districtMetric))state.districtMetric=q.districtMetric;if(Array.isArray(q.regions))state.regions=q.regions.filter(r=>Object.hasOwn(AREAS,r)).slice(0,3);if(q.end&&typeof q.end==='object')for(const [k,v]of Object.entries(q.end)){if(/^[a-zA-Z0-9_-]{1,100}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)&&/^\d{4}(-\d{2})?$/.test(v))state.end[k]=v}}catch{}}
+function viewLink(){const q={};for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','regions','end','districtType','districtRegion','districtMetric','supplyMetric','marketView'])q[key]=state[key];return '#'+encodeURIComponent(JSON.stringify(q))}
 restoreView();
 let payload, observations, monthly;
 let chartModels = [];
@@ -81,7 +81,8 @@ function select(label,key,periods,annual=false,availablePeriods=periods) {
 function metric(field,period,digits=0) {
   const v=value(field,period), prev=value(field,`${Number(period.slice(0,4))-1}${period.slice(4)}`), delta=(v!=null&&prev)?(v/prev-1)*100:null;
   const shown=field==='trreb_hpi_benchmark'?`$${number(v)}`:number(v,digits);
-  return `<div class="metric"><div class="metric-name">${help(field)}</div><div class="metric-value">${shown}</div><div class="metric-delta">${delta==null?'—':`${delta>=0?'+':''}${number(delta,1)}%`} ${state.lang==='zh'?'较上年同期':'year over year'}</div></div>`;
+  const asof=v==null?'—':monthLabel(period);
+  return `<div class="metric"><div class="metric-name">${help(field)}</div><div class="metric-value">${shown}</div><div class="metric-delta">${delta==null?'—':`${delta>=0?'+':''}${number(delta,1)}%`} ${state.lang==='zh'?'较上年同期':'year over year'}</div><div class="metric-asof">${state.lang==='zh'?'数据截至':'Data through'} ${asof}</div></div>`;
 }
 function tooltipValue(field,v) {
   if(v==null) return '—';
@@ -121,30 +122,47 @@ function hpiAnnotation(periods,x,y,plotH,W,narrow) {
   const tx=narrow?12:55,ty=plotH+23;
   return `<g class="hpi-annotation"><title>${esc(lines.join(' '))}</title><line class="hpi-guide" x1="${xx}" x2="${xx}" y1="${yy+6}" y2="${plotH-30}"/><circle class="hpi-marker" cx="${xx}" cy="${yy}" r="5"/>${lines.map((line,index)=>`<text class="hpi-note" x="${tx}" y="${ty+index*16}">${esc(line)}</text>`).join('')}</g>`;
 }
-function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null,compact=false,width=null,legend=true,unit=null,hpiNote=false}={}) {
+function comparisonValue(field,period,mode,annual=false){
+ const current=value(field,period,annual);
+ if(mode==='level'||annual)return current;
+ const basePeriod=previousMonth(period,mode==='mom'?1:12);
+ if(field==='trreb_hpi_benchmark'&&basePeriod<'2025-04'&&period>='2025-04')return null;
+ const base=value(field,basePeriod);
+ if(current==null||base==null)return null;
+ if(meta(field).unit==='%')return current-base;
+ return base===0?null:(current/base-1)*100;
+}
+function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null,compact=false,width=null,legend=true,unit=null,hpiNote=false,secondaryField=null,comparison='level'}={}) {
   const narrow=window.innerWidth<=480;
   const W=narrow?Math.max(300,Math.min(440,window.innerWidth-40)):(width||(compact?520:680));
   const noteHeight=hpiNote&&periods.includes('2025-04')?(narrow?122:72):0;
   const H=(narrow?220:height)+noteHeight,plotH=H-noteHeight;
-  const pad={l:unit?65:(narrow?47:(compact?47:55)),r:28,t:15,b:30},innerW=W-pad.l-pad.r,innerH=plotH-pad.t-pad.b;
-  const vals=fields.flatMap(f=>periods.map(p=>value(f,p,annual))).filter(v=>Number.isFinite(v));
+  const pad={l:unit?65:(narrow?47:(compact?47:55)),r:secondaryField?65:28,t:15,b:30},innerW=W-pad.l-pad.r,innerH=plotH-pad.t-pad.b;
+  const shown=(f,p)=>comparisonValue(f,p,comparison,annual);
+  const vals=fields.filter(f=>f!==secondaryField).flatMap(f=>periods.map(p=>shown(f,p))).filter(v=>Number.isFinite(v));
   if(!vals.length) return `<p class="chart-empty">${t('noData')}</p>`;
   let min=zero?0:Math.min(...vals),max=Math.max(...vals);
   if(min===max){min=Math.max(0,min-1);max+=1}
   const margin=(max-min)*.08;max+=margin;if(!zero)min-=margin;
   const x=i=>pad.l+(periods.length===1?innerW/2:i*innerW/(periods.length-1));
   const y=v=>pad.t+(max-v)/(max-min)*innerH;
-  const grids=Array.from({length:5},(_,i)=>{const yy=pad.t+i*innerH/4, vv=max-i*(max-min)/4;return `<line class="grid-line" x1="${pad.l}" x2="${W-pad.r}" y1="${yy}" y2="${yy}"/><text class="axis-label" x="${pad.l-9}" y="${yy+4}" text-anchor="end">${axisNumber(vv)}</text>`}).join('');
+  const secondaryValues=secondaryField?periods.map(p=>shown(secondaryField,p)).filter(v=>Number.isFinite(v)):[];
+  let secondaryMin=Math.min(...secondaryValues),secondaryMax=Math.max(...secondaryValues);
+  if(secondaryMin===secondaryMax){secondaryMin-=1;secondaryMax+=1}
+  const secondaryMargin=(secondaryMax-secondaryMin)*.08;
+  secondaryMin-=secondaryMargin;secondaryMax+=secondaryMargin;
+  const yFor=(f,v)=>f===secondaryField?pad.t+(secondaryMax-v)/(secondaryMax-secondaryMin)*innerH:y(v);
+  const grids=Array.from({length:5},(_,i)=>{const yy=pad.t+i*innerH/4, vv=max-i*(max-min)/4;return `<line class="grid-line" x1="${pad.l}" x2="${W-pad.r}" y1="${yy}" y2="${yy}"/><text class="axis-label" x="${pad.l-9}" y="${yy+4}" text-anchor="end">${axisNumber(vv)}</text>${secondaryField?`<text class="axis-label secondary-axis" x="${W-pad.r+8}" y="${yy+4}" text-anchor="start">${axisNumber(secondaryMax-i*(secondaryMax-secondaryMin)/4)}</text>`:''}`}).join('');
   const step=Math.max(1,Math.ceil((periods.length-1)/(narrow?2:4)));
   const ticks=periods.map((p,i)=>i===0||i===periods.length-1||i%step===0?`<text class="axis-label" x="${x(i)}" y="${plotH-5}" text-anchor="middle">${annual?p:p.slice(2).replace('-','/')}</text>`:'').join('');
-  const lines=fields.map((f,j)=>{let paths=[],part=[];periods.forEach((p,i)=>{const v=value(f,p,annual);if(v==null){if(part.length){paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);part=[]}return}part.push(`${part.length?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`)});if(part.length)paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);return paths.join('')}).join('');
-  const index=chartModels.push({fields,periods,annual,labels,W,H,pad,innerW,innerH,y})-1;
-  return `<div class="chart-area">${legend?`<div class="legend">${fields.map((f,i)=>`<span class="legend-item"><span class="legend-line series-color-${i%COLORS.length}"></span>${help(f,labels?.[f])}</span>`).join('')}</div>`:''}<div class="chart-wrap"><svg class="chart" data-chart="${index}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(fields.map(f=>labels?.[f]||name(f)).join(', '))}">${grids}${ticks}${unit?`<text class="axis-label" transform="translate(12 ${plotH/2}) rotate(-90)" text-anchor="middle">${esc(unit)}</text>`:''}${lines}${hpiNote?hpiAnnotation(periods,x,y,plotH,W,narrow):''}<line class="chart-cursor" data-cursor x1="0" x2="0" y1="${pad.t}" y2="${plotH-pad.b}" visibility="hidden"/><g data-points></g><rect class="chart-hit" x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="transparent" tabindex="0" role="button" aria-label="${state.lang==='zh'?'图表数据；使用左右方向键查看各期':'Chart values; use left and right arrows to inspect periods'}"/></svg><div class="chart-tooltip" hidden></div></div></div>`;
+  const lines=fields.map((f,j)=>{let paths=[],part=[];periods.forEach((p,i)=>{const v=shown(f,p);if(v==null){if(part.length){paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);part=[]}return}part.push(`${part.length?'L':'M'}${x(i).toFixed(1)},${yFor(f,v).toFixed(1)}`)});if(part.length)paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);return paths.join('')}).join('');
+  const index=chartModels.push({fields,periods,annual,labels,W,H,pad,innerW,innerH,yFor,shown,comparison})-1;
+  return `<div class="chart-area">${legend?`<div class="legend">${fields.map((f,i)=>`<span class="legend-item"><span class="legend-line series-color-${i%COLORS.length}"></span>${help(f,labels?.[f])}</span>`).join('')}</div>`:''}<div class="chart-wrap"><svg class="chart" data-chart="${index}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(fields.map(f=>labels?.[f]||name(f)).join(', '))}">${grids}${ticks}${unit?`<text class="axis-label" transform="translate(12 ${plotH/2}) rotate(-90)" text-anchor="middle">${esc(unit)}</text>`:''}${secondaryField?`<text class="axis-label secondary-axis" transform="translate(${W-12} ${plotH/2}) rotate(90)" text-anchor="middle">CAD</text>`:''}${lines}${hpiNote?hpiAnnotation(periods,x,y,plotH,W,narrow):''}<line class="chart-cursor" data-cursor x1="0" x2="0" y1="${pad.t}" y2="${plotH-pad.b}" visibility="hidden"/><g data-points></g><rect class="chart-hit" x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="transparent" tabindex="0" role="button" aria-label="${state.lang==='zh'?'图表数据；使用左右方向键查看各期':'Chart values; use left and right arrows to inspect periods'}"/></svg><div class="chart-tooltip" hidden></div></div></div>`;
 }
 function attachChartTooltips() {
   document.querySelectorAll('[data-chart]').forEach(svg=>{
     const model=chartModels[Number(svg.dataset.chart)];
-    const {fields,periods,annual,labels,W,pad,innerW,innerH,y}=model;
+    const {fields,periods,annual,labels,W,pad,innerW,innerH,yFor,shown,comparison}=model;
     const wrap=svg.parentElement,tooltip=wrap.querySelector('.chart-tooltip');
     const cursor=svg.querySelector('[data-cursor]'),points=svg.querySelector('[data-points]');
     const x=i=>pad.l+(periods.length===1?innerW/2:i*innerW/(periods.length-1));
@@ -153,12 +171,13 @@ function attachChartTooltips() {
       active=Math.max(0,Math.min(periods.length-1,i));
       const period=periods[active],xx=x(active);
       cursor.setAttribute('x1',xx);cursor.setAttribute('x2',xx);cursor.setAttribute('visibility','visible');
-      points.innerHTML=fields.map((f,j)=>{const v=value(f,period,annual);return v==null?'':`<circle class="chart-point" cx="${xx}" cy="${y(v)}" r="4" fill="${COLORS[j%COLORS.length]}"/>`}).join('');
-      tooltip.innerHTML=`<strong>${annual?period:monthLabel(period)}</strong>${fields.map((f,j)=>`<div class="tooltip-row"><span class="tooltip-key"><i class="series-color-${j%COLORS.length}"></i>${esc(labels?.[f]||name(f))}</span><b>${esc(tooltipValue(f,value(f,period,annual)))}</b></div>`).join('')}`;
+      points.innerHTML=fields.map((f,j)=>{const v=shown(f,period);return v==null?'':`<circle class="chart-point" cx="${xx}" cy="${yFor(f,v)}" r="4" fill="${COLORS[j%COLORS.length]}"/>`}).join('');
+      const displayed=(f)=>comparison==='level'?tooltipValue(f,shown(f,period)):shown(f,period)==null?'—':`${number(shown(f,period),1)} ${meta(f).unit==='%'?'pp':'%'}`;
+      tooltip.innerHTML=`<strong>${annual?period:monthLabel(period)}</strong>${fields.map((f,j)=>`<div class="tooltip-row"><span class="tooltip-key"><i class="series-color-${j%COLORS.length}"></i>${esc(labels?.[f]||name(f))}</span><b>${esc(displayed(f))}</b></div>`).join('')}`;
       tooltip.hidden=false;
       const left=Math.max(8,Math.min(wrap.clientWidth-tooltip.offsetWidth-8,xx/W*svg.clientWidth+8));
       tooltip.style.left=`${left}px`;
-      svg.querySelector('.chart-hit').setAttribute('aria-label',`${annual?period:monthLabel(period)}；${fields.map(f=>`${labels?.[f]||name(f)} ${tooltipValue(f,value(f,period,annual))}`).join('，')}`);
+      svg.querySelector('.chart-hit').setAttribute('aria-label',`${annual?period:monthLabel(period)}；${fields.map(f=>`${labels?.[f]||name(f)} ${displayed(f)}`).join('，')}`);
     }
     function hide(){tooltip.hidden=true;cursor.setAttribute('visibility','hidden');points.innerHTML=''}
     const hit=svg.querySelector('.chart-hit');
@@ -172,15 +191,42 @@ function attachChartTooltips() {
 }
 function freshnessLabel(field){const f=payload.snapshot.freshness?.[field];if(!f)return '—';const labels={current:['已更新','Current'],pending:['待发布','Pending release'],overdue:['需核查更新','Update needs checking'],missing:['无观测','Missing'],unknown:['节奏待核验','Cadence unverified'],archived:['归档','Archived']};return (labels[f.status]||labels.unknown)[state.lang==='zh'?0:1]}
 function sourceNote(){return `<p class="note">${t('sourceNote')}</p>`}
+function supplyStat(field,end,digits=0,suffix=''){
+ const v=value(field,end);
+ return `<div class="supply-stat"><span>${help(field)}</span><strong>${v==null?'—':number(v,digits)+suffix}</strong><small>${state.lang==='zh'?'数据截至':'Data through'} ${v==null?'—':monthLabel(end)}</small></div>`;
+}
+function editorialNote(end){
+ const item=payload.editorial?.[end],valid=item&&typeof item.zh==='string'&&typeof item.en==='string'&&typeof item.author==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(item.reviewed_at||'');
+ return `<aside class="editorial"><h2>${state.lang==='zh'?'每月解读':'Monthly commentary'}</h2>${valid?`<p>${esc(item[state.lang])}</p><small>${esc(item.author)} · ${esc(item.reviewed_at)} · ${monthLabel(end)}</small>`:`<p class="note">${state.lang==='zh'?'本月尚无人工审核的解读。':'No manually reviewed commentary for this month.'}</p>`}</aside>`;
+}
 function marketPage(){
  const fields=['trreb_hpi_benchmark','trreb_sales','moi_raw'];
  const end=last(fields,false,'market');if(!end)return `<p>${t('noData')}</p>`;
- const periods=viewPeriods(fields,end),zh=state.lang==='zh', supply=state.supplyMetric==='snlr_raw'?'snlr_raw':'moi_raw';
+ const periods=viewPeriods(fields,end),zh=state.lang==='zh', supply=state.supplyMetric==='snlr_raw'?'snlr_raw':'moi_raw',comparison=state.marketView;
  return `<div class="overview-heading"><div><h1>${t('market')}</h1><p class="caption">${zh?'TRREB 全市场 · 全部房型':'All TRREB areas · All home types'}</p></div>${select(t('date'),'market',allPeriods(fields))}</div>
  <div class="metrics overview-metrics">${metric('trreb_hpi_benchmark',end)}${metric('trreb_sales',end)}${metric('moi_raw',end,2)}</div>
- <section class="price-panel"><div class="chart-heading"><h2>${t('price')}</h2><span class="caption">${esc(periods[0])} — ${esc(end)}</span></div>${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:'CAD',hpiNote:true})}<p class="note">${zh?'基准价格，不是成交均价。悬停、触摸或使用左右方向键查看各期数值。':'Benchmark price, not average sale price. Hover, touch or use arrow keys to inspect each period.'}</p></section>
- <div class="split overview-support"><section><h2>${t('sales')}</h2>${svgChart(['trreb_sales','trreb_new_listings'],periods,{height:230,width:616,zero:true,unit:zh?'笔 / 套':'Sales / listings'})}</section><section><h2>${zh?'供需状况':'Market balance'}</h2><div class="supply-options" role="group" aria-label="${zh?'供需指标':'Supply measure'}">${['moi_raw','snlr_raw'].map(f=>`<span><button data-supply="${f}" aria-pressed="${supply===f}">${esc(name(f))}</button>${help(f,null,true)}</span>`).join('')}</div>${svgChart([supply],periods,{height:230,width:616,zero:true,legend:false,unit:supply==='moi_raw'?(zh?'月':'Months'):'%'})}</section></div>
- ${districtSection()}<details class="overview-sources"><summary>${zh?'来源与口径':'Sources and definitions'}</summary>${sourceNote()}<p class="note">${t('fixed')}</p><a href="https://trreb.ca/market-data/market-watch/" target="_blank" rel="noopener noreferrer">TRREB Market Watch ↗</a></details>`;
+ <div class="comparison-options" role="group" aria-label="${zh?'价格及供需图表显示方式':'Price and supply chart mode'}">${[['level',zh?'原值':'Values'],['mom',zh?'环比':'Month over month'],['yoy',zh?'同比':'Year over year']].map(([id,label])=>`<button data-market-view="${id}" aria-pressed="${comparison===id}">${label}</button>`).join('')}</div><p class="note comparison-note">${comparison==='level'?(zh?'图表显示原值。':'Charts show observed values.'):(zh?'前期缺失、分母为零或 HPI 跨 2025-04 口径断点时留空；百分比指标显示百分点差，其余显示百分比变化。':'Missing bases, zero denominators and HPI comparisons across April 2025 stay blank. Rate measures show percentage-point differences; others show percent changes.')}</p>
+ <section class="price-panel"><div class="chart-heading"><h2>${t('price')}</h2><span class="caption">${esc(periods[0])} — ${esc(end)}</span></div>${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:comparison==='level'?'CAD':'%',hpiNote:comparison==='level',comparison})}<p class="note">${zh?'基准价格，不是成交均价。悬停、触摸或使用左右方向键查看各期数值。':'Benchmark price, not average sale price. Hover, touch or use arrow keys to inspect each period.'}</p><details class="price-comparison"><summary>${zh?'查看双轴比较样图：基准价与成交均价':'View dual-axis study: benchmark and average sale price'}</summary>${svgChart(['trreb_hpi_benchmark','trreb_average_price'],periods,{height:300,width:1280,unit:'CAD',secondaryField:'trreb_average_price',labels:{trreb_hpi_benchmark:zh?'左轴 · HPI 基准价':'Left axis · HPI benchmark',trreb_average_price:zh?'右轴 · 成交均价':'Right axis · Average sale price'}})}<p class="note">${zh?'双轴样图始终显示原值。两轴均为加元但独立缩放，曲线交叉没有估值含义。成交均价受成交构成影响；跨 2025-04 比较 HPI 须留意口径可能变化。':'The dual-axis study always shows values. Both CAD axes use independent scales; crossing lines have no valuation meaning. The sale average depends on transaction mix. Compare HPI across April 2025 with care.'}</p></details></section>
+ <section class="supply-dashboard"><div class="chart-heading"><h2>${zh?'供需仪表盘':'Supply and demand'}</h2><span class="caption">${zh?'数据截至':'Data through'} ${monthLabel(end)}</span></div><div class="supply-stats">${supplyStat('trreb_sales',end)}${supplyStat('trreb_new_listings',end)}${supplyStat('snlr_raw',end,1,'%')}${supplyStat('moi_raw',end,2,zh?' 月':' months')}</div><div class="split overview-support"><div><h3>${t('sales')}</h3>${svgChart(['trreb_sales','trreb_new_listings'],periods,{height:230,width:616,zero:comparison==='level',unit:comparison==='level'?(zh?'笔 / 套':'Sales / listings'):'%',comparison})}</div><div><h3>${zh?'市场平衡':'Market balance'}</h3><div class="supply-options" role="group" aria-label="${zh?'供需指标':'Supply measure'}">${['moi_raw','snlr_raw'].map(f=>`<span><button data-supply="${f}" aria-pressed="${supply===f}">${esc(name(f))}</button>${help(f,null,true)}</span>`).join('')}</div>${svgChart([supply],periods,{height:230,width:616,zero:comparison==='level',legend:false,unit:comparison==='level'?(supply==='moi_raw'?(zh?'月':'Months'):'%'):(supply==='snlr_raw'?'pp':'%'),comparison})}</div></div><p class="note">${zh?'SNLR 和库存月数由同一成交、挂牌数据计算，不能算作两个独立信号。':'SNLR and months of inventory use the same sales and listing observations; they are not independent signals.'}</p></section>
+ ${districtSection()}${editorialNote(end)}<details class="overview-sources"><summary>${zh?'来源与口径':'Sources and definitions'}</summary>${sourceNote()}<p class="note">${t('fixed')}</p><a href="https://trreb.ca/market-data/market-watch/" target="_blank" rel="noopener noreferrer">TRREB Market Watch ↗</a></details>`;
+}
+function previousMonth(period,offset){
+ const date=new Date(Date.UTC(Number(period.slice(0,4)),Number(period.slice(5))-1-offset,1));
+ return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}`;
+}
+function districtSparkline(rows,period,field,unit){
+ const byMonth=new Map(rows.map(r=>[r.ym,r[field]]));
+ const periods=Array.from({length:6},(_,i)=>previousMonth(period,5-i));
+ const values=periods.map(p=>byMonth.get(p));
+ const valid=values.filter(v=>Number.isFinite(v));
+ if(valid.length<2)return `<span class="sparkline-empty">—</span>`;
+ let low=Math.min(...valid),high=Math.max(...valid);if(low===high){low-=1;high+=1}
+ const x=i=>5+i*20,y=v=>23-(v-low)/(high-low)*18;
+ const segments=[];let points=[];
+ values.forEach((v,i)=>{if(!Number.isFinite(v)){if(points.length>1)segments.push(points.join(' '));points=[]}else points.push(`${x(i)},${y(v).toFixed(1)}`)});
+ if(points.length>1)segments.push(points.join(' '));
+ const description=periods.map((p,i)=>`${p}: ${values[i]==null?'—':number(values[i],unit==='CAD'?0:1)}`).join('; ');
+ return `<svg class="sparkline" viewBox="0 0 110 30" role="img" tabindex="0" aria-label="${esc(description)}"><title>${esc(description)}</title>${segments.map(s=>`<polyline points="${s}"/>`).join('')}</svg>`;
 }
 function districtSection(){
  const rows=payload.snapshot.districts||[]; if(!rows.length)return '';
@@ -199,7 +245,7 @@ function districtSection(){
  const periods=selected.map(r=>r.ym).sort(),end=last([field],false,'district');
  const controls=options('districtType',types.map(v=>[v,PROPERTY_TYPES[v]?.[state.lang==='zh'?0:1]||v]),state.lang==='zh'?'转售房型':'Property type')+options('districtRegion',areas.map(v=>[v,v]),t('region'))+options('districtMetric',Object.entries(fields).map(([v,d])=>[v,d[state.lang==='zh'?0:1]]),t('indicator'))+select(t('date'),'district',periods);
  const entries=selected.filter(r=>r.ym<=end).slice(-36);
- return `<details id="district-section"><summary>${state.lang==='zh'?'地区转售明细':'District resale'}</summary><div class="controls">${controls}</div><p class="note">${state.lang==='zh'?'TRREB 报告地区不能与租赁地区互换；均价不是 HPI，受成交构成影响。':'TRREB areas differ from rental-market areas. Average prices are not HPI and depend on the sales mix.'}</p>${svgChart([field],entries.map(r=>r.ym))}<table class="context-table"><thead><tr><th>${t('period')}</th><th>${t('latest')}</th></tr></thead><tbody>${entries.slice(-12).reverse().map(r=>`<tr><td data-label="${t('period')}"><button data-district-month="${r.ym}">${monthLabel(r.ym)}</button></td><td data-label="${t('latest')}">${number(r[state.districtMetric])}</td></tr>`).join('')}</tbody></table></details>`;
+ return `<details id="district-section"><summary>${state.lang==='zh'?'地区转售明细':'District resale'}</summary><div class="controls">${controls}</div><p class="note">${state.lang==='zh'?'TRREB 报告地区不能与租赁地区互换；均价不是 HPI，受成交构成影响。行内小图各自缩放，不能跨行比较高度；按 Tab 可读六个月原值。':'TRREB areas differ from rental-market areas. Average prices are not HPI and depend on the sales mix. Each mini-chart scales independently; use Tab to read six monthly values.'}</p>${svgChart([field],entries.map(r=>r.ym))}<table class="context-table"><thead><tr><th>${t('period')}</th><th>${t('latest')}</th><th>${state.lang==='zh'?'近六个月':'Six-month trend'}</th></tr></thead><tbody>${entries.slice(-12).reverse().map(r=>`<tr><td data-label="${t('period')}"><button data-district-month="${r.ym}">${monthLabel(r.ym)}</button></td><td data-label="${t('latest')}">${number(r[state.districtMetric])}</td><td data-label="${state.lang==='zh'?'近六个月':'Six-month trend'}">${districtSparkline(selected,r.ym,state.districtMetric,definition[2])}</td></tr>`).join('')}</tbody></table></details>`;
 }
 function tabButtons(key,options,current){return `<div class="tabs" role="tablist">${options.map(([id,label])=>`<button role="tab" data-${key}="${id}" aria-selected="${current===id}">${esc(label)}</button>`).join('')}</div>`}
 function roomSelect(key,annual=false){const rooms=annual?['total','studio','1br','2br','3plus']:['total','1br','2br','3br'];const current=state[key];return `<label class="control">${t('room')}<select data-state="${key}">${rooms.map(r=>`<option value="${r}" ${current===r?'selected':''}>${t(ROOM[r])}</option>`).join('')}</select></label>`}
@@ -270,6 +316,7 @@ function monthlyPayment(principal,rate,years){if(principal<=0)return 0;const r=M
 function mortgagePage(){const {principal,years,rate}=state;return `<div class="controls"><label class="control">${t('principal')}<input data-number="principal" type="number" min="0" step="10000" value="${principal}"></label><label class="control">${t('years')}<input data-number="years" type="number" min="1" max="40" step="1" value="${years}"></label><label class="control">${t('rate')}<input data-number="rate" type="number" min="0" max="30" step="0.1" value="${rate}"></label></div><h2>${t('payment')}</h2><div class="payment-result">$${number(monthlyPayment(principal,rate,years),2)}</div><p class="note">${t('paymentNote')}</p>`}
 function render(){chartModels=[];shell(({market:marketPage,rent:rentPage,economy:economyPage,mortgage:mortgagePage})[state.page]());attachChartTooltips()}
 function attach(){
+  document.querySelectorAll('[data-market-view]').forEach(el=>el.onclick=()=>{state.marketView=el.dataset.marketView;render();document.querySelector(`[data-market-view="${state.marketView}"]`)?.focus()});
   document.querySelectorAll("[data-supply]").forEach(el=>el.onclick=()=>{state.supplyMetric=el.dataset.supply;render();document.querySelector(`[data-supply="${state.supplyMetric}"]`)?.focus()});
   document.querySelector('[data-reset]').onclick=()=>{const lang=state.lang;Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,JSON.parse(JSON.stringify(initialState)),{lang});history.replaceState(null,'',location.pathname);render()};
   document.querySelectorAll('[data-district-month]').forEach(el=>el.onclick=()=>{state.end.district=el.dataset.districtMonth;render();document.querySelector('#district-section')?.setAttribute('open','')});

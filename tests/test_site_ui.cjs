@@ -26,7 +26,18 @@ async function main() {
     const errors=[];
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}`);
-    await page.locator('.price-panel .chart').waitFor();
+    await page.locator('.price-panel > .chart-area .chart').waitFor();
+    assert.equal(await page.locator('.metric-asof').count(), 3, 'overview metrics need their own data period');
+    assert.equal(await page.locator('.supply-stat').count(), 4, 'supply panel should keep four measures together');
+    assert.match(await page.locator('.editorial').textContent(), /尚无人工审核/);
+    await page.locator('.price-comparison > summary').click();
+    const dual=page.locator('.price-comparison .chart');
+    assert.equal(await dual.locator('.series-line').count(), 2, 'dual-axis study needs two observed series');
+    assert.equal(await dual.locator('.secondary-axis').count(), 6, 'secondary axis needs its own unit and ticks');
+    await dual.locator('.chart-hit').focus();
+    await page.keyboard.press('ArrowLeft');
+    assert.equal(await page.locator('.price-comparison .chart-tooltip').isVisible(), true);
+    assert.match(await page.locator('.price-comparison .chart-tooltip').textContent(), /成交均价/);
 
     for (const width of [1440,390,320]) {
       await page.setViewportSize({width,height:900});
@@ -55,9 +66,19 @@ async function main() {
     await page.locator('[data-end="market"]').selectOption('2025-03');
     assert.equal(await page.locator('.price-panel .hpi-annotation').count(), 0, 'future HPI annotation shown in earlier window');
     await page.locator('[data-end="market"]').selectOption('2026-08');
-    await page.locator('.price-panel .chart-hit').focus();
+    await page.locator('.price-panel > .chart-area .chart-hit').focus();
     await page.keyboard.press('ArrowLeft');
-    assert.equal(await page.locator('.price-panel .chart-tooltip').isVisible(), true);
+    assert.equal(await page.locator('.price-panel > .chart-area .chart-tooltip').isVisible(), true);
+    await page.locator('[data-market-view="mom"]').click();
+    assert.equal(await page.locator('.price-panel > .chart-area .hpi-annotation').count(), 0, 'level annotation must not use a transformed axis');
+    assert.equal(await page.evaluate(() => comparisonValue('trreb_hpi_benchmark','2025-04','mom')), null, 'HPI break must not become a growth number');
+    assert.equal(await page.evaluate(() => comparisonValue('trreb_sales','2026-08','mom')), await page.evaluate(() => (value('trreb_sales','2026-08')/value('trreb_sales','2026-07')-1)*100));
+    await page.locator('[data-market-view="yoy"]').click();
+    assert.equal(await page.evaluate(() => comparisonValue('trreb_hpi_benchmark','2026-03','yoy')), null, 'yearly HPI base crosses the break');
+    await page.locator('[data-market-view="level"]').click();
+    await page.locator('#district-section > summary').click();
+    assert.equal(await page.locator('#district-section .sparkline').count(), 12, 'each district row needs a six-month mini-chart');
+    assert.match(await page.locator('#district-section .sparkline').first().getAttribute('aria-label'), /2026-08/);
 
     await page.locator('[data-page="mortgage"]').click();
     const principal=page.locator('[data-number="principal"]');
@@ -74,6 +95,7 @@ async function main() {
 
     await page.locator('[data-page="rent"]').click();
     await page.locator('[data-mode="region"]').click();
+    assert.deepEqual(await page.locator('[data-region]:checked').evaluateAll(nodes => nodes.map(n => n.dataset.region)), ['north_york','scarborough','markham']);
     const comparison=await page.evaluate(() => {
       const select=document.querySelector('select[data-end]');
       const chart=document.querySelector('[data-chart]');

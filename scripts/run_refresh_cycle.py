@@ -50,6 +50,8 @@ def run_cycle(root=ROOT, runner=subprocess.run):
                                cwd=root, capture_output=True, text=True, timeout=900)
                 report.update(trreb_exit_code=trreb.returncode, trreb_stdout=trreb.stdout[-4000:],
                               trreb_stderr=trreb.stderr[-4000:])
+                if trreb.returncode:
+                    raise RuntimeError("TRREB refresh failed; retaining the last published snapshot")
                 report['trreb_recovery_check'] = verify_dataset(root)
                 publish = runner([sys.executable, str(root / "scripts/publish_display.py")],
                                  cwd=root, capture_output=True, text=True, timeout=900)

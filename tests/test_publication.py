@@ -232,3 +232,24 @@ class PublicationTests(unittest.TestCase):
             self.assertEqual(report["recovery_check"], {"source_files": 1})
             self.assertEqual(len(calls), 7)
             self.assertEqual(report["context_publish_exit_code"], 0)
+
+    def test_failed_trreb_refresh_does_not_publish_a_partial_snapshot(self):
+        from scripts.run_refresh_cycle import run_cycle
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / "data").mkdir()
+            current = root / "data/display_snapshot.json"
+            current.write_text("last-good")
+            calls = []
+
+            def runner(command, **kwargs):
+                calls.append(Path(command[1]).name)
+                failed = calls[-1] == "refresh_trreb.py"
+                return SimpleNamespace(returncode=int(failed), stdout="", stderr="bad PDF" if failed else "")
+
+            with patch("scripts.run_refresh_cycle.verify_dataset", return_value={"source_files": 1}):
+                report = run_cycle(root, runner)
+            self.assertFalse(report["snapshot_published"])
+            self.assertEqual(report["trreb_exit_code"], 1)
+            self.assertEqual(calls, ["refresh_official.py", "refresh_trreb.py"])
+            self.assertEqual(current.read_text(), "last-good")
