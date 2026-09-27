@@ -92,6 +92,15 @@ async function main() {
     assert.equal(await page.locator('#district-section').getAttribute('open'), '');
     assert.equal(await page.locator('[data-state="districtRegion"]').inputValue(), 'Markham');
 
+    await page.locator('[data-page="economy"]').click();
+    const migration = page.locator('.context-table tbody tr').filter({hasText:'Ontario 省际净迁移'});
+    assert.match(await migration.textContent(), /-7,063/);
+    assert.match(await migration.textContent(), /2026年第2季度/);
+    assert.match(await migration.textContent(), /Ontario/);
+    await page.locator('[data-lang="en"]').click();
+    assert.match(await page.locator('.context-table tbody tr').filter({hasText:'Ontario net international migration'}).textContent(), /18,385.*2026 Q2/s);
+    await page.locator('[data-lang="zh"]').click();
+
     await page.locator('[data-page="mortgage"]').click();
     const principal=page.locator('[data-number="principal"]');
     await principal.fill('600000');

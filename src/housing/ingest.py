@@ -111,6 +111,8 @@ def validate_rows(rows):
         "usd_cad_monthly": (0.1, 10),
         "boc_energy_price_index": (1, 10000),
         "toronto_residential_construction_cost_index": (1, 1000),
+        "ontario_net_interprovincial_migration": (-250000, 250000),
+        "ontario_net_international_migration": (-500000, 500000),
     }
     from .background_series import CONFIG
     bounds.update({c['id']: ((0, 40) if c['unit'] == '%' else (0, 100000) if c['unit'] == 'units' else (1, 10000))

@@ -26,6 +26,7 @@ DISPLAY_SERIES = frozenset(
 CONTEXT_SERIES = frozenset({
     "wti_cushing_spot_price", "usd_cad_monthly", "boc_energy_price_index",
     "toronto_residential_construction_cost_index",
+    "ontario_net_interprovincial_migration", "ontario_net_international_migration",
 })
 from .background_series import CONFIG as BACKGROUND_CONFIG
 CONTEXT_SERIES |= frozenset(c['id'] for c in BACKGROUND_CONFIG.values() if not c.get('archived'))
@@ -98,7 +99,7 @@ def validate_display_snapshot(value):
         for series, item in context.items():
             if not isinstance(item, dict) or set(item) != {"period", "value"}:
                 raise ValueError(f"Invalid display context for {series}")
-            pattern = r"\d{4}-(?:01|04|07|10)" if series == "toronto_residential_construction_cost_index" else r"\d{4}-(?:0[1-9]|1[0-2])"
+            pattern = r"\d{4}-(?:01|04|07|10)" if series in {"toronto_residential_construction_cost_index", "ontario_net_interprovincial_migration", "ontario_net_international_migration"} else r"\d{4}-(?:0[1-9]|1[0-2])"
             if (not isinstance(item["period"], str) or not re.fullmatch(pattern, item["period"])
                     or not isinstance(item["value"], (int, float)) or isinstance(item["value"], bool)
                     or not math.isfinite(item["value"])):

@@ -256,3 +256,12 @@ python3 scripts/check_trreb_districts.py data/manual/trreb-districts-2022-09-to-
 | --- | --- | --- | --- |
 | [Statistics Canada 2021 Census subdivision cartographic boundaries](https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Cartographic_boundary_files/MapServer/9) | Ontario `PRUID=35`；八个 CSD 的 `CSDNAME` 与 `CSDUID` 均已核对，原 GeoJSON 固定在 `site/municipal_boundaries.geojson`，SHA-256 见 `site/BOUNDARIES.md` | Toronto、Markham、Vaughan、Mississauga、Oakville、Richmond Hill、Aurora、Brampton；2021 边界，地图尺度简化；按 Open Government Licence – Canada 署名 | 不是 2026 法定或物业边界；North York、Scarborough 与跨市镇租赁组合不填作这些面 |
 | TRREB Market Watch 各区明细 | `all_types` 的当月 `average_price`，Toronto 对应 `City of Toronto`，其余七地对应同名行 | 现有 48 期地区行；网站仅在目标月与前一月均有正数值时计算环比，缺月显示无数据 | 均价受成交房型和地区构成变化影响，不等于 HPI 或同一套房涨跌；地图颜色仅代表经核对的观察值，不代表预测 |
+
+## 2026-09-26 Ontario 季度迁移背景接入
+
+| 官方原表 | 采用口径与核验 | 本次覆盖 | 限制 |
+| --- | --- | --- | --- |
+| [Statistics Canada 17-10-0020-01](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710002001) | Ontario `DGUID=2021A000235`、单位 Persons、倍率 units；`In-migrants` `v509048`（坐标 7.1）减 `Out-migrants` `v509063`（7.2） | 2022Q3—2026Q2，16 季 | Ontario 省际净迁移，不是 GTA 或 Toronto CMA 的迁入量 |
+| [Statistics Canada 17-10-0040-01](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710004001) | Ontario 同一 DGUID／单位；`Immigrants` `v29850372`（7.1）加 `Net non-permanent residents` `v29850376`（7.5），减 `Net emigration` `v1566834794`（7.6） | 2022Q3—2026Q2，16 季 | Ontario 国际净迁移可为负；净非永久居民变化不等于当季新到达人数 |
+
+`scripts/extract_ontario_migration.py` 独立下载两张官方 CSV ZIP，逐行校验表头、向量、坐标、地区、单位、倍率、季度及抑制状态；缺任一组成项或两表季度不一致即拒绝导入。两份原 ZIP 以 SHA256 后缀保存于 `data/raw/statcan/`，派生 CSV 为 `data/manual/statcan-ontario-migration-<内容哈希>.csv`，三者登记在 manifest。`refresh_official.py --source migration` 及现有 `--source factors` 周期包含此来源。2026-09-26 运行退出 0，新增 32 条、无修订；最新 2026Q2 省际净迁移 −7,063 人、国际净迁移 18,385 人。数值在管理端和展示站点仅作背景摘要，不计入预测评分。官方历史数据可能修订；当前下载版不是逐期首次发布版本，不能据此做严格的“当时可得”回测。

@@ -185,3 +185,12 @@ schema 2 展示快照包含原有 121 个白名单展示系列每个期间的最
 展示快照可选字段 `districts` 只含年月、房型、地区与上述数值；不含文件路径、哈希或导入记录。`freshness` 只发布来源节奏对应的状态、最新／预期期间、落后期数及缺期列表。`unknown` 表示节奏未核验；`pending` 只是本地发布规则尚未到期，不证明官网一定未发布。
 
 市镇地图派生量不是新的数据库系列：仅对 `house_type=all_types` 且与 2021 Census subdivision 名称／UID 已核对的八个市镇，按 `100 × (本月 average_price / 上月 average_price − 1)` 计算环比，单位 `%`。Toronto 使用地区行 `City of Toronto`。任一月缺失、抑制或前月均价不为正则不计算，地图显示灰色；表内同时展示当月均价与成交笔数。颜色受成交构成影响，不等于 HPI 或同一套住宅的价格变化。地图边界来源与简化方法见 `site/BOUNDARIES.md`。
+
+## 2026-09-26 Ontario 季度迁移背景系列
+
+| 数据库 ID | 来源与公式 | 单位、频率、范围 | 解释边界 |
+| --- | --- | --- | --- |
+| `ontario_net_interprovincial_migration` | StatCan 17-10-0020-01：`v509048 − v509063` | 人，季度，Ontario | 省际迁入减迁出；可为负，不是 Toronto CMA 人口或家庭数 |
+| `ontario_net_international_migration` | StatCan 17-10-0040-01：`v29850372 + v29850376 − v1566834794` | 人，季度，Ontario | 移民＋非永久居民净变化－净移出；不等于单季新到达或购房人数 |
+
+两系列的 `period` 用季度首月 `YYYY-01/04/07/10`，网页呈现为季度；不是观测发布日。原件为官方英文 CSV ZIP；派生 CSV 列为 `series_id,period,value,interprovincial_sha256,international_sha256`，每条结果同时绑定两表原件哈希。16 个季度（2022Q3—2026Q2）均有完整组成项，2026Q2 分别为 −7,063 和 18,385 人。值可修订，当前仅为省级描述背景，未验证预测用途或历史各期当时可得版本。来源及保存方法见[来源覆盖](SOURCE_COVERAGE.md#2026-09-26-ontario-季度迁移背景接入)。

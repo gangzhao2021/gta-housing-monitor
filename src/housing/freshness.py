@@ -37,6 +37,8 @@ RULES = {
     "usd_cad_monthly": FreshnessRule("monthly", "month_end", "BoC 月均汇率通常于当月最后营业日公布"),
     "boc_energy_price_index": FreshnessRule("monthly", "next_month_end", "BoC 月度能源指数；次月底为本地检查日，历史值可能修订"),
     "toronto_residential_construction_cost_index": FreshnessRule("quarterly", "quarter_plus_45", "StatsCan 季度建筑造价；季度结束后 45 日为本地检查日，非官方保证"),
+    "ontario_net_interprovincial_migration": FreshnessRule("quarterly", "quarter_plus_90", "StatsCan 季度人口估计；季度结束后 90 日为保守检查日，非官方发布保证"),
+    "ontario_net_international_migration": FreshnessRule("quarterly", "quarter_plus_90", "StatsCan 季度人口估计；季度结束后 90 日为保守检查日，非官方发布保证"),
 }
 
 RULES.update({series_id: FreshnessRule("annual", "jan_31", "CMHC 年度 10 月租赁调查；保守等待至次年 1 月底")
@@ -66,12 +68,12 @@ def _month_string(index):
 def _due_date(rule, period):
     if rule == "jan_31":
         return date(int(period) + 1, 1, 31)
-    if rule == "quarter_plus_45":
+    if rule in ("quarter_plus_45", "quarter_plus_90"):
         from calendar import monthrange
         from datetime import timedelta
         year, month = map(int, period.split("-"))
         end_month = month + 2
-        return date(year, end_month, monthrange(year, end_month)[1]) + timedelta(days=45)
+        return date(year, end_month, monthrange(year, end_month)[1]) + timedelta(days=45 if rule == "quarter_plus_45" else 90)
     year, month = map(int, period.split("-"))
     if rule == "month_end":
         from calendar import monthrange

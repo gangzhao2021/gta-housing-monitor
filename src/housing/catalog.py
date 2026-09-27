@@ -20,6 +20,8 @@ SERIES = {
     "usd_cad_monthly": ("美元兑加元月均汇率", "BoC FX", "FXMUSDCAD", "Canada", "CAD/USD", "monthly", "monthly average", "none", "1 美元兑换的加元数；上升代表加元相对美元走弱，不直接表示 GTA 外国买家需求"),
     "boc_energy_price_index": ("加拿大央行能源商品价格指数", "BoC BCPI", "M.ENER", "Canada", "index", "monthly", "not adjusted", "none", "加拿大商品价格指数能源组；不是 WTI 或本地能源账单。底层缺源时可能沿用前值，后续会修订"),
     "toronto_residential_construction_cost_index": ("Toronto 住宅建筑造价指数", "StatsCan BCPI", "18-10-0289-01 v1617912612", "Toronto CMA 2021 boundary", "index", "quarterly", "2023=100", "none", "住宅建筑 Division composite 报价指数；季度以首月登记，非地价、融资成本或转售房价"),
+    "ontario_net_interprovincial_migration": ("Ontario 省际净迁移", "StatsCan Ontario migration", "17-10-0020-01 v509048-v509063", "Ontario", "persons", "quarterly", "not adjusted", "none", "迁入减迁出；季度以首月登记，可为负值；不是 Toronto CMA 人口需求"),
+    "ontario_net_international_migration": ("Ontario 国际净迁移", "StatsCan Ontario migration", "17-10-0040-01 v29850372+v29850376-v1566834794", "Ontario", "persons", "quarterly", "not adjusted", "none", "移民+非永久居民净变化-净移出；季度以首月登记，可为负值；不是 Toronto CMA 人口需求"),
 }
 
 
@@ -78,6 +80,8 @@ SERIES_URLS = {
     "usd_cad_monthly": "https://www.bankofcanada.ca/rates/exchange/monthly-exchange-rates/",
     "boc_energy_price_index": "https://www.bankofcanada.ca/rates/price-indexes/bcpi/",
     "toronto_residential_construction_cost_index": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1810028901",
+    "ontario_net_interprovincial_migration": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710002001",
+    "ontario_net_international_migration": "https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710004001",
 }
 
 CMHC_RENTAL_URL = "https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-data/data-tables/rental-market/rental-market-report-data-tables"
