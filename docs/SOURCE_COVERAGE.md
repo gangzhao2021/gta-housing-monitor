@@ -249,3 +249,10 @@ python3 scripts/check_trreb_districts.py data/manual/trreb-districts-2022-09-to-
 | 替代口径：年度 | CMHC 年度租金／空置率 | 计划利用年度口径补充市场背景。CMHC 存量租约调查与 MLS 季度新签租约、Rentals.ca 月度挂牌样本不同；保留调查年／月、地区边界、住房类型和抑制标记，不拼接或混算为同一条月度租金／空置率序列 |
 
 **研究项：TRREB Market Watch 向前扩展。** 计划调查 2022-09 之前的老报告，目标是取得总计 8–10 年可比历史；这是研究目标，实际最早可用月份、连续性和使用条件待核验。老版式须逐期校验页码、字段、房型、地区、总计及 HPI 定义；跨版本漂移风险更高。原报告、修订版本及可用时点分别留证，不能仅因延长序列就宣称满足样本外预测验证。
+
+## 2026-09-26 市镇地图边界与数值
+
+| 来源 | 对应口径 | 覆盖与证据 | 限制 |
+| --- | --- | --- | --- |
+| [Statistics Canada 2021 Census subdivision cartographic boundaries](https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Cartographic_boundary_files/MapServer/9) | Ontario `PRUID=35`；八个 CSD 的 `CSDNAME` 与 `CSDUID` 均已核对，原 GeoJSON 固定在 `site/municipal_boundaries.geojson`，SHA-256 见 `site/BOUNDARIES.md` | Toronto、Markham、Vaughan、Mississauga、Oakville、Richmond Hill、Aurora、Brampton；2021 边界，地图尺度简化；按 Open Government Licence – Canada 署名 | 不是 2026 法定或物业边界；North York、Scarborough 与跨市镇租赁组合不填作这些面 |
+| TRREB Market Watch 各区明细 | `all_types` 的当月 `average_price`，Toronto 对应 `City of Toronto`，其余七地对应同名行 | 现有 48 期地区行；网站仅在目标月与前一月均有正数值时计算环比，缺月显示无数据 | 均价受成交房型和地区构成变化影响，不等于 HPI 或同一套房涨跌；地图颜色仅代表经核对的观察值，不代表预测 |

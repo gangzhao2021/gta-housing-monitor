@@ -1,5 +1,6 @@
 """Export only the approved read-only snapshot for a private Sites deployment."""
 import json
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -59,6 +60,21 @@ for period, item in editorial.items():
     assert all(isinstance(item[key], str) and item[key].strip() for key in item), period
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", item["reviewed_at"]), period
 payload["editorial"] = editorial
+boundary_file = Path(__file__).resolve().parent / "municipal_boundaries.geojson"
+boundary_bytes = boundary_file.read_bytes()
+assert hashlib.sha256(boundary_bytes).hexdigest() == "ccafec64f1a6199c07baee18eae3ddeffa78fdd1e1b37bfc474482a7eeef427e"
+boundaries = json.loads(boundary_bytes)
+expected_csd = {
+    "Toronto": "3520005", "Markham": "3519036", "Vaughan": "3519028",
+    "Mississauga": "3521005", "Oakville": "3524001",
+    "Richmond Hill": "3519038", "Aurora": "3519046", "Brampton": "3521010",
+}
+assert boundaries["type"] == "FeatureCollection"
+assert {feature["properties"]["CSDNAME"]: feature["properties"]["CSDUID"]
+        for feature in boundaries["features"]} == expected_csd
+assert all(feature["geometry"]["type"] in ("Polygon", "MultiPolygon")
+           for feature in boundaries["features"])
+payload["municipal_boundaries"] = boundaries["features"]
 # The official all-area row uses the same month and property-type boundary as
 # the HPI chart. Keep its source value; do not derive an unweighted district mean.
 all_area_average = {

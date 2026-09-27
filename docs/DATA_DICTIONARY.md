@@ -183,3 +183,5 @@ schema 2 展示快照包含原有 121 个白名单展示系列每个期间的最
 `district_observations` 以 `(ym, house_type, region, version)` 为主键；`values_json` 保存提取 CSV 的 11 个数值字段，`raw_sha256` 绑定不可变 CSV，`pdf_sha256` 绑定该期官方 PDF。重复相同值不新增版本，已见旧原件不能覆盖新版本。该表独立于总市场 `observations`，不改变总表历史值。
 
 展示快照可选字段 `districts` 只含年月、房型、地区与上述数值；不含文件路径、哈希或导入记录。`freshness` 只发布来源节奏对应的状态、最新／预期期间、落后期数及缺期列表。`unknown` 表示节奏未核验；`pending` 只是本地发布规则尚未到期，不证明官网一定未发布。
+
+市镇地图派生量不是新的数据库系列：仅对 `house_type=all_types` 且与 2021 Census subdivision 名称／UID 已核对的八个市镇，按 `100 × (本月 average_price / 上月 average_price − 1)` 计算环比，单位 `%`。Toronto 使用地区行 `City of Toronto`。任一月缺失、抑制或前月均价不为正则不计算，地图显示灰色；表内同时展示当月均价与成交笔数。颜色受成交构成影响，不等于 HPI 或同一套住宅的价格变化。地图边界来源与简化方法见 `site/BOUNDARIES.md`。

@@ -79,6 +79,18 @@ async function main() {
     await page.locator('#district-section > summary').click();
     assert.equal(await page.locator('#district-section .sparkline').count(), 12, 'each district row needs a six-month mini-chart');
     assert.match(await page.locator('#district-section .sparkline').first().getAttribute('aria-label'), /2026-08/);
+    assert.equal(await page.locator('.municipal-shape').count(), 8, 'only verified municipality boundaries should be coloured');
+    assert.equal(await page.locator('.municipal-table tbody tr').count(), 8);
+    assert.equal(await page.locator('.municipal-shape[fill="#d6dce0"]').count(), 0, 'latest month has eight consecutive observations');
+    await page.locator('[data-end="market"]').selectOption('2022-09');
+    assert.equal(await page.locator('.municipal-shape[fill="#d6dce0"]').count(), 8, 'missing prior month must remain uncoloured');
+    await page.locator('[data-end="market"]').selectOption('2026-08');
+    const markham=page.locator('[data-map-csd="Markham"]');
+    assert.match(await markham.getAttribute('aria-label'), /Markham.*%/);
+    await markham.focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('#district-section').getAttribute('open'), '');
+    assert.equal(await page.locator('[data-state="districtRegion"]').inputValue(), 'Markham');
 
     await page.locator('[data-page="mortgage"]').click();
     const principal=page.locator('[data-number="principal"]');
