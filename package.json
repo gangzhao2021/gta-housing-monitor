@@ -1,0 +1,11 @@
+{
+  "name": "gta-housing-monitor-tests",
+  "private": true,
+  "description": "Browser regression for the static site in site/dist",
+  "scripts": {
+    "test:site": "node tests/test_site_ui.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

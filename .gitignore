@@ -6,3 +6,5 @@ data/
 .DS_Store
 site/dist/data.json
 site/.openai/hosting.json
+
+node_modules/
