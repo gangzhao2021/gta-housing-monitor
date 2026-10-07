@@ -301,38 +301,38 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(pd.isna(missing["月租金"]))
         self.assertEqual(missing["状态"], "no_observation")
 
-    def test_comparison_rate_survives_editing_scenario_rate(self):
+    def scenario_markup(self):
+        return "".join(item.proto.body for item in self.app.get("html") if "payment-main" in item.proto.body and not item.proto.body.startswith("<style>"))
+
+    def test_scenario_inputs_survive_navigation(self):
         self.navigate("月供情景")
-        self.app.number_input(key="comparison-rate").set_value(6.25).run()
-        self.app.number_input(key="scenario-rate").set_value(4.0).run()
+        self.app.number_input(key="owner-scenario-rate").set_value(4.0).run()
+        self.app.number_input(key="owner-scenario-price").set_value(700_000).run()
+        self.app.radio(key="owner-scenario-down").set_value(35).run()
         self.assert_clean()
-        self.assertEqual(self.app.number_input(key="comparison-rate").value, 6.25)
-        self.assertEqual(self.app.number_input(key="scenario-rate").value, 4.0)
-        self.app.number_input(key="principal").set_value(700_000).run()
         self.navigate("市场总览")
         self.navigate("月供情景")
-        self.assertEqual(self.app.number_input(key="principal").value, 700_000)
-        self.assertEqual(self.app.number_input(key="comparison-rate").value, 6.25)
-        self.assertEqual(self.app.number_input(key="scenario-rate").value, 4.0)
-        self.app.number_input(key="principal").set_value(0).run()
+        self.assertEqual(self.app.number_input(key="owner-scenario-price").value, 700_000)
+        self.assertEqual(self.app.number_input(key="owner-scenario-rate").value, 4.0)
+        self.assertEqual(self.app.radio(key="owner-scenario-down").value, 35)
+        self.app.number_input(key="owner-scenario-price").set_value(0).run()
         self.assert_clean()
-        self.assertEqual([metric.value for metric in self.app.metric], ["$0.00", "$0.00"])
+        self.assertIn("$0.00", self.scenario_markup())
 
-    def test_mortgage_chart_matches_inputs_and_blank_is_not_zero(self):
-        from housing.affordability import monthly_payment
+    def test_scenario_matches_inputs_and_blank_is_not_zero(self):
+        from housing.affordability import monthly_payment, scenario
         self.navigate("月供情景")
-        self.app.number_input(key="principal").set_value(650_000).run()
+        self.app.number_input(key="owner-scenario-price").set_value(800_000).run()
         self.assert_clean()
-        values = chart_with_column(self.app, "月供")["月供"].tolist()
-        rates = [self.app.number_input(key=k).value for k in ("scenario-rate", "comparison-rate")]
-        self.assertEqual(values, [monthly_payment(650_000, rate, 25) for rate in rates])
-        self.app.number_input(key="principal").set_value(None).run()
+        rate = self.app.number_input(key="owner-scenario-rate").value
+        s = scenario(800_000, 20, 25, rate)
+        self.assertAlmostEqual(s["payment"], monthly_payment(640_000, rate, 25))
+        self.assertIn(f"${s['payment']:,.2f}", self.scenario_markup())
+        self.assertIn(f"${s['stress_payment']:,.2f}", self.scenario_markup())
+        self.app.number_input(key="owner-scenario-price").set_value(None).run()
         self.assert_clean()
         self.assertTrue(any("请填写全部" in message.value for message in self.app.info))
-        self.assertFalse(self.app.get("arrow_vega_lite_chart"))
-        self.app.number_input(key="principal").set_value(0).run()
-        self.assert_clean()
-        self.assertEqual(chart_with_column(self.app, "月供")["月供"].tolist(), [0, 0])
+        self.assertEqual(self.scenario_markup(), "")
 
     def test_source_status_distinguishes_withheld_values_from_late_updates(self):
         from housing.catalog import SERIES
@@ -426,14 +426,12 @@ class DashboardTests(unittest.TestCase):
         exported = next(call for call in downloads.call_args_list if call.kwargs.get("key") == "download-trreb")
         pd.testing.assert_frame_equal(pd.read_csv(io.BytesIO(exported.args[1])), english, check_dtype=False)
         self.navigate("月供情景")
-        self.app.number_input(key="principal").set_value(700_000).run()
-        self.app.number_input(key="comparison-rate").set_value(6.25).run()
-        payments = [m.value for m in self.app.metric]
+        self.app.number_input(key="owner-scenario-price").set_value(700_000).run()
+        self.app.number_input(key="owner-scenario-rate").set_value(6.25).run()
         self.app.radio(key="language").set_value("中文").run()
         self.assertEqual(self.app.title[0].value, "月供情景")
-        self.assertEqual(self.app.number_input(key="principal").value, 700_000)
-        self.assertEqual(self.app.number_input(key="comparison-rate").value, 6.25)
-        self.assertEqual([m.value for m in self.app.metric], payments)
+        self.assertEqual(self.app.number_input(key="owner-scenario-price").value, 700_000)
+        self.assertEqual(self.app.number_input(key="owner-scenario-rate").value, 6.25)
 
     def test_language_switch_retains_chart_data_with_reference_transformer(self):
         import altair as alt

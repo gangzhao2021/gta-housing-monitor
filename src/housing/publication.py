@@ -21,6 +21,7 @@ DISPLAY_SERIES = frozenset(
         "boc_policy_rate", "goc_5y_yield", "mortgage_uninsured_fixed_5plus",
         "toronto_unemployment_rate", "toronto_employment_rate",
         "toronto_participation_rate", "toronto_cma_2021_population",
+        "ontario_mortgage_arrears_rate",
     }
 )
 CONTEXT_SERIES = frozenset({
@@ -32,7 +33,7 @@ from .background_series import CONFIG as BACKGROUND_CONFIG
 CONTEXT_SERIES |= frozenset(c['id'] for c in BACKGROUND_CONFIG.values() if not c.get('archived'))
 from .trreb_rental import SERIES as RENTAL_SERIES
 CONTEXT_SERIES |= frozenset(RENTAL_SERIES)
-CONTEXT_SERIES |= {"teranet_toronto_index", "teranet_toronto_index_sa", "ontario_mortgage_arrears_rate"}
+CONTEXT_SERIES |= {"teranet_toronto_index", "teranet_toronto_index_sa"}
 QUARTERLY_CONTEXT = frozenset({"toronto_residential_construction_cost_index", "ontario_net_interprovincial_migration",
                                "ontario_net_international_migration", *RENTAL_SERIES})
 

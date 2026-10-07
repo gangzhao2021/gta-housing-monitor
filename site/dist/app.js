@@ -10,10 +10,10 @@ const COLORS = ['#2855d9','#007f86','#bf6517','#7952be'];
 const ROOM = {total:'total',studio:'studio','1br':'one','2br':'two','3br':'three','3plus':'threePlus'};
 const AREAS = {toronto:'Toronto',north_york:'North York',scarborough:'Scarborough',markham:'Markham',vaughan:'Vaughan',mississauga:'Mississauga',oakville:'Oakville',richmond_vaughan_king:'Richmond Hill / Vaughan / King',aurora_newmarket_whit:'Aurora / Newmarket / Whit-St.'};
 const MAP_POINTS = {toronto:[-79.3832,43.6532],north_york:[-79.4111,43.7615],scarborough:[-79.2318,43.7764],markham:[-79.3370,43.8561],vaughan:[-79.5083,43.8372],mississauga:[-79.6441,43.5890],oakville:[-79.6877,43.4675],richmond_vaughan_king:[-79.4700,43.8800],aurora_newmarket_whit:[-79.4400,44.0200]};
-const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',regions:['north_york','markham','scarborough'],regionFeedback:'',supplyMetric:'moi_raw',marketView:'level',principal:500000,years:25,rate:5,end:{}};
+const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',regions:['north_york','markham','scarborough'],regionFeedback:'',supplyMetric:'moi_raw',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
 const initialState=JSON.parse(JSON.stringify(state));
-function restoreView(){try{const q=JSON.parse(decodeURIComponent(location.hash.slice(1)));for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','measureRoom']){const allowed={measureRoom:['1br','2br'],lang:['zh','en'],page:['market','rent','economy','mortgage'],rentMode:['monthly','lease','annual','region'],room:Object.keys(ROOM),annualRoom:Object.keys(ROOM),regionRoom:Object.keys(ROOM),regionFrequency:['monthly','annual']};if(allowed[key].includes(q[key]))state[key]=q[key]}if(['moi_raw','snlr_raw'].includes(q.supplyMetric))state.supplyMetric=q.supplyMetric;if(['level','mom','yoy'].includes(q.marketView))state.marketView=q.marketView;if(Object.hasOwn(PROPERTY_TYPES,q.districtType))state.districtType=q.districtType;if(typeof q.districtRegion==='string'&&/^[A-Za-z0-9 ./'()&-]{1,100}$/.test(q.districtRegion))state.districtRegion=q.districtRegion;if(['average_price','sales','new_listings','active_listings','median_price','avg_ldom','avg_pdom','avg_sp_lp'].includes(q.districtMetric))state.districtMetric=q.districtMetric;if(Array.isArray(q.regions))state.regions=q.regions.filter(r=>Object.hasOwn(AREAS,r)).slice(0,3);if(q.end&&typeof q.end==='object')for(const [k,v]of Object.entries(q.end)){if(/^[a-zA-Z0-9_-]{1,100}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)&&/^\d{4}(-\d{2})?$/.test(v))state.end[k]=v}}catch{}}
-function viewLink(){const q={};for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','measureRoom','regions','end','districtType','districtRegion','districtMetric','supplyMetric','marketView'])q[key]=state[key];return '#'+encodeURIComponent(JSON.stringify(q))}
+function restoreView(){try{const q=JSON.parse(decodeURIComponent(location.hash.slice(1)));for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','measureRoom','econRange']){const allowed={measureRoom:['1br','2br'],econRange:['1','2','5','all'],lang:['zh','en'],page:['market','rent','economy','mortgage'],rentMode:['monthly','lease','annual','region'],room:Object.keys(ROOM),annualRoom:Object.keys(ROOM),regionRoom:Object.keys(ROOM),regionFrequency:['monthly','annual']};if(allowed[key].includes(q[key]))state[key]=q[key]}if(['moi_raw','snlr_raw'].includes(q.supplyMetric))state.supplyMetric=q.supplyMetric;if(['level','mom','yoy'].includes(q.marketView))state.marketView=q.marketView;if(Object.hasOwn(PROPERTY_TYPES,q.districtType))state.districtType=q.districtType;if(typeof q.districtRegion==='string'&&/^[A-Za-z0-9 ./'()&-]{1,100}$/.test(q.districtRegion))state.districtRegion=q.districtRegion;if(['average_price','sales','new_listings','active_listings','median_price','avg_ldom','avg_pdom','avg_sp_lp'].includes(q.districtMetric))state.districtMetric=q.districtMetric;if(Array.isArray(q.regions))state.regions=q.regions.filter(r=>Object.hasOwn(AREAS,r)).slice(0,3);if(q.end&&typeof q.end==='object')for(const [k,v]of Object.entries(q.end)){if(/^[a-zA-Z0-9_-]{1,100}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)&&/^\d{4}(-\d{2})?$/.test(v))state.end[k]=v}}catch{}}
+function viewLink(){const q={};for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','measureRoom','econRange','regions','end','districtType','districtRegion','districtMetric','supplyMetric','marketView'])q[key]=state[key];return '#'+encodeURIComponent(JSON.stringify(q))}
 restoreView();
 let payload, observations, monthly;
 let chartModels = [];
@@ -42,6 +42,8 @@ function prepare() {
   // Mortgage scenario starts from the latest observed new fixed mortgage rate.
   const mortgage=Object.keys(monthly).filter(p=>monthly[p].mortgage_uninsured_fixed_5plus!=null).sort().at(-1);
   if(mortgage){initialState.rate=monthly[mortgage].mortgage_uninsured_fixed_5plus;initialState.rateSource=mortgage;if(state.rate===5&&!state.rateSource){state.rate=initialState.rate;state.rateSource=mortgage}}
+  const hpi=Object.keys(monthly).filter(p=>monthly[p].trreb_hpi_benchmark!=null).sort().at(-1);
+  if(hpi){initialState.price=monthly[hpi].trreb_hpi_benchmark;initialState.priceSource=hpi;if(!state.priceSource){state.price=initialState.price;state.priceSource=hpi}}
   for(const row of Object.values(monthly)) {
     if(row.trreb_sales && row.trreb_active_listings!=null) row.moi_raw=row.trreb_active_listings/row.trreb_sales;
     if(row.trreb_sales!=null && row.trreb_new_listings) row.snlr_raw=row.trreb_sales/row.trreb_new_listings*100;
@@ -433,16 +435,80 @@ function rentPage(){
   out+=end?svgChart(present,chartPeriods,{annual,height:260,labels:names}):`<p class="chart-empty">${t('noData')}</p>`;
   return out;
 }
-function economicSection(title,fields,key,opts={}){const periods=allPeriods(fields,!!opts.annual),end=last(fields,!!opts.annual,key);return `<section class="economic-panel"><h2>${title}</h2><div class="controls">${select(opts.annual?t('year'):t('date'),key,periods,!!opts.annual)}</div>${end?svgChart(fields,viewPeriods(fields,end,!!opts.annual),opts):`<p>${t('noData')}</p>`}</section>`}
-const CONTEXT_GROUPS=[['teranet_'],['toronto_starts_','toronto_cmhc_','toronto_permits_','toronto_nhpi','toronto_residential_construction'],['gta_condo_lease'],['boc_','ontario_cpi','ontario_net_'],['usd_cad','wti_','boc_energy','canada_policy']];
+const ECON_RANGES={'1':13,'2':25,'5':61,all:null};
+function rangePeriods(fields,annual=false){const all=allPeriods(fields,annual),n=ECON_RANGES[state.econRange];return n?all.slice(-n):all}
+function economicChart(title,fields,opts={},caption=''){const periods=rangePeriods(fields,!!opts.annual);return `<section class="economic-panel"><div class="chart-heading"><h2>${title}</h2>${opts.unitLabel?`<span class="caption">${esc(opts.unitLabel)}</span>`:''}</div>${periods.length?svgChart(fields,periods,opts):`<p>${t('noData')}</p>`}${caption?`<p class="note">${caption}</p>`:''}</section>`}
+function latestRaw(field){const keys=Object.keys(observations[field]||{}).sort();const period=keys.at(-1);return period?{period,value:observations[field][period]}:null}
+function yearAgoRaw(field,period){const keys=Object.keys(observations[field]||{}).sort();const target=`${Number(period.slice(0,4))-1}${period.slice(4)}`;const key=keys.filter(k=>k<=target).at(-1);return key&&key.slice(0,7)===target.slice(0,7)?observations[field][key]:null}
+function econMetric(field,digits=2){
+ const zh=state.lang==='zh',latest=latestRaw(field);if(!latest)return '';
+ const before=yearAgoRaw(field,latest.period),when=latest.period.length>7?latest.period:monthLabel(latest.period);
+ return `<div class="metric"><div class="metric-name">${help(field)}</div><div class="metric-value">${number(latest.value,digits)}%</div><div class="metric-delta">${esc(when)}${before==null?'':` · ${zh?'一年前':'a year earlier'} ${number(before,digits)}%`}</div></div>`;
+}
+const CONTEXT_GROUPS=[[['新房与建设','New homes & construction'],['toronto_starts_','toronto_cmhc_','toronto_permits_','toronto_nhpi','toronto_residential_construction']],[['房价（其他来源）','Prices (other sources)'],['teranet_']],[['利率与通胀','Rates & inflation'],['boc_conventional','boc_prime','ontario_cpi']],[['人口流动','Migration'],['ontario_net_']],[['外部因素','External factors'],['usd_cad','wti_','boc_energy','canada_policy']]];
 const UNIT_ZH={units:'套','CAD/month':'加元/月',persons:'人','%':'%','USD/barrel':'美元/桶','CAD/USD':'加元/美元'};
-const CONTEXT_ORDER=['toronto_starts_condo','toronto_starts_rental','toronto_starts_homeowner','toronto_cmhc_absorptions','toronto_cmhc_unabsorbed_inventory','toronto_permits_units','toronto_nhpi_total','toronto_residential_construction_cost_index','gta_condo_lease_listed','gta_condo_leased','gta_condo_lease_rent_bachelor','gta_condo_lease_rent_1br','gta_condo_lease_rent_2br','gta_condo_lease_rent_3br'];
-function contextOrder(f){const g=CONTEXT_GROUPS.findIndex(prefixes=>prefixes.some(p=>f.startsWith(p)));const i=CONTEXT_ORDER.indexOf(f);return (g<0?CONTEXT_GROUPS.length:g)*100+(i<0?50:i)}
-function contextTable(){const data=payload.snapshot.context||{};const fields=Object.keys(data).sort((a,b)=>contextOrder(a)-contextOrder(b)||name(a).localeCompare(name(b)));const rows=fields.map(f=>{const v=data[f],rawUnit=meta(f).unit,unit=state.lang==='zh'&&UNIT_ZH[rawUnit]?UNIT_ZH[rawUnit]:rawUnit,period=v?.period||'—';const area=meta(f).geography||'—';const quarterly=f==='toronto_residential_construction_cost_index'||f.startsWith('ontario_net_')||f.startsWith('gta_condo_lease');const digits=f==='usd_cad_monthly'?4:f==='toronto_residential_construction_cost_index'?1:f.startsWith('ontario_net_')||['units','CAD/month'].includes(rawUnit)?0:2;const cells=[[t('latest'),number(v?.value,digits)],[t('unit'),unit],[t('period'),quarterly&&v?quarterLabel(period):period],[t('geography'),area],[state.lang==='zh'?'更新状态':'Freshness',freshnessLabel(f)]];return `<tr><th scope="row">${help(f)}</th>${cells.map(([label,val])=>`<td data-label="${esc(label)}">${esc(val)}</td>`).join('')}</tr>`}).join('');return `<h2>${t('context')}</h2><p class="note">${t('contextNote')}</p><table class="context-table"><thead><tr>${['indicator','latest','unit','period','geography',state.lang==='zh'?'更新状态':'Freshness'].map(k=>`<th scope="col">${t(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table><p class="source-links">${t('sources')}: ${fields.map(f=>`<a href="${esc(meta(f).url)}" target="_blank" rel="noopener noreferrer">${esc(meta(f).source)}</a>`).join('')}</p>`}
-function economyPage(){return economicSection(t('rates'),['boc_policy_rate','goc_5y_yield','mortgage_uninsured_fixed_5plus'],'rates',{height:235})+`<h2>${t('jobs')}</h2><div class="split">${economicSection(t('unemployment'),['toronto_unemployment_rate'],'unemployment',{height:250,compact:true})}${economicSection(t('employment'),['toronto_employment_rate','toronto_participation_rate'],'employment',{height:250,compact:true})}</div>`+`<h2>${t('construction')}</h2><div class="split">${economicSection(t('starts'),['toronto_cma_2011_starts','toronto_cma_2011_completions'],'starts',{height:250,zero:true,compact:true})}${economicSection(t('stock'),['toronto_cma_2011_under_construction'],'stock',{height:250,compact:true})}</div>`+economicSection(t('population'),['toronto_cma_2021_population'],'population',{annual:true,height:235})+sourceNote()+contextTable()}
+const CONTEXT_ORDER=['toronto_nhpi_total','toronto_starts_condo','toronto_starts_rental','toronto_starts_homeowner','toronto_cmhc_absorptions','toronto_cmhc_unabsorbed_inventory','toronto_permits_units','toronto_residential_construction_cost_index'];
+function contextTable(){
+ const data=payload.snapshot.context||{},zh=state.lang==='zh',L=zh?0:1;
+ const order=f=>{const i=CONTEXT_ORDER.indexOf(f);return i<0?50:i};
+ const row=f=>{const v=data[f],rawUnit=meta(f).unit,unit=zh&&UNIT_ZH[rawUnit]?UNIT_ZH[rawUnit]:rawUnit;const quarterly=f==='toronto_residential_construction_cost_index'||f.startsWith('ontario_net_');const digits=f==='usd_cad_monthly'?4:f==='toronto_residential_construction_cost_index'?1:f.startsWith('ontario_net_')||rawUnit==='units'?0:2;const shown=`${number(v?.value,digits)}${unit==='%'?'%':unit&&!/index/i.test(unit)?' '+unit:''}`;const status=payload.snapshot.freshness?.[f]?.status;const flag=['overdue','missing','unknown'].includes(status)?`<span class="stale-flag">${esc(freshnessLabel(f))}</span>`:'';return `<tr><th scope="row">${help(f)}${flag}</th><td>${esc(shown)}</td><td>${esc(quarterly&&v?quarterLabel(v.period):v?monthLabel(v.period):'—')}</td></tr>`};
+ const groups=CONTEXT_GROUPS.map(([label,prefixes],i)=>{const fields=Object.keys(data).filter(f=>prefixes.some(p=>f.startsWith(p))).sort((a,b)=>order(a)-order(b)||name(a).localeCompare(name(b)));if(!fields.length)return '';return `<details class="context-group" ${i===0?'open':''}><summary><span><strong>${label[L]}</strong><small>${fields.length} ${zh?'项':fields.length===1?'measure':'measures'}</small></span></summary><table class="context-table compact"><tbody>${fields.map(row).join('')}</tbody></table><p class="source-links">${[...new Map(fields.map(f=>[meta(f).url,meta(f).source])).entries()].map(([url,source])=>`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(source)} ↗</a>`).join('')}</p></details>`}).join('');
+ return `<section class="context-section"><h2>${t('context')}</h2><p class="note">${t('contextNote')}</p>${groups}<p class="note">${zh?'签约租金已在「租赁市场」展示，不在此重复；更新状态只在需要核查时标出。':'Signed rents appear on the rental page and are not repeated here; update status is flagged only when it needs checking.'}</p></section>`;
+}
+function populationStat(){
+ const zh=state.lang==='zh',f='toronto_cma_2021_population',latest=latestRaw(f);if(!latest)return '';
+ const prior=observations[f][String(Number(latest.period)-1)],d=prior!=null?latest.value-prior:null;
+ const change=d==null?'':`${zh?'较上年':'vs prior year'} ${d>0?'+':d<0?'−':''}${number(Math.abs(d))} ${zh?'人':'people'}（${d>0?'+':d<0?'−':''}${number(Math.abs(d/prior*100),2)}%）`;
+ return `<section class="population-stat"><div><div class="metric-name">${help(f)}</div><strong>${number(latest.value)}</strong></div><p>${zh?`${latest.period} 年 7 月 1 日 · ${change}。每年只有一个估计值，用数字而不是曲线展示。`:`July 1, ${latest.period} · ${change}. One estimate a year, shown as a number rather than a line.`}</p></section>`;
+}
+function economyPage(){
+ const zh=state.lang==='zh',l=f=>latestRaw(f);
+ const emp=l('toronto_employment_rate'),part=l('toronto_participation_rate'),stock=l('toronto_cma_2011_under_construction');
+ const ranges=[['1',zh?'1 年':'1 yr'],['2',zh?'2 年':'2 yrs'],['5',zh?'5 年':'5 yrs'],['all',zh?'全部':'All']];
+ const rateFields=['boc_policy_rate','goc_5y_yield','mortgage_uninsured_fixed_5plus'];
+ return `<div class="page-intro"><p class="caption">${zh?'利率、就业和住宅建设：影响房价的背景条件':'Rates, jobs and construction: background conditions for home prices'}</p><div class="range-control"><span class="control-label">${zh?'时间范围（全页）':'Time range (whole page)'}</span>${segmented('econRange',ranges,state.econRange,zh?'时间范围':'Time range')}</div></div>
+ <div class="kpi-strip econ-kpis">${econMetric('boc_policy_rate')}${econMetric('mortgage_uninsured_fixed_5plus')}${econMetric('toronto_unemployment_rate',1)}${econMetric('ontario_mortgage_arrears_rate')}</div>
+ ${economicChart(t('rates'),rateFields,{height:240,labels:{goc_5y_yield:zh?'5 年期国债收益率（月均）':'5-year GoC yield (monthly average)'},unitLabel:'%'},zh?'按揭利率由银行每月报送，比央行利率和国债收益率晚约两个月公布。':'Banks report mortgage rates monthly, about two months after policy rates and bond yields.')}
+ <div class="split econ-split">${economicChart(t('unemployment'),['toronto_unemployment_rate'],{height:230,compact:true,unitLabel:'%'},emp&&part?(zh?`就业率 ${number(emp.value,1)}% · 劳动参与率 ${number(part.value,1)}%（${monthLabel(emp.period)}）`:`Employment rate ${number(emp.value,1)}% · participation ${number(part.value,1)}% (${emp.period})`):'')}${economicChart(t('starts'),['toronto_cma_2011_starts','toronto_cma_2011_completions'],{height:230,zero:true,compact:true,unitLabel:zh?'套 / 月':'units / month'},stock?(zh?`月末在建 ${number(stock.value)} 套（${monthLabel(stock.period)}）· 多伦多 CMA`:`${number(stock.value)} units under construction at month-end (${stock.period}) · Toronto CMA`):'')}</div>
+ ${populationStat()}${contextTable()}`;
+}
 function monthlyPayment(principal,rate,years){if(principal<=0)return 0;const r=Math.pow(1+rate/200,1/6)-1,n=years*12;return r===0?principal/n:principal*r/(1-Math.pow(1+r,-n))}
-function paymentRange(principal,rate,years){const zh=state.lang==='zh',low=monthlyPayment(principal,Math.max(0,rate-1),years),high=monthlyPayment(principal,rate+1,years);return zh?`利率低 1 个百分点：$${number(low,2)}　·　高 1 个百分点：$${number(high,2)}`:`1 point lower: $${number(low,2)}　·　1 point higher: $${number(high,2)}`}
-function mortgagePage(){const {principal,years,rate}=state;return `<div class="controls"><label class="control">${t('principal')}<input data-number="principal" type="number" min="0" step="10000" value="${principal}"></label><label class="control">${t('years')}<input data-number="years" type="number" min="1" max="40" step="1" value="${years}"></label><label class="control">${t('rate')}<input data-number="rate" type="number" min="0" max="30" step="0.1" value="${rate}"></label></div><h2>${t('payment')}</h2><div class="payment-result">$${number(monthlyPayment(principal,rate,years),2)}</div><p class="payment-range">${paymentRange(principal,rate,years)}</p>${state.rateSource?`<p class="note">${state.lang==='zh'?`默认利率为 ${monthLabel(state.rateSource)} 银行新发放五年以上固定按揭的平均利率。`:`The default rate is banks’ average new five-year-plus fixed mortgage rate in ${state.rateSource}.`}</p>`:''}<p class="note">${t('paymentNote')}</p>`}
+function mortgageModel(){
+ const price=Math.max(0,Number(state.price)||0),down=Number(state.down),years=Number(state.years),rate=Number(state.rate);
+ const loan=price*(1-down/100),pay=monthlyPayment(loan,rate,years),qualifying=Math.max(rate+2,5.25),stress=monthlyPayment(loan,qualifying,years);
+ return {price,down,years,rate,loan,pay,qualifying,stress,income:stress*12/0.39,interest:pay*years*12-loan,valid:Number.isFinite(rate)&&rate>=0&&years>0};
+}
+const money=(v,d=0)=>`$${number(v,d)}`;
+function mortgageResults(){
+ const m=mortgageModel(),zh=state.lang==='zh';if(!m.valid)return `<p class="chart-empty">${zh?'请输入有效的利率。':'Enter a valid rate.'}</p>`;
+ const steps=[-1,0,1,2].map(d=>m.rate+d).filter(r=>r>=0);
+ const sens=steps.map(r=>{const p=monthlyPayment(m.loan,r,m.years),diff=p-m.pay,cur=Math.abs(r-m.rate)<1e-9;return `<div class="sens-col${cur?' current':''}"><span>${number(r,2)}%</span><strong>${money(p)}</strong><small>${cur?(zh?'当前假设':'current'):`${diff>0?'+':'−'}${money(Math.abs(diff))}`}</small></div>`}).join('');
+ return `<div class="payment-main"><span class="metric-name">${t('payment')}</span><div><span class="payment-result">${money(m.pay,2)}</span><span class="per">${zh?'/ 月':'/ month'}</span></div><p class="caption">${zh?`${m.years} 年共付利息约 ${money(Math.round(m.interest/100)*100)}`:`About ${money(Math.round(m.interest/100)*100)} of interest over ${m.years} years`}</p></div>
+ <div class="mortgage-cards"><div class="mortgage-card"><strong>${zh?'压力测试月供':'Stress-test payment'}</strong><span>${money(m.stress,2)}</span><p>${zh?`按 ${number(m.qualifying,2)}% 计算：合同利率 +2 个百分点与 5.25% 取较高者，银行用它审核贷款。`:`At ${number(m.qualifying,2)}%: the higher of the contract rate + 2 points and 5.25%, which lenders use to qualify borrowers.`}</p></div><div class="mortgage-card"><strong>${zh?'大约需要的家庭年收入':'Approximate household income needed'}</strong><span>${money(Math.round(m.income/1000)*1000)}</span><p>${zh?'按压力测试月供不超过收入 39% 估算；未含物业税、取暖和 condo 管理费，实际要求更高。':'Stress-test payment at no more than 39% of income; excludes property tax, heating and condo fees, so the real requirement is higher.'}</p></div></div>
+ <div class="sensitivity"><h3>${zh?'如果利率变化':'If the rate changes'}</h3><div class="sens-row">${sens}</div></div>
+ <p class="note">${t('paymentNote')}</p>`;
+}
+function mortgageHints(){
+ const m=mortgageModel(),zh=state.lang==='zh',notes=[];
+ if(m.down<20)notes.push(zh?'首付低于 20% 需另付按揭保险费，此处未计入。':'Below 20% down, mortgage insurance is required; its premium is not included.');
+ if(m.down<20&&m.price>1500000)notes.push(zh?'房价超过 150 万加元须至少 20% 首付。':'Homes over $1.5 million need at least 20% down.');
+ if(m.down<20&&m.years===30)notes.push(zh?'首付不足 20% 时，30 年摊还仅限首次购房或新建住宅。':'With under 20% down, 30-year amortization is limited to first-time buyers or new builds.');
+ return notes.map(n=>`<p class="message">${esc(n)}</p>`).join('');
+}
+function mortgagePage(){
+ const zh=state.lang==='zh',m=mortgageModel();
+ const hpi=state.priceSource?(zh?`默认：${monthLabel(state.priceSource)} TRREB HPI 综合基准房价`:`Default: TRREB HPI composite benchmark, ${state.priceSource}`):'';
+ const rateHint=state.rateSource?(zh?`默认：${monthLabel(state.rateSource)} 银行新发 5 年以上固定按揭平均利率`:`Default: banks’ average new 5-year-plus fixed rate, ${state.rateSource}`):'';
+ return `<p class="caption page-sub">${zh?'从房价出发估算每月本息 · 加元 · 半年复利（加拿大惯例）':'Monthly principal and interest from a home price · CAD · compounded semi-annually (Canadian convention)'}</p>
+ <div class="mortgage-layout"><div class="mortgage-inputs">
+ <label class="field"><span class="control-label">${zh?'房价':'Home price'}</span><input class="money-input" data-money="price" inputmode="numeric" autocomplete="off" value="${esc(money(m.price))}"><small>${esc(hpi)}</small></label>
+ <div class="field"><span class="control-label">${zh?'首付比例':'Down payment'}</span>${segmented('down',[['10','10%'],['20','20%'],['35','35%']],String(state.down),zh?'首付比例':'Down payment')}<small data-down-amount>${zh?'首付':'Down payment'} ${money(m.price*m.down/100)}</small></div>
+ <div class="field"><span class="control-label">${zh?'贷款金额':'Loan amount'}</span><output class="loan-output" data-loan>${money(m.loan)}</output><small>${zh?'= 房价 − 首付':'= price − down payment'}</small></div>
+ <div class="field"><span class="control-label">${t('years')}</span>${segmented('years',[['25',zh?'25 年':'25 years'],['30',zh?'30 年':'30 years']],String(state.years),t('years'))}</div>
+ <label class="field"><span class="control-label">${t('rate')}</span><input data-number="rate" type="number" min="0" max="30" step="0.01" value="${Number.isFinite(Number(state.rate))?esc(state.rate):''}"><small>${esc(rateHint)}</small></label>
+ <div data-mortgage-hints>${mortgageHints()}</div>
+ </div><div class="mortgage-results" aria-live="polite">${mortgageResults()}</div></div>`;
+}
 function render(){chartModels=[];shell(({market:marketPage,rent:rentPage,economy:economyPage,mortgage:mortgagePage})[state.page]());attachChartTooltips()}
 function attach(){
   // Widths are set through CSSOM because the page's CSP disallows inline style attributes.
@@ -467,15 +533,9 @@ function attach(){
     el.onclick=()=>toggleRegion(el.dataset.mapRegion,Object.entries(AREAS).filter(([id])=>state.regionFrequency==='annual'?id!=='toronto':!id.includes('richmond')&&!id.includes('aurora')));
     el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();el.click()}};
   });
-  document.querySelectorAll('[data-number]').forEach(el=>el.oninput=()=>{
-    const value=Number(el.value);
-    const valid=el.value!==''&&Number.isFinite(value);
-    if(valid)state[el.dataset.number]=value;
-    const allValid=[...document.querySelectorAll('[data-number]')].every(input=>input.value!==''&&Number.isFinite(Number(input.value)))&&state.years>0;
-    document.querySelector('.payment-result').textContent=allValid
-      ? `$${number(monthlyPayment(state.principal,state.rate,state.years),2)}` : '—';
-    document.querySelector('.payment-range').textContent=allValid?paymentRange(state.principal,state.rate,state.years):'';
-  });
+  const refreshMortgage=()=>{const m=mortgageModel(),zh=state.lang==='zh';document.querySelector('.mortgage-results').innerHTML=mortgageResults();document.querySelector('[data-loan]').textContent=money(m.loan);document.querySelector('[data-down-amount]').textContent=`${zh?'首付':'Down payment'} ${money(m.price*m.down/100)}`;document.querySelector('[data-mortgage-hints]').innerHTML=mortgageHints()};
+  document.querySelectorAll('[data-number]').forEach(el=>el.oninput=()=>{const v=Number(el.value);state[el.dataset.number]=el.value!==''&&Number.isFinite(v)?v:NaN;refreshMortgage()});
+  document.querySelectorAll('[data-money]').forEach(el=>{el.oninput=()=>{const digits=el.value.replace(/[^0-9]/g,'');state[el.dataset.money]=digits?Number(digits):0;refreshMortgage()};el.onblur=()=>{el.value=money(state[el.dataset.money])}});
 }
 fetch('data.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json()}).then(data=>{payload=data;prepare();render()}).catch(()=>{$('#app').innerHTML='<p class="message">已发布的资料快照暂时无法读取。 / Published data snapshot could not be loaded.</p>'});
 

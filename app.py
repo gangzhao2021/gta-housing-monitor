@@ -302,6 +302,8 @@ elif page == "租赁市场":
                     st.download_button("下载租赁质量与来源", pd.DataFrame(evidence).to_csv(index=False).encode("utf-8-sig"), f"rental-evidence-{year}.csv", "text/csv")
 
 elif page == "经济与供给":
+    from housing.scenario_view import render_readings
+    render_readings(lambda field: {row["period"]: row["value"] for row in latest(db, field)})
     st.html('<nav class="section-jump" aria-label="主题导航"><a href="#rates">利率与融资</a><a href="#employment">就业</a><a href="#construction">住宅建设</a><a href="#population">人口</a></nav>')
     topics = [("利率与融资", "rates"), ("就业", "employment"), ("住宅建设", "construction"), ("人口", "population")]
     for topic, anchor in topics:
@@ -368,51 +370,18 @@ elif page == "经济与供给":
             source_rows(fields, start, end, "context-" + anchor, "context-" + anchor + "-month")
 
 elif page == "月供情景":
-    st.subheader("比较两种利率下的月供")
+    from housing.scenario_view import render_scenario
     observations = latest(db, "mortgage_uninsured_fixed_5plus")
     default = observations[-1] if observations else None
-    default_rate = float(default["value"]) if default else 5.0
-    defaults = {"principal": 500_000, "amortization": 25, "scenario-rate": default_rate, "comparison-rate": min(30.0, round(default_rate + 1, 2))}
-    saved_scenario = st.session_state.get("saved-scenario", defaults)
-    for key, value in saved_scenario.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
-    with st.container(key="mortgage-story"):
-        inputs, results = st.columns([1, 2.3], gap="large")
-        with inputs:
-            principal = st.number_input("贷款本金（加元）", min_value=0, max_value=10_000_000, step=25_000, key="principal")
-            current_rate = st.number_input("情景年利率（%）", min_value=0.0, max_value=30.0, step=0.05, format="%.2f", key="scenario-rate")
-        with inputs:
-            amortization = st.number_input("摊还年限", min_value=1, max_value=40, step=1, key="amortization")
-            comparison_rate = st.number_input("对比年利率（%）", min_value=0.0, max_value=30.0, step=0.05, format="%.2f", key="comparison-rate")
-        if any(value is None for value in (principal, current_rate, amortization, comparison_rate)):
-            with results:
-                st.info("请填写全部贷款参数后查看月供。")
-            db.close()
-            st.stop()
-        st.session_state["saved-scenario"] = {key: st.session_state[key] for key in defaults}
-        payment = monthly_payment(principal, current_rate, amortization)
-        comparison = monthly_payment(principal, comparison_rate, amortization)
-        with results:
-            a, b = st.columns(2)
-        with a:
-            with st.container(key="scenario-result"):
-                st.metric("情景月供", f"${payment:,.2f}")
-        with b:
-            st.metric("对比月供", f"${comparison:,.2f}", delta=f"每月 {comparison-payment:+,.2f} 加元", delta_color="off")
-    with results:
-        amounts = pd.DataFrame([{"情景": "情景月供", "月供": payment}, {"情景": "对比月供", "月供": comparison}])
-        chart = alt.Chart(amounts).mark_bar(size=32).encode(
-            x=alt.X("月供:Q", title="每月本息（加元）", scale=alt.Scale(zero=True), axis=alt.Axis(format=",.0f", tickCount=4)),
-            y=alt.Y("情景:N", title=None, sort=["情景月供", "对比月供"]),
-            color=alt.Color("情景:N", scale=alt.Scale(domain=["情景月供", "对比月供"], range=[BLUE, TEAL]), legend=None),
-            tooltip=["情景:N", alt.Tooltip("月供:Q", format=",.2f")],
-        ).properties(height=190).configure_view(stroke=None).configure_axis(domain=False, gridColor="#ededed", labelColor="#666", titleFontWeight="normal")
-        st.altair_chart(chart, use_container_width=True)
-    if default:
-        st.caption(f"初始利率来自 BoC {period_label(default['period'])}的新增固定按揭均值 {default_rate:.2f}%。调整后按输入假设计算。")
-    else:
-        st.caption("尚无可用 BoC 观测；初始 5% 仅为情景假设。")
+    hpi_rows = latest(db, "trreb_hpi_benchmark")
+    hpi = hpi_rows[-1] if hpi_rows else None
+    st.caption("Monthly principal and interest from a home price · CAD · compounded semi-annually (Canadian convention)" if english() else "从房价出发估算每月本息 · 加元 · 半年复利（加拿大惯例）")
+    chosen = render_scenario(float(hpi["value"]) if hpi else 1_000_000, hpi["period"] if hpi else None,
+                             float(default["value"]) if default else 5.0, default["period"] if default else None, "owner-scenario")
+    if chosen is None:
+        db.close()
+        st.stop()
+    principal, amortization = chosen["loan"], chosen["years"]
     history = historical_payment_rows(observations, principal, amortization)
     if history:
         st.subheader("固定条件下的历史月供")

@@ -47,7 +47,8 @@ class PublicationTests(unittest.TestCase):
             self.assertTrue(list(app.get("arrow_vega_lite_chart")))
             app.radio(key="navigation").set_value("经济与供给").run()
             self.assertFalse(list(app.exception))
-            self.assertIn("人口", {item.value for item in app.subheader})
+            self.assertIn("背景指标", {item.value for item in app.subheader})
+            self.assertTrue(any("population-stat" in item.proto.body for item in app.get("html")))
 
     def test_display_context_is_visible_in_both_languages_with_quarter_label(self):
         root = Path(__file__).resolve().parents[1]

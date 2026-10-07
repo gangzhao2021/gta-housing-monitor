@@ -171,3 +171,60 @@ html[lang=en] #regions-panel[open]>summary:after{content:'Hide −'}
 .measure strong{font-size:24px}
 .rent-measures .chart-heading{flex-wrap:wrap;align-items:flex-start}
 }
+/* Figma 11 · 经济与供给 v2 */
+.page-intro{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin:0 0 28px}
+.page-intro .caption,.page-sub{margin:0 0 4px;font-size:13px}
+.range-control{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.range-control .segmented{margin:0}
+.econ-kpis{margin-bottom:40px}
+.econ-kpis .metric-delta{font-size:12px}
+.economic-panel .chart-heading{margin:0 0 4px}
+.economic-panel .chart-heading h2{margin:0}
+.economic-panel>.note{margin:4px 0 0}
+.econ-split{border-top:1px solid var(--line);padding-top:28px;margin-top:28px;gap:48px}
+.population-stat{display:flex;align-items:center;gap:28px;background:var(--surface);border-radius:10px;padding:20px 24px;margin:36px 0}
+.population-stat strong{display:block;font-size:28px;font-weight:400;letter-spacing:-.03em;font-variant-numeric:tabular-nums;margin-top:4px}
+.population-stat p{margin:0;font-size:13px;line-height:1.6;color:#444;max-width:70ch}
+.context-section{border-top:1px solid var(--line);padding-top:28px}
+.context-section h2{margin:0 0 4px}
+.context-group{border-bottom:1px solid var(--line)}
+.context-group>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:16px 0;min-height:44px}
+.context-group>summary::-webkit-details-marker{display:none}
+.context-group>summary strong{font-size:14px;font-weight:600;margin-right:10px}
+.context-group>summary small{font-size:12px;color:var(--muted)}
+.context-group>summary:after{content:'＋';color:var(--blue);font-size:16px}
+.context-group[open]>summary:after{content:'−'}
+.context-table.compact th,.context-table.compact td{padding:10px 0;border-bottom:1px solid #f0f0f0}
+.context-table.compact td{text-align:right;width:140px;color:var(--muted);font-size:12px}
+.context-table.compact td:nth-child(2){color:var(--ink);font-size:13px;font-weight:600}
+.stale-flag{display:inline-block;margin-left:8px;padding:1px 7px;border-radius:999px;background:#fff4ea;color:var(--orange);font-size:11px;font-weight:500}
+@media(max-width:760px){.page-intro{display:block}.range-control{align-items:flex-start;margin-top:12px}.population-stat{display:block}.population-stat p{margin-top:10px}
+.context-table.compact tbody tr{grid-template-columns:1fr 1fr}.context-table.compact td{width:auto;text-align:left}}
+/* Figma 10 · 月供情景 v2 */
+.mortgage-layout{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:64px;align-items:start;margin-top:28px}
+.mortgage-inputs{display:grid;gap:22px}
+.field{display:flex;flex-direction:column;gap:6px;color:var(--muted);font-size:12px}
+.field small{font-size:12px;color:var(--muted);line-height:1.5}
+.field .segmented{margin:0;align-self:flex-start}
+.field input{border:0;border-bottom:1px solid #bbb;border-radius:0;background:transparent;min-height:44px;padding:8px 2px;color:var(--ink);font-size:16px;font-variant-numeric:tabular-nums}
+.field .money-input{font-size:22px;font-weight:500}
+.loan-output{display:block;border-bottom:1px solid var(--line);padding:10px 2px;font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums}
+.mortgage-inputs .message{margin:0}
+.mortgage-results{display:grid;gap:28px;min-width:0}
+.payment-main .payment-result{font-size:64px;font-weight:500;letter-spacing:-.045em;color:var(--ink);margin:0;line-height:1.1;font-variant-numeric:tabular-nums}
+.payment-main .per{font-size:16px;color:var(--muted);margin-left:8px}
+.payment-main .caption{margin:6px 0 0}
+.mortgage-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.mortgage-card{background:var(--surface);border-radius:10px;padding:20px}
+.mortgage-card strong{display:block;font-size:13px}
+.mortgage-card span{display:block;font-size:30px;letter-spacing:-.03em;margin:6px 0;font-variant-numeric:tabular-nums}
+.mortgage-card p{margin:0;font-size:12px;line-height:1.55;color:var(--muted)}
+.sensitivity h3{font-size:15px;margin:0 0 10px}
+.sens-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+.sens-col{padding:14px 16px;border-radius:8px}
+.sens-col span,.sens-col small{display:block;font-size:12px;color:var(--muted)}
+.sens-col strong{display:block;font-size:20px;font-weight:500;margin:4px 0;font-variant-numeric:tabular-nums}
+.sens-col.current{background:#edf2ff}
+.sens-col.current span,.sens-col.current small{color:var(--blue)}
+@media(max-width:900px){.mortgage-layout{grid-template-columns:1fr;gap:36px}}
+@media(max-width:600px){.payment-main .payment-result{font-size:44px}.mortgage-cards{grid-template-columns:1fr}.sens-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
