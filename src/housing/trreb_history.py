@@ -164,3 +164,33 @@ def extract(path, period):
     if not (record['active_listings'] or record['new_listings']):
         raise ValueError('Missing listings')
     return {'period': period, 'source_pdf': Path(path).name, **record}
+
+
+def hpi_composite(path, period):
+    """Composite MLS HPI (index, benchmark, published YoY %) for the board-wide total row.
+
+    Reads the 'Home Price Index' page whose title names the report month; the first
+    index / $benchmark / % triplet on the total row is the composite.
+    """
+    import pymupdf
+    month = MONTHS[int(period[5:]) - 1]
+    with pymupdf.open(path) as document:
+        for page in document:
+            rows = _rows(page)
+            flat = ' '.join(rows)
+            if 'PRICE INDEX' not in flat.upper() or 'Benchmark' not in flat:
+                continue
+            if f'{month.upper()} {period[:4]}' not in flat.upper():
+                continue
+            for row in rows:
+                label = next((l for l in TOTAL_LABELS if row.startswith(l + ' ')), None)
+                if not label:
+                    continue
+                match = re.search(r'(\d+(?:\.\d+)?)\s+\$([\d,]+)\s+(-?\d+(?:\.\d+)?)%', row[len(label):])
+                if not match:
+                    raise ValueError(f'HPI total row without composite triplet: {row}')
+                index, benchmark, change = float(match.group(1)), _num(match.group(2)), float(match.group(3))
+                if not (50 < index < 1000 and 100_000 < benchmark < 3_000_000):
+                    raise ValueError(f'HPI composite out of range: {row}')
+                return {'hpi_index': index, 'hpi_benchmark': benchmark, 'hpi_yoy_published': change}
+    return None

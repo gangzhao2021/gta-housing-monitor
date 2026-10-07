@@ -1,0 +1,22 @@
+{
+  "version": "2026-10-07-v4",
+  "status": "frozen_before_results",
+  "relation": "same features, models, metrics and evidence rule as v3; replaces the closing-dated Teranet target with deal-dated TRREB MLS HPI to measure lead without the registration lag. v2 and v3 stay reported.",
+  "design": "pseudo real-time: first-release monthly HPI levels from each report; publication lag as v3",
+  "decision_time": "end of calendar month T, America/Toronto",
+  "target": {
+    "series": "TRREB MLS HPI composite index, All TRREB Areas, from data/research/trreb-history.csv (2012-02 onward; 2022-05 missing)",
+    "origin": "T-1 (TRREB month M known at end of M+1)",
+    "formula": "100 * ln(hpi(T-1+h) / hpi(T-1))",
+    "horizons_months": [6, 12],
+    "rebasing": "a window is excluded when it spans a level break; breaks found before results by 12 consecutive months where level-based YoY differs from published YoY by > 1.5 pp: between 2022-04 and 2022-06, and between 2025-03 and 2025-04. Segments: 2012-02..2022-04, 2022-06..2025-03, 2025-04 onward"
+  },
+  "features": "v3 TRREB features at T-1 (moi_yoy, moi_vs_norm, snlr_yoy, snlr_vs_norm, sp_lp_yoy, dom_yoy)",
+  "models": {"benchmark": "historical mean of matured targets known at T", "univariate": "OLS expanding window per feature", "combination": "equal-weight mean of univariate forecasts"},
+  "sample": {"minimum_training_observations": 60, "oos_start": "2018-01", "subperiods": [["2018-01", "2021-12"], ["2022-01", "last matured"]]},
+  "metrics": ["OOS R2 vs historical mean", "RMSE", "direction hit rate", "Clark-West one-sided, Newey-West h-1 lags"],
+  "evidence_rule": "OOS R2 > 0 over the full OOS period and in both subperiods, and Clark-West one-sided p < 0.05 over the full OOS period",
+  "power_note": "short sample (about 8 years out of sample, many overlapping windows); a null result here is weak evidence of no lead",
+  "not_allowed": "changing features, lags, segments, sample splits or the evidence rule after seeing results",
+  "adoption": "research evidence only; no dashboard signal"
+}
