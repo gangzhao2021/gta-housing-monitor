@@ -67,17 +67,20 @@ def render_scenario(default_price, price_period, default_rate, rate_period, key)
     # Keyed widgets lose their values when the page is not rendered; keep the last scenario and restore it.
     saved = native_st.session_state.setdefault(f"{key}-saved", {})
     defaults = {f"{key}-price": int(round(default_price)), f"{key}-down": 20, f"{key}-years": 25, f"{key}-rate": float(default_rate)}
-    for name, value in defaults.items():
+    for name in (f"{key}-price", f"{key}-rate"):
         if name not in native_st.session_state:
-            native_st.session_state[name] = saved.get(name, value)
+            native_st.session_state[name] = saved.get(name, defaults[name])
+    # Radios take their saved choice as an index; pre-setting their state as well would trigger a Streamlit warning.
+    down_index = [10, 20, 35].index(saved.get(f"{key}-down", 20))
+    years_index = [25, 30].index(saved.get(f"{key}-years", 25))
     left, right = st.columns([1, 1.7], gap="large")
     with left:
-        price = native_st.number_input("Home price (CAD)" if en else "房价（加元）", min_value=0, max_value=20_000_000, step=10_000, key=f"{key}-price")
+        price = st.number_input("房价（加元）", min_value=0, max_value=20_000_000, step=10_000, key=f"{key}-price")
         if price_period:
             st.caption(f"Default: TRREB HPI composite benchmark, {price_period}" if en else f"默认：{_when(price_period, False)} TRREB HPI 综合基准房价")
-        down = native_st.radio("Down payment" if en else "首付比例", [10, 20, 35], format_func=lambda v: f"{v}%", horizontal=True, key=f"{key}-down")
-        years = native_st.radio("Amortization" if en else "摊还年限", [25, 30], format_func=lambda v: f"{v} years" if en else f"{v} 年", horizontal=True, key=f"{key}-years")
-        rate = native_st.number_input("Nominal annual rate (%)" if en else "名义年利率（%）", min_value=0.0, max_value=30.0, step=0.05, format="%.2f", key=f"{key}-rate")
+        down = st.radio("首付比例", [10, 20, 35], index=down_index, format_func=lambda v: f"{v}%", horizontal=True, key=f"{key}-down")
+        years = st.radio("摊还年限", [25, 30], index=years_index, format_func=lambda v: f"{v} years" if en else f"{v} 年", horizontal=True, key=f"{key}-years")
+        rate = st.number_input("名义年利率（%）", min_value=0.0, max_value=30.0, step=0.05, format="%.2f", key=f"{key}-rate")
         if rate_period:
             st.caption(f"Default: banks' average new 5-year-plus fixed rate, {rate_period}" if en else
                        f"默认：{_when(rate_period, False)} 银行新发 5 年以上固定按揭平均利率")
