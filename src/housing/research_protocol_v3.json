@@ -1,0 +1,30 @@
+{
+  "version": "2026-10-07-v3",
+  "status": "frozen_before_results",
+  "relation": "adds TRREB market-balance features; target, models, benchmark, metrics and evidence rule identical to v2, whose results stay reported",
+  "design": "pseudo real-time: latest-vintage data with conservative publication lags; an upper bound on real-time skill",
+  "decision_time": "end of calendar month T, America/Toronto",
+  "target": {"series": "teranet_toronto_index_sa", "formula": "100 * ln(index(T-2+h) / index(T-2))", "horizons_months": [6, 12]},
+  "trreb_source": "data/research/trreb-history.csv (board-wide monthly totals, 2004-01 onward); TRREB month M treated as known at the end of M+1, so features use months up to T-1",
+  "definitions": {
+    "MOI3(m)": "sum active listings (m-2..m) / sum sales (m-2..m)",
+    "SNLR3(m)": "100 * sum sales (m-2..m) / sum new listings (m-2..m)",
+    "seasonal norm": "mean over all earlier calendar years (at least 3) of the same quantity for the same calendar month m; only years before m's year"
+  },
+  "features": {
+    "moi_yoy": "100*ln(MOI3(T-1)/MOI3(T-13))",
+    "moi_vs_norm": "ln MOI3(T-1) minus seasonal norm of ln MOI3",
+    "snlr_yoy": "SNLR3(T-1) - SNLR3(T-13), percentage points",
+    "snlr_vs_norm": "SNLR3(T-1) minus seasonal norm of SNLR3",
+    "sp_lp_yoy": "sale-to-list ratio (T-1) minus (T-13); legacy 'avg % list' and later 'avg SP/LP' are different formulas, so missing when the two months are from different families",
+    "dom_yoy": "100*ln(DOM(T-1)/DOM(T-13)); legacy/summary DOM and post-2020 LDOM are separate families; missing across families"
+  },
+  "excluded": "sales volume year-over-year (TRREB coverage expansions shift levels); 2002 to mid-2003 (system change)",
+  "missing": "any required month missing gives no feature value; no imputation",
+  "models": {"benchmark": "historical mean of matured targets known at T", "univariate": "OLS expanding window per feature", "combination": "equal-weight mean of available v3 univariate forecasts"},
+  "sample": {"minimum_training_observations": 60, "oos_start": "2011-01", "subperiods": [["2011-01", "2019-12"], ["2020-01", "last matured"]]},
+  "metrics": ["OOS R2 vs historical mean", "RMSE", "direction hit rate", "Clark-West one-sided, Newey-West h-1 lags"],
+  "evidence_rule": "OOS R2 > 0 over the full OOS period and in both subperiods, and Clark-West one-sided p < 0.05 over the full OOS period",
+  "not_allowed": "changing features, lags, sample splits or the evidence rule after seeing results",
+  "adoption": "research evidence only; no dashboard signal"
+}
