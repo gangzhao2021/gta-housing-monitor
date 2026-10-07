@@ -71,3 +71,5 @@
 @media(max-width:600px){.temperature-reading{flex-direction:column;align-items:flex-start}}
 .temp-label{font-size:11px;fill:#666}
 .help-caveat{color:#666;font-size:12px}
+.segmented{display:inline-flex;gap:2px;padding:3px;border-radius:8px;background:var(--surface);margin:18px 0 4px}.segmented button{border:0;background:transparent;color:var(--muted);font-size:13px;padding:8px 14px;border-radius:6px;min-height:36px;cursor:pointer}.segmented button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 3px #1717171f;font-weight:600}.segmented button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.payment-range{font-size:13px;color:var(--muted);margin:0 0 10px;font-variant-numeric:tabular-nums}
