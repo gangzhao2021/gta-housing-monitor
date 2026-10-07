@@ -188,7 +188,7 @@ RULES.update({series_id: FreshnessRule("monthly", "next_month_end", "Teranet 月
 RULES.update({series_id: FreshnessRule("monthly", "two_months_end", "CBA 月度拖欠统计约滞后两个月；隔月底为本地检查日，非官方保证")
               for series_id in ("ontario_mortgage_arrears_rate", "ontario_mortgage_arrears_count")})
 RULES.update({series_id: FreshnessRule("quarterly", "quarter_plus_45", "TRREB 季度租赁报告；季度结束后 45 日为本地检查日，非官方保证")
-              for series_id in SERIES if series_id.startswith("gta_condo_lease")})
+              for series_id in SERIES if series_id.startswith(("gta_condo_lease", "gta_townhouse_lease"))})
 
 
 from .background_series import CONFIG as BACKGROUND_CONFIG

@@ -10,11 +10,8 @@ const COLORS = ['#2855d9','#007f86','#bf6517','#7952be'];
 const ROOM = {total:'total',studio:'studio','1br':'one','2br':'two','3br':'three','3plus':'threePlus'};
 const AREAS = {toronto:'Toronto',north_york:'North York',scarborough:'Scarborough',markham:'Markham',vaughan:'Vaughan',mississauga:'Mississauga',oakville:'Oakville',richmond_vaughan_king:'Richmond Hill / Vaughan / King',aurora_newmarket_whit:'Aurora / Newmarket / Whit-St.'};
 const MAP_POINTS = {toronto:[-79.3832,43.6532],north_york:[-79.4111,43.7615],scarborough:[-79.2318,43.7764],markham:[-79.3370,43.8561],vaughan:[-79.5083,43.8372],mississauga:[-79.6441,43.5890],oakville:[-79.6877,43.4675],richmond_vaughan_king:[-79.4700,43.8800],aurora_newmarket_whit:[-79.4400,44.0200]};
-const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',regions:['north_york','markham','scarborough'],regionFeedback:'',supplyMetric:'moi_raw',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
+const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',measureType:'apartment',leaseType:'condo',regions:['north_york','markham','scarborough'],regionFeedback:'',supplyMetric:'moi_raw',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
 const initialState=JSON.parse(JSON.stringify(state));
-function restoreView(){try{const q=JSON.parse(decodeURIComponent(location.hash.slice(1)));for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','measureRoom','econRange']){const allowed={measureRoom:['1br','2br'],econRange:['1','2','5','all'],lang:['zh','en'],page:['market','rent','economy','mortgage'],rentMode:['monthly','lease','annual','region'],room:Object.keys(ROOM),annualRoom:Object.keys(ROOM),regionRoom:Object.keys(ROOM),regionFrequency:['monthly','annual']};if(allowed[key].includes(q[key]))state[key]=q[key]}if(['moi_raw','snlr_raw'].includes(q.supplyMetric))state.supplyMetric=q.supplyMetric;if(['level','mom','yoy'].includes(q.marketView))state.marketView=q.marketView;if(Object.hasOwn(PROPERTY_TYPES,q.districtType))state.districtType=q.districtType;if(typeof q.districtRegion==='string'&&/^[A-Za-z0-9 ./'()&-]{1,100}$/.test(q.districtRegion))state.districtRegion=q.districtRegion;if(['average_price','sales','new_listings','active_listings','median_price','avg_ldom','avg_pdom','avg_sp_lp'].includes(q.districtMetric))state.districtMetric=q.districtMetric;if(Array.isArray(q.regions))state.regions=q.regions.filter(r=>Object.hasOwn(AREAS,r)).slice(0,3);if(q.end&&typeof q.end==='object')for(const [k,v]of Object.entries(q.end)){if(/^[a-zA-Z0-9_-]{1,100}$/.test(k)&&!['__proto__','constructor','prototype'].includes(k)&&/^\d{4}(-\d{2})?$/.test(v))state.end[k]=v}}catch{}}
-function viewLink(){const q={};for(const key of ['lang','page','rentMode','room','annualRoom','regionRoom','regionFrequency','measureRoom','econRange','regions','end','districtType','districtRegion','districtMetric','supplyMetric','marketView'])q[key]=state[key];return '#'+encodeURIComponent(JSON.stringify(q))}
-restoreView();
 let payload, observations, monthly;
 let chartModels = [];
 const t = (key) => TEXT[state.lang][key] || key;
@@ -76,7 +73,7 @@ function help(field,visible,iconOnly=false) {
 function shell(body) {
   document.documentElement.lang=state.lang;
   $('#app').classList.toggle('overview',state.page==='market');
-  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button><a href="${esc(viewLink())}">${state.lang==='zh'?'保存视图链接':'Save view link'}</a></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
+  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
   attach();
 }
 function select(label,key,periods,annual=false,availablePeriods=periods) {
@@ -270,7 +267,7 @@ function temperatureCard(end){
  const zones=[['cool',side],['balanced',mid],['hot',side]];
  return `<section class="temp-card" aria-label="${zh?'市场温度':'Market temperature'}"><div class="temp-card-head"><h2>${zh?'市场温度':'Market temperature'}</h2><span class="temperature-chip ${r.state}">${TEMPERATURE_LABELS[r.state][L]}</span><span class="caption">${monthLabel(period)} · ${zh?'近三个月':'last three months'}</span></div>
  <div class="gauge" role="img" aria-label="${esc((zh?'与同月常态相差 ':'Gap to seasonal norm ')+gapText+(zh?' 个百分点':' pp'))}"><span class="gauge-marker" data-left="${pos.toFixed(1)}"><b>${gapText}</b></span><div class="gauge-track">${zones.map(([k,w])=>`<span class="zone ${k}" data-width="${w.toFixed(2)}"></span>`).join('')}</div><div class="gauge-labels">${zones.map(([k,w])=>`<span class="${k===r.state?'current':''}" data-width="${w.toFixed(2)}">${TEMPERATURE_LABELS[k][L]}</span>`).join('')}</div></div>
- <p>${zh?`成交／新挂牌比 ${number(r.snlr3,1)}%，比同月历史常态 ${number(r.snlr_norm,1)}% ${r.gap<0?'低':'高'} ${number(Math.abs(r.gap),1)} 个百分点：${TEMPERATURE_NOTE[r.state][0]}。库存月数 ${number(r.moi3,1)}（常态 ${number(r.moi_norm,1)}）。`:`Sales-to-new-listings ratio ${number(r.snlr3,1)}%, ${number(Math.abs(r.gap),1)} pp ${r.gap<0?'below':'above'} its seasonal norm of ${number(r.snlr_norm,1)}%: ${TEMPERATURE_NOTE[r.state][1]}. Months of inventory ${number(r.moi3,1)} (norm ${number(r.moi_norm,1)}).`}</p></section>`;
+ <p>${zh?`近三个月成交／新挂牌比 ${number(r.snlr3,1)}%，比同期历史常态 ${number(r.snlr_norm,1)}% ${r.gap<0?'低':'高'} ${number(Math.abs(r.gap),1)} 个百分点：${TEMPERATURE_NOTE[r.state][0]}。近三个月库存月数 ${number(r.moi3,1)}（同期常态 ${number(r.moi_norm,1)}）。`:`Three-month sales-to-new-listings ratio ${number(r.snlr3,1)}%, ${number(Math.abs(r.gap),1)} pp ${r.gap<0?'below':'above'} its seasonal norm of ${number(r.snlr_norm,1)}%: ${TEMPERATURE_NOTE[r.state][1]}. Three-month months of inventory ${number(r.moi3,1)} (norm ${number(r.moi_norm,1)}).`}</p></section>`;
 }
 function temperatureChart(months,periods,band,W){
  const H=230,pad={l:40,r:12,t:10,b:24},iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
@@ -301,7 +298,7 @@ function priceBands(end){
  const now=share(end),before=share(prior);
  if(!now)return '';
  const top=Math.max(...now);
- const rows=PRICE_BANDS.map((f,i)=>{const change=before?now[i]-before[i]:null;return `<div class="band-row"><span class="band-label">${esc(name(f))}</span><span class="band-track"><span class="band-fill" data-width="${(now[i]/top*100).toFixed(1)}"></span></span><span class="band-share">${number(now[i],1)}%</span><span class="band-change">${change==null?'—':`${change>=0?'+':''}${number(change,1)} ${zh?'个百分点':'pp'}`}</span></div>`}).join('');
+ const rows=PRICE_BANDS.map((f,i)=>{const change=before?now[i]-before[i]:null;return `<div class="band-row"><span class="band-label">${esc(name(f).replace(/^成交价\s*/,'').replace(/^Sold\s+/,''))}</span><span class="band-track"><span class="band-fill" data-width="${(now[i]/top*100).toFixed(1)}"></span></span><span class="band-share">${number(now[i],1)}%</span><span class="band-change">${change==null?'—':`${change>0?'+':change<0?'−':''}${number(Math.abs(change),1)} ${zh?'个百分点':'pp'}`}</span></div>`}).join('');
  return `<section class="price-bands"><div class="chart-heading"><h2>${zh?'成交价格段分布':'Sales by price band'}</h2><span class="caption">${monthLabel(end)} · ${zh?'较':'vs'} ${monthLabel(prior)}</span></div><div class="band-list" role="table" aria-label="${zh?'各价格段成交占比':'Share of sales by price band'}">${rows}</div><p class="note">${zh?'右列为与上年同月占比之差；反映成交构成，不是房价指数。':'Right column: change in share from a year earlier. Reflects the sales mix, not a price index.'}</p></section>`;
 }
 function previousMonth(period,offset){
@@ -373,18 +370,27 @@ function areaMap(choices,annual,period){
   }).join('');
   return `<section class="area-map" aria-label="${t('mapTitle')}"><h2>${t('mapTitle')}</h2><p class="note">${t('mapNote')}</p><div class="map-surface"><svg viewBox="${viewBox}" role="group" aria-label="${t('mapTitle')}"><rect class="map-water" width="${W}" height="${H}"/>${tiles}${points}</svg><span class="map-attribution">${state.lang==='zh'?'边界：Statistics Canada 2021':'Boundaries: Statistics Canada 2021'}</span></div>${state.regionFeedback?`<p class="map-feedback" role="status">${esc(state.regionFeedback)}</p>`:''}</section>`;
 }
-const RENT_MEASURES=[
- ['asking',r=>`toronto_asking_rent_${r}`,false,'#2855d9',['挂牌租金','Asking rent'],'Rentals.ca',['房东开价。最快反映新租约行情，但不是成交价。','What landlords ask. Fastest read on new leases, but not a signed rent.']],
- ['lease',r=>`gta_condo_lease_rent_${r}`,false,'#007f86',['签约租金','Signed lease rent'],'TRREB',['经 MLS 实际租出的 condo 平均月租。季度更新。','Average rent on condos actually leased through the MLS. Quarterly.']],
- ['condo',r=>`toronto_condo_rent_${r}`,true,'#bf6517',['年度调查 · condo','Annual survey · condo'],'CMHC',['含已住租客的平均实租。每年一次，变化最慢。','Average rent actually paid, including sitting tenants. Yearly; moves slowest.']],
- ['pbr',r=>`toronto_pbr_rent_${r}`,true,'#7952be',['年度调查 · 专建出租','Annual survey · purpose-built'],'CMHC',['专门建来出租的公寓，多为长期租客。','Buildings built as rentals; mostly long-term tenants.']]];
+// Each source names bedroom types differently; a null field means the source has no such category.
+const plus=r=>r==='3br'?'3plus':r;
+const RENT_MEASURES={
+ apartment:[
+  ['asking',r=>r==='studio'?null:`toronto_asking_rent_${r}`,false,'#2855d9',['挂牌租金','Asking rent'],'Rentals.ca',['房东开价。最快反映新租约行情，但不是成交价。','What landlords ask. Fastest read on new leases, but not a signed rent.']],
+  ['lease',r=>`gta_condo_lease_rent_${r==='studio'?'bachelor':r}`,false,'#007f86',['签约租金 · condo','Signed lease · condo'],'TRREB',['经 MLS 实际租出的 condo 平均月租。季度更新。','Average rent on condos actually leased through the MLS. Quarterly.']],
+  ['condo',r=>`toronto_condo_rent_${plus(r)}`,true,'#bf6517',['年度调查 · condo','Annual survey · condo'],'CMHC',['含已住租客的平均实租。每年一次，变化最慢。','Average rent actually paid, including sitting tenants. Yearly; moves slowest.']],
+  ['pbr',r=>`toronto_pbr_rent_${plus(r)}`,true,'#7952be',['年度调查 · 专建出租','Annual survey · purpose-built'],'CMHC',['专门建来出租的公寓，多为长期租客。','Buildings built as rentals; mostly long-term tenants.']]],
+ townhouse:[
+  ['lease',r=>`gta_townhouse_lease_rent_${r==='studio'?'bachelor':r}`,false,'#007f86',['签约租金 · 镇屋','Signed lease · townhouse'],'TRREB',['经 MLS 实际租出的镇屋平均月租。季度更新。','Average rent on townhouses actually leased through the MLS. Quarterly.']],
+  ['row',r=>`toronto_row_rent_${plus(r)}`,true,'#7952be',['年度调查 · 专建出租镇屋','Annual survey · purpose-built townhouses'],'CMHC',['专门建来出租的联排镇屋，含已住租客。','Townhouse rentals built as such, including sitting tenants.']]]};
 function latestObservation(field){const periods=Object.keys(observations[field]||{}).sort();const period=periods.at(-1);return period?{period,value:observations[field][period]}:null}
 function rentMeasures(){
- const zh=state.lang==='zh',L=zh?0:1,room=state.measureRoom==='2br'?'2br':'1br';
- const cards=RENT_MEASURES.map(([id,field,annual,color,label,source,meaning])=>{const latest=latestObservation(field(room));if(!latest)return '';
+ const zh=state.lang==='zh',L=zh?0:1,room=['studio','1br','2br','3br'].includes(state.measureRoom)?state.measureRoom:'1br',type=state.measureType==='townhouse'?'townhouse':'apartment';
+ const cards=RENT_MEASURES[type].map(([id,field,annual,color,label,source,meaning])=>{const f=field(room),latest=f&&latestObservation(f);
+  if(!latest)return `<div class="measure missing"><span class="measure-name">${esc(label[L])}</span><strong>—</strong><small>${source}</small><p>${f?(zh?'该房型样本太少，不显示。':'Too few units to show.'):(zh?'该来源没有这一房型。':'This source has no such category.')}</p></div>`;
   const when=annual?(zh?`${latest.period} 年 10 月`:`Oct ${latest.period}`):id==='lease'?quarterLabel(latest.period):monthLabel(latest.period);
-  return `<div class="measure" data-border="${color}"><span class="measure-name">${esc(label[L])}</span><strong>$${number(latest.value)}</strong><small>${esc(when)} · ${source}</small><p>${esc(meaning[L])}</p></div>`}).join('');
- return `<section class="rent-measures"><div class="chart-heading"><div><h2>${zh?'同一房型，不同口径的租金':'One unit type, different rent measures'}</h2><p class="caption">${zh?'开价、成交和存量调查回答不同的问题，不能互相替代':'Asking, signed and surveyed rents answer different questions; one cannot stand in for another'}</p></div>${segmented('measureRoom',[['1br',t('one')],['2br',t('two')]],room,t('room'))}</div><div class="measure-row">${cards}</div></section>`;
+  const caveat=annual&&room==='3br'?(zh?' · 三卧及以上':' · 3+ bedrooms'):'';
+  return `<div class="measure" data-border="${color}"><span class="measure-name">${esc(label[L])}</span><strong>$${number(latest.value)}</strong><small>${esc(when)} · ${source}${caveat}</small><p>${esc(meaning[L])}</p></div>`}).join('');
+ const rooms=[['studio',t('studio')],['1br',t('one')],['2br',t('two')],['3br',t('three')]];
+ return `<section class="rent-measures"><div class="chart-heading"><div><h2>${zh?'同一房型，不同口径的租金':'One unit type, different rent measures'}</h2><p class="caption">${zh?'开价、成交和存量调查回答不同的问题，不能互相替代；独立屋、半独立屋和单间合租暂无可靠公开数据':'Asking, signed and surveyed rents answer different questions; detached and semi-detached houses and shared rooms have no reliable public series'}</p></div><div class="heading-controls">${segmented('measureType',[['apartment',zh?'公寓':'Apartment'],['townhouse',zh?'镇屋':'Townhouse']],type,zh?'物业类型':'Property type')}${segmented('measureRoom',rooms,room,t('room'))}</div></div><div class="measure-row${type==='townhouse'?' two':''}">${cards}</div></section>`;
 }
 function roomPicker(key,rooms){if(!rooms.includes(state[key]))state[key]='total';return segmented(key,rooms.map(r=>[r,r==='total'&&state.lang==='zh'?'全部':r==='total'?'All':t(ROOM[r])]),state[key],t('room'))}
 function rentPage(){
@@ -394,22 +400,24 @@ function rentPage(){
     const room=state.room,fields=room==='total'?['toronto_asking_rent_total','toronto_asking_rent_1br','toronto_asking_rent_2br'].filter(f=>observations[f]):[`toronto_asking_rent_${room}`];
     const key=fields[0],periods=allPeriods([key]),end=last([key]);
     const labels=room==='total'?{toronto_asking_rent_total:zh?'全部':'All',toronto_asking_rent_1br:t('one'),toronto_asking_rent_2br:t('two')}:null;
-    out+=`<div class="chart-heading rent-heading"><h2>${zh?'挂牌租金走势':'Asking rent trend'}</h2><div class="heading-controls">${roomPicker('room',['total','1br','2br','3br'])}${select(t('date'),key,periods)}</div></div>${end?svgChart(fields,viewPeriods([key],end),{height:280,labels}):`<p>${t('noData')}</p>`}<p class="note">${zh?'Rentals.ca / Urbanation 月度挂牌报价，涵盖专建出租公寓与 condo，未季调；不等于签约租金。':'Rentals.ca / Urbanation monthly asking rents for purpose-built apartments and condos, not seasonally adjusted; not signed rents.'}</p>`;
+    out+=`<div class="chart-heading rent-heading"><h2>${zh?'挂牌租金走势':'Asking rent trend'}</h2><div class="heading-controls">${roomPicker('room',['total','1br','2br','3br'])}${select(t('date'),key,periods)}</div></div>${end?svgChart(fields,viewPeriods([key],end),{height:280,labels}):`<p>${t('noData')}</p>`}<p class="note">${zh?`Rentals.ca / Urbanation 月度挂牌报价，涵盖专建出租公寓与 condo，未季调；不等于签约租金。${room==='total'?'分房型数据自 2025 年 11 月起。':''}`:`Rentals.ca / Urbanation monthly asking rents for purpose-built apartments and condos, not seasonally adjusted; not signed rents.${room==='total'?' Bedroom-level data start in November 2025.':''}`}</p>`;
     return out;
   }
   if(state.rentMode==='lease'){
-    const rooms=[['bachelor',zh?'开间':'Studio'],['1br',t('one')],['2br',t('two')],['3br',t('three')]];
-    const fields=rooms.map(([r])=>`gta_condo_lease_rent_${r}`),periods=allPeriods(fields);
-    if(!periods.length)return out+`<p>${t('noData')}</p>`;
-    const labels=Object.fromEntries(rooms.map(([r,l])=>[`gta_condo_lease_rent_${r}`,l]));
+    const town=state.leaseType==='townhouse',prefix=town?'gta_townhouse_lease_rent_':'gta_condo_lease_rent_';
+    const rooms=(town?[]:[['bachelor',zh?'开间':'Studio']]).concat([['1br',t('one')],['2br',t('two')],['3br',t('three')]]);
+    const fields=rooms.map(([r])=>prefix+r).filter(f=>observations[f]),periods=allPeriods(fields);
+    const picker=segmented('leaseType',[['condo',zh?'condo 公寓':'Condo apartments'],['townhouse',zh?'镇屋':'Townhouses']],town?'townhouse':'condo',zh?'物业类型':'Property type');
+    if(!periods.length)return out+picker+`<p>${t('noData')}</p>`;
+    const labels=Object.fromEntries(rooms.map(([r,l])=>[prefix+r,l]));
     const latest=periods.at(-1),prior=previousMonth(latest,12);
-    const cards=rooms.map(([r,l])=>{const f=`gta_condo_lease_rent_${r}`,v=value(f,latest),b=value(f,prior),d=v!=null&&b?(v/b-1)*100:null;return `<div class="supply-stat"><span>${l}</span><strong>$${number(v)}</strong><small>${d==null?'—':`${d>0?'+':d<0?'−':''}${number(Math.abs(d),1)}%`} ${zh?'较上年同季':'vs a year earlier'}</small></div>`}).join('');
-    out+=`<div class="chart-heading"><h2>${zh?'condo 公寓平均签约租金':'Average signed condo rent'}</h2><span class="caption">${quarterLabel(latest)}</span></div><div class="supply-stats">${cards}</div>${svgChart(fields,periods,{height:255,labels,unit:zh?'加元/月':'CAD/month'})}<p class="note">${zh?'经 TRREB MLS 租出的 condo 公寓，按季度统计的实际签约月租。':'Condo apartments leased through TRREB’s MLS; quarterly averages of signed monthly rent.'}</p>`;
+    const cards=rooms.filter(([r])=>observations[prefix+r]).map(([r,l])=>{const f=prefix+r,v=value(f,latest),b=value(f,prior),d=v!=null&&b?(v/b-1)*100:null;return `<div class="supply-stat"><span>${l}</span><strong>$${number(v)}</strong><small>${d==null?'—':`${d>0?'+':d<0?'−':''}${number(Math.abs(d),1)}%`} ${zh?'较上年同季':'vs a year earlier'}</small></div>`}).join('');
+    out+=`<div class="chart-heading rent-heading"><div><h2>${town?(zh?'镇屋平均签约租金':'Average signed townhouse rent'):(zh?'condo 公寓平均签约租金':'Average signed condo rent')}</h2><p class="caption">${quarterLabel(latest)}</p></div>${picker}</div><div class="supply-stats">${cards}</div>${svgChart(fields,periods,{height:255,labels,unit:zh?'加元/月':'CAD/month'})}<p class="note">${town?(zh?'经 TRREB MLS 租出的镇屋，按季度统计的实际签约月租；开间镇屋每季只有个位数成交，不显示。不含独立屋和半独立屋。':'Townhouses leased through TRREB’s MLS; quarterly averages of signed rent. Studio townhouses (single-digit leases a quarter) are not shown. Detached and semi-detached houses are not covered.'):(zh?'经 TRREB MLS 租出的 condo 公寓，按季度统计的实际签约月租。':'Condo apartments leased through TRREB’s MLS; quarterly averages of signed monthly rent.')}</p>`;
     return out;
   }
   if(state.rentMode==='annual'){
     roomPicker('annualRoom',['total','studio','1br','2br','3plus']);
-    const fields=[`toronto_pbr_rent_${state.annualRoom}`,`toronto_condo_rent_${state.annualRoom}`],periods=allPeriods(fields,true),end=last(fields,true);
+    const fields=[`toronto_pbr_rent_${state.annualRoom}`,`toronto_condo_rent_${state.annualRoom}`,`toronto_row_rent_${state.annualRoom}`].filter(f=>observations[f]),periods=allPeriods(fields,true),end=last(fields,true);
     out+=`<div class="chart-heading rent-heading"><h2>${zh?'CMHC 年度租金调查':'CMHC annual rent survey'}</h2><div class="heading-controls">${roomPicker('annualRoom',['total','studio','1br','2br','3plus'])}${select(t('year'),fields.join('-'),periods,true)}</div></div>${end?svgChart(fields,viewPeriods(fields,end,true),{annual:true,height:255}):`<p>${t('noData')}</p>`}<p class="note">${zh?'每年 10 月调查，含已住租客；均值变化并非同一套住房的租金涨幅。':'Surveyed each October, including sitting tenants; changes in averages are not same-unit rent growth.'}</p>`;
     return out;
   }
@@ -451,14 +459,14 @@ const CONTEXT_ORDER=['toronto_nhpi_total','toronto_starts_condo','toronto_starts
 function contextTable(){
  const data=payload.snapshot.context||{},zh=state.lang==='zh',L=zh?0:1;
  const order=f=>{const i=CONTEXT_ORDER.indexOf(f);return i<0?50:i};
- const row=f=>{const v=data[f],rawUnit=meta(f).unit,unit=zh&&UNIT_ZH[rawUnit]?UNIT_ZH[rawUnit]:rawUnit;const quarterly=f==='toronto_residential_construction_cost_index'||f.startsWith('ontario_net_');const digits=f==='usd_cad_monthly'?4:f==='toronto_residential_construction_cost_index'?1:f.startsWith('ontario_net_')||rawUnit==='units'?0:2;const shown=`${number(v?.value,digits)}${unit==='%'?'%':unit&&!/index/i.test(unit)?' '+unit:''}`;const status=payload.snapshot.freshness?.[f]?.status;const flag=['overdue','missing','unknown'].includes(status)?`<span class="stale-flag">${esc(freshnessLabel(f))}</span>`:'';return `<tr><th scope="row">${help(f)}${flag}</th><td>${esc(shown)}</td><td>${esc(quarterly&&v?quarterLabel(v.period):v?monthLabel(v.period):'—')}</td></tr>`};
+ const row=f=>{const v=data[f],rawUnit=meta(f).unit,unit=zh&&UNIT_ZH[rawUnit]?UNIT_ZH[rawUnit]:rawUnit;const quarterly=f==='toronto_residential_construction_cost_index'||f.startsWith('ontario_net_');const digits=f==='usd_cad_monthly'?4:f==='toronto_residential_construction_cost_index'||f==='toronto_nhpi_total'||f.startsWith('teranet_')?1:f.startsWith('ontario_net_')||rawUnit==='units'?0:2;const shown=`${number(v?.value,digits)}${unit==='%'?'%':unit&&!/index/i.test(unit)?' '+unit:''}`;const status=payload.snapshot.freshness?.[f]?.status;const flag=['overdue','missing','unknown'].includes(status)?`<span class="stale-flag">${esc(freshnessLabel(f))}</span>`:'';return `<tr><th scope="row">${help(f)}${flag}</th><td>${esc(shown)}</td><td>${esc(quarterly&&v?quarterLabel(v.period):v?monthLabel(v.period):'—')}</td></tr>`};
  const groups=CONTEXT_GROUPS.map(([label,prefixes],i)=>{const fields=Object.keys(data).filter(f=>prefixes.some(p=>f.startsWith(p))).sort((a,b)=>order(a)-order(b)||name(a).localeCompare(name(b)));if(!fields.length)return '';return `<details class="context-group" ${i===0?'open':''}><summary><span><strong>${label[L]}</strong><small>${fields.length} ${zh?'项':fields.length===1?'measure':'measures'}</small></span></summary><table class="context-table compact"><tbody>${fields.map(row).join('')}</tbody></table><p class="source-links">${[...new Map(fields.map(f=>[meta(f).url,meta(f).source])).entries()].map(([url,source])=>`<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(source)} ↗</a>`).join('')}</p></details>`}).join('');
  return `<section class="context-section"><h2>${t('context')}</h2><p class="note">${t('contextNote')}</p>${groups}<p class="note">${zh?'签约租金已在「租赁市场」展示，不在此重复；更新状态只在需要核查时标出。':'Signed rents appear on the rental page and are not repeated here; update status is flagged only when it needs checking.'}</p></section>`;
 }
 function populationStat(){
  const zh=state.lang==='zh',f='toronto_cma_2021_population',latest=latestRaw(f);if(!latest)return '';
  const prior=observations[f][String(Number(latest.period)-1)],d=prior!=null?latest.value-prior:null;
- const change=d==null?'':`${zh?'较上年':'vs prior year'} ${d>0?'+':d<0?'−':''}${number(Math.abs(d))} ${zh?'人':'people'}（${d>0?'+':d<0?'−':''}${number(Math.abs(d/prior*100),2)}%）`;
+ const change=d==null?'':`${zh?'较上年':'vs prior year'} ${d>0?'+':d<0?'−':''}${number(Math.abs(d))} ${zh?'人':'people'}${zh?'（':' ('}${d>0?'+':d<0?'−':''}${number(Math.abs(d/prior*100),2)}%${zh?'）':')'}`;
  return `<section class="population-stat"><div><div class="metric-name">${help(f)}</div><strong>${number(latest.value)}</strong></div><p>${zh?`${latest.period} 年 7 月 1 日 · ${change}。每年只有一个估计值，用数字而不是曲线展示。`:`July 1, ${latest.period} · ${change}. One estimate a year, shown as a number rather than a line.`}</p></section>`;
 }
 function economyPage(){

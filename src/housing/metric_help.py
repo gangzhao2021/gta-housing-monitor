@@ -108,6 +108,7 @@ DEFINITIONS = {
     'cmhc_rent': ('CMHC 每年 10 月调查的出租单位平均实际月租（加元），包括已住租客，而不只是新出租的。',
                   "CMHC's October survey of average monthly rents actually paid (CAD), including sitting tenants, not only new leases."),
     'lease_rent': ('季度内经 TRREB MLS 租出的 condo 公寓平均签约月租（加元）。', 'The average signed monthly rent (CAD) of condo apartments leased through TRREB’s MLS in the quarter.'),
+    'townhouse_lease_rent': ('季度内经 TRREB MLS 租出的镇屋（townhouse）平均签约月租（加元）；不含独立屋、半独立屋。', 'The average signed monthly rent (CAD) of townhouses leased through TRREB’s MLS in the quarter; detached and semi-detached houses are not included.'),
     'vacancy': ('CMHC 每年 10 月调查时，空着待租的出租单位占全部出租单位的比例。', 'The share of rental units that were empty and available for rent at CMHC’s October survey.'),
 }
 
@@ -124,6 +125,8 @@ def definition(field):
         return DEFINITIONS['vacancy']
     if field.startswith('gta_condo_lease_rent_'):
         return DEFINITIONS['lease_rent']
+    if field.startswith('gta_townhouse_lease_rent_'):
+        return DEFINITIONS['townhouse_lease_rent']
     if field.startswith(('toronto_asking_rent_', 'regional_asking_')):
         return DEFINITIONS['asking_rent']
     if 'rent_' in field:
@@ -138,6 +141,12 @@ HELP['gta_condo_lease_listed'] = ('出租挂牌多于租出时，租客选择增
                                   'When more units are listed than leased, renters gain choice and rents soften, which can cool investor demand for condos.', 'Covers only condo apartments leased through TRREB’s MLS, not all rentals.', 'https://trreb.ca/market-data/rental-market-report/')
 HELP['gta_condo_leased'] = ('租出量反映租赁需求；需求强、租金高时，出租 condo 的回报更好，对 condo 价格有支持。', '季度流量，受季节影响；只含经 TRREB MLS 的 condo 公寓。',
                             'Leases reflect rental demand; strong demand and rents improve condo rental returns and can support condo prices.', 'A seasonal quarterly flow covering only condo apartments leased through TRREB’s MLS.', 'https://trreb.ca/market-data/rental-market-report/')
+HELP['gta_townhouse_lease_listed'] = ('出租镇屋挂牌多于租出时，租客选择增加、租金承压。', '只含经 TRREB MLS 出租的镇屋，不含独立屋和半独立屋。',
+                                      'When more townhouses are listed than leased, renters gain choice and rents soften.', 'Covers only townhouses leased through TRREB’s MLS; detached and semi-detached houses are excluded.', 'https://trreb.ca/market-data/rental-market-report/')
+HELP['gta_townhouse_leased'] = ('租出量反映家庭型租赁需求。', '季度流量，受季节影响；只含经 TRREB MLS 的镇屋。',
+                                'Leases reflect demand for family-sized rentals.', 'A seasonal quarterly flow covering only townhouses leased through TRREB’s MLS.', 'https://trreb.ca/market-data/rental-market-report/')
+DEFINITIONS['gta_townhouse_lease_listed'] = ('季度内经 TRREB MLS 挂牌出租的镇屋套数。', 'Townhouses listed for lease on TRREB’s MLS during the quarter.')
+DEFINITIONS['gta_townhouse_leased'] = ('季度内经 TRREB MLS 实际租出的镇屋套数。', 'Townhouses actually leased through TRREB’s MLS during the quarter.')
 DEFINITIONS.update({
     'boc_prime_rate': ('各大银行对最优质客户的基准贷款利率，通常等于央行隔夜利率加 2.2 个百分点；浮动按揭按它加减定价。',
                        "Banks' base lending rate for their best customers, usually the overnight rate plus 2.2 points; variable mortgages are priced off it."),

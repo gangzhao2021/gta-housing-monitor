@@ -16,7 +16,7 @@ from .db import latest
 DISPLAY_SERIES = frozenset(
     key for key in SERIES if key.startswith((
         "trreb_", "toronto_asking_rent_", "regional_asking_", "toronto_pbr_",
-        "toronto_condo_", "regional_cmhc_", "toronto_cma_2011_", "gta_condo_lease",
+        "toronto_condo_", "toronto_row_rent_", "regional_cmhc_", "toronto_cma_2011_", "gta_condo_lease", "gta_townhouse_lease",
     )) or key in {
         "boc_policy_rate", "goc_5y_yield", "mortgage_uninsured_fixed_5plus",
         "toronto_unemployment_rate", "toronto_employment_rate",

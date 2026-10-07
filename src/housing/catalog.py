@@ -44,6 +44,14 @@ for market, market_label, rent_table in (
             + f"；{bedroom_label}；平均租金，非当前挂牌租金；均值变化不等于同样本租金涨幅",
         )
     vacancy_types = RENTAL_BEDROOMS if market == "pbr" else {"total": "公寓全部卧室类型"}
+    if market == "pbr":
+        for bedroom, bedroom_label in RENTAL_BEDROOMS.items():
+            SERIES[f"toronto_row_rent_{bedroom}"] = (
+                f"专建出租镇屋平均租金 · {bedroom_label.replace('公寓', '镇屋')}", "CMHC",
+                "Rental Market Survey Table 2.1.2", "Toronto CMA 2021 boundary",
+                "CAD/month", "annual", "October survey", "none",
+                f"私人出租镇屋（row / townhouse，3+ 套的出租项目）；{bedroom_label}；平均租金，非当前挂牌租金；均值变化不等于同样本租金涨幅",
+            )
     for bedroom, bedroom_label in vacancy_types.items():
         suffix = "rate" if bedroom == "total" else bedroom
         SERIES[f"toronto_{market}_vacancy_{suffix}"] = (

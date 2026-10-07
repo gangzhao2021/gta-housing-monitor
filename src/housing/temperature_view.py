@@ -24,11 +24,11 @@ def _card(r, band, period, en):
     track = ''.join(f'<span class="zone {k}" style="width:{w:.2f}%"></span>' for k, w in zones)
     labels = ''.join(f'<span class="{"current" if k == r["state"] else ""}" style="width:{w:.2f}%">{escape(LABELS[k][i])}</span>'
                      for k, w in zones)
-    reading = (f"Sales-to-new-listings ratio {r['snlr3']:.1f}%, {abs(r['gap']):.1f} pp {'below' if r['gap'] < 0 else 'above'} "
-               f"its seasonal norm of {r['snlr_norm']:.1f}%: {MEANING[r['state']][1]}. Months of inventory {r['moi3']:.1f} (norm {r['moi_norm']:.1f})."
+    reading = (f"Three-month sales-to-new-listings ratio {r['snlr3']:.1f}%, {abs(r['gap']):.1f} pp {'below' if r['gap'] < 0 else 'above'} "
+               f"its seasonal norm of {r['snlr_norm']:.1f}%: {MEANING[r['state']][1]}. Three-month months of inventory {r['moi3']:.1f} (norm {r['moi_norm']:.1f})."
                if en else
-               f"成交／新挂牌比 {r['snlr3']:.1f}%，比同月历史常态 {r['snlr_norm']:.1f}% {'低' if r['gap'] < 0 else '高'} {abs(r['gap']):.1f} 个百分点："
-               f"{MEANING[r['state']][0]}。库存月数 {r['moi3']:.1f}（常态 {r['moi_norm']:.1f}）。")
+               f"近三个月成交／新挂牌比 {r['snlr3']:.1f}%，比同期历史常态 {r['snlr_norm']:.1f}% {'低' if r['gap'] < 0 else '高'} {abs(r['gap']):.1f} 个百分点："
+               f"{MEANING[r['state']][0]}。近三个月库存月数 {r['moi3']:.1f}（同期常态 {r['moi_norm']:.1f}）。")
     return (f'<div class="temp-card"><div class="temp-card-head"><span class="temperature-chip {r["state"]}">{escape(LABELS[r["state"]][i])}</span>'
             f'<span class="temperature-month">{escape(_month(period))} · {"last three months" if en else "近三个月"}</span></div>'
             f'<div class="gauge"><span class="gauge-marker" style="left:{pos:.1f}%"><b>{gap}</b></span><div class="gauge-track">{track}</div>'

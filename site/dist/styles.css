@@ -228,3 +228,7 @@ html[lang=en] #regions-panel[open]>summary:after{content:'Hide −'}
 .sens-col.current span,.sens-col.current small{color:var(--blue)}
 @media(max-width:900px){.mortgage-layout{grid-template-columns:1fr;gap:36px}}
 @media(max-width:600px){.payment-main .payment-result{font-size:44px}.mortgage-cards{grid-template-columns:1fr}.sens-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.rent-measures .heading-controls{gap:10px}
+.measure-row.two{grid-template-columns:repeat(2,minmax(0,1fr));max-width:640px}
+.measure.missing{border-left-color:var(--line)}
+.measure.missing strong{color:#aaa}

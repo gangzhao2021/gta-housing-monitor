@@ -31,6 +31,15 @@ class TrrebRentalTests(unittest.TestCase):
         older = trreb_rental.parse_report(REPORTS / 'rental_report_Q2-2025.pdf', 2025, 2)
         self.assertIn(('gta_condo_leased', '2025-04', 20417.0), older)
 
+    def test_townhouse_table_parses_without_bachelor(self):
+        rows = dict((series, value) for series, _, value in
+                    trreb_rental.parse_report(REPORTS / 'rental_report_Q2-2026.pdf', 2026, 2, 'Townhouses'))
+        self.assertEqual(rows, {'gta_townhouse_lease_listed': 2082, 'gta_townhouse_leased': 1432,
+                                'gta_townhouse_lease_rent_1br': 1961, 'gta_townhouse_lease_rent_2br': 2775,
+                                'gta_townhouse_lease_rent_3br': 3329})
+        with self.assertRaisesRegex(ValueError, 'Lofts rental table'):
+            trreb_rental.parse_report(REPORTS / 'rental_report_Q2-2026.pdf', 2026, 2, 'Lofts')
+
     def test_wrong_quarter_and_shifted_row_fail_closed(self):
         with self.assertRaisesRegex(ValueError, 'quarter'):
             trreb_rental.parse_report(REPORTS / 'rental_report_Q2-2026.pdf', 2026, 1)

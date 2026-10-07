@@ -154,7 +154,13 @@ class PipelineTests(unittest.TestCase):
     def test_cmhc_rental_workbook_import_and_freshness(self):
         source = ROOT / "data/raw/cmhc/rmr-toronto-2025-en.xlsx"
         rows = parse_cmhc_rental(source)
-        self.assertEqual(len(rows), 32)
+        self.assertEqual(len(rows), 39)
+        # Private row (townhouse) rents, Table 2.1.2; studio and 2024 one-bedroom cells are suppressed.
+        for bedroom, values in (("1br", (None, 1787.0)), ("2br", (1755.0, 1954.0)), ("3plus", (1990.0, 2162.0)), ("total", (1944.0, 2109.0))):
+            for period, value in zip(("2024", "2025"), values):
+                found = [v for s, p, v in rows if s == f"toronto_row_rent_{bedroom}" and p == period]
+                self.assertEqual(found, [value] if value is not None else [])
+        self.assertFalse(any(s == "toronto_row_rent_studio" for s, _, _ in rows))
         self.assertIn(("toronto_pbr_vacancy_rate", "2025", 3.0), rows)
         self.assertIn(("toronto_pbr_rent_2br", "2025", 2046.0), rows)
         self.assertIn(("toronto_condo_vacancy_rate", "2025", 0.9), rows)
@@ -197,7 +203,7 @@ class PipelineTests(unittest.TestCase):
                 self.assertEqual(item["status"], expected)
                 self.assertIsNone(item["value"])
                 numeric = parse_cmhc_rental(target)
-                self.assertEqual(len(numeric), 31)
+                self.assertEqual(len(numeric), 38)
                 self.assertNotIn(("toronto_pbr_rent_studio", "2025"),
                                  {(series_id, period) for series_id, period, _ in numeric})
                 self.assertIn(("toronto_pbr_rent_studio", "2024", 1448), numeric)

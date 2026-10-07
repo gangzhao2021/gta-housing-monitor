@@ -187,3 +187,4 @@ p {line-height:1.55}
 .sens-title{font-size:15px;margin:0 0 8px}.sens-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr))}.sens-col{padding:12px 14px;border-radius:8px}.sens-col span,.sens-col small{display:block;font-size:12px;color:#666}.sens-col strong{display:block;font-size:19px;font-weight:500;margin:4px 0;font-variant-numeric:tabular-nums}.sens-col.current{background:#edf2ff}.sens-col.current span,.sens-col.current small{color:#2855d9}
 .message{border-left:2px solid #bf6517;padding:8px 12px;background:#fffaf3;font-size:12px;line-height:1.6;margin:6px 0}
 @media(max-width:760px){.readings{grid-template-columns:repeat(2,minmax(0,1fr))}.mortgage-cards{grid-template-columns:1fr}.population-stat{display:block}.payment-main .payment-big{font-size:40px}}
+.measure-row.two{grid-template-columns:repeat(2,minmax(0,1fr));max-width:640px}.measure.missing{border-left-color:#e5e5e5!important}.measure.missing strong{color:#aaa}

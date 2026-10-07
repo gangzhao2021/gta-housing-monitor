@@ -79,16 +79,27 @@ def render_monthly(db, data, today, controls):
         st.markdown("[Rentals.ca / Urbanation — 报告归档](https://rentals.ca/blog/canada-national-rent-reports)")
 
 
-MEASURES = (
-    ("toronto_asking_rent_{}", "#2855d9", ("挂牌租金", "Asking rent"), "Rentals.ca", "month",
-     ("房东开价。最快反映新租约行情，但不是成交价。", "What landlords ask. Fastest read on new leases, but not a signed rent.")),
-    ("gta_condo_lease_rent_{}", "#007f86", ("签约租金", "Signed lease rent"), "TRREB", "quarter",
-     ("经 MLS 实际租出的 condo 平均月租。季度更新。", "Average rent on condos actually leased through the MLS. Quarterly.")),
-    ("toronto_condo_rent_{}", "#bf6517", ("年度调查 · condo", "Annual survey · condo"), "CMHC", "year",
-     ("含已住租客的平均实租。每年一次，变化最慢。", "Average rent actually paid, including sitting tenants. Yearly; moves slowest.")),
-    ("toronto_pbr_rent_{}", "#7952be", ("年度调查 · 专建出租", "Annual survey · purpose-built"), "CMHC", "year",
-     ("专门建来出租的公寓，多为长期租客。", "Buildings built as rentals; mostly long-term tenants.")),
-)
+PLUS = {"3br": "3plus"}
+# (field template by bedroom, colour, label, source, cadence, meaning); a None field means no such category.
+MEASURES = {
+    "apartment": (
+        (lambda r: None if r == "studio" else f"toronto_asking_rent_{r}", "#2855d9", ("挂牌租金", "Asking rent"), "Rentals.ca", "month",
+         ("房东开价。最快反映新租约行情，但不是成交价。", "What landlords ask. Fastest read on new leases, but not a signed rent.")),
+        (lambda r: f"gta_condo_lease_rent_{'bachelor' if r == 'studio' else r}", "#007f86", ("签约租金 · condo", "Signed lease · condo"), "TRREB", "quarter",
+         ("经 MLS 实际租出的 condo 平均月租。季度更新。", "Average rent on condos actually leased through the MLS. Quarterly.")),
+        (lambda r: f"toronto_condo_rent_{PLUS.get(r, r)}", "#bf6517", ("年度调查 · condo", "Annual survey · condo"), "CMHC", "year",
+         ("含已住租客的平均实租。每年一次，变化最慢。", "Average rent actually paid, including sitting tenants. Yearly; moves slowest.")),
+        (lambda r: f"toronto_pbr_rent_{PLUS.get(r, r)}", "#7952be", ("年度调查 · 专建出租", "Annual survey · purpose-built"), "CMHC", "year",
+         ("专门建来出租的公寓，多为长期租客。", "Buildings built as rentals; mostly long-term tenants.")),
+    ),
+    "townhouse": (
+        (lambda r: f"gta_townhouse_lease_rent_{'bachelor' if r == 'studio' else r}", "#007f86", ("签约租金 · 镇屋", "Signed lease · townhouse"), "TRREB", "quarter",
+         ("经 MLS 实际租出的镇屋平均月租。季度更新。", "Average rent on townhouses actually leased through the MLS. Quarterly.")),
+        (lambda r: f"toronto_row_rent_{PLUS.get(r, r)}", "#7952be", ("年度调查 · 专建出租镇屋", "Annual survey · purpose-built townhouses"), "CMHC", "year",
+         ("专门建来出租的联排镇屋，含已住租客。", "Townhouse rentals built as such, including sitting tenants.")),
+    ),
+}
+ROOMS = {"studio": ("开间", "Studio"), "1br": ("一卧", "1 bedroom"), "2br": ("两卧", "2 bedrooms"), "3br": ("三卧", "3 bedrooms")}
 
 
 def latest_observations(db, fields):
@@ -103,31 +114,43 @@ def latest_observations(db, fields):
 
 
 def measure_fields():
-    return [template.format(room) for template, *_ in MEASURES for room in ("1br", "2br")]
+    return [f for group in MEASURES.values() for field, *_ in group for room in ROOMS if (f := field(room))]
 
 
 def render_measures(observations, key):
-    """Asking, signed and surveyed rents side by side for one bedroom type (published site, Figma 09)."""
+    """Asking, signed and surveyed rents side by side for one unit type (published site, Figma 09)."""
     en = english()
     i = 1 if en else 0
     st.subheader("One unit type, different rent measures" if en else "同一房型，不同口径的租金")
-    room = st.radio("房型", ["1br", "2br"], format_func={"1br": "一卧", "2br": "两卧"}.get, horizontal=True,
-                    label_visibility="collapsed", key=key)
+    left, right = st.columns(2)
+    with left:
+        kind = st.radio("物业类型", ["apartment", "townhouse"], format_func={"apartment": "公寓", "townhouse": "镇屋"}.get,
+                        horizontal=True, label_visibility="collapsed", key=key + "-type")
+    with right:
+        room = st.radio("房型", list(ROOMS), index=1, format_func=lambda r: ROOMS[r][0], horizontal=True,
+                        label_visibility="collapsed", key=key)
     cards = []
-    for template, color, label, source, kind, meaning in MEASURES:
-        series = observations.get(template.format(room)) or {}
+    for field, color, label, source, kind_of_period, meaning in MEASURES[kind]:
+        series_id = field(room)
+        series = observations.get(series_id) or {} if series_id else {}
         if not series:
+            reason = ("Too few units to show." if en else "该房型样本太少，不显示。") if series_id else \
+                     ("This source has no such category." if en else "该来源没有这一房型。")
+            cards.append(f'<div class="measure missing"><span class="measure-name">{escape(label[i])}</span><strong>—</strong>'
+                         f'<small>{source}</small><p>{reason}</p></div>')
             continue
         period = max(series)
-        if kind == "year":
+        if kind_of_period == "year":
             when = f"Oct {period}" if en else f"{period} 年 10 月"
-        elif kind == "quarter":
+            if room == "3br":
+                when += " · 3+ bedrooms" if en else " · 三卧及以上"
+        elif kind_of_period == "quarter":
             q = (int(period[5:7]) - 1) // 3 + 1
             when = f"{period[:4]} Q{q}" if en else f"{period[:4]} 年第 {q} 季度"
         else:
             when = period if en else f"{period[:4]} 年 {int(period[5:7])} 月"
         cards.append(f'<div class="measure" style="border-left-color:{color}"><span class="measure-name">{escape(label[i])}</span>'
                      f'<strong>${series[period]:,.0f}</strong><small>{escape(when)} · {source}</small><p>{escape(meaning[i])}</p></div>')
-    st.html(f'<div class="measure-row">{"".join(cards)}</div>')
-    st.caption("Asking, signed and surveyed rents answer different questions; one cannot stand in for another." if en else
-               "开价、成交和存量调查回答不同的问题，不能互相替代。")
+    st.html(f'<div class="measure-row{" two" if kind == "townhouse" else ""}">{"".join(cards)}</div>')
+    st.caption("Asking, signed and surveyed rents answer different questions; detached and semi-detached houses and shared rooms have no reliable public series."
+               if en else "开价、成交和存量调查回答不同的问题，不能互相替代；独立屋、半独立屋和单间合租暂无可靠公开数据。")

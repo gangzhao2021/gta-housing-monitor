@@ -1,4 +1,4 @@
-"""TRREB quarterly Rental Market Report: condo apartments leased through MLS.
+"""TRREB quarterly Rental Market Report: condo apartments and townhouses leased through MLS.
 
 Signed-lease averages for All TRREB Areas, kept apart from Rentals.ca asking
 rents and CMHC stock rents. Quarters are stored by their first month, as for
@@ -24,6 +24,16 @@ SERIES = {
     'gta_condo_lease_rent_2br': ('TRREB condo 两卧平均签约租金（季度）', 'CAD/month', NOTE),
     'gta_condo_lease_rent_3br': ('TRREB condo 三卧平均签约租金（季度）', 'CAD/month', NOTE),
 }
+TOWNHOUSE_NOTE = '经 TRREB MLS 报告租出的镇屋（townhouse），季度流量；不含独立屋、半独立屋，均价受房型与地点构成影响'
+# Townhouse bachelor leases number 1-10 a quarter, too few for an average worth showing; not stored.
+TOWNHOUSE_SERIES = {
+    'gta_townhouse_lease_listed': ('TRREB 镇屋租赁挂牌量（季度）', 'units', '季度内经 MLS 挂牌出租的镇屋套数；' + TOWNHOUSE_NOTE),
+    'gta_townhouse_leased': ('TRREB 镇屋签约租出量（季度）', 'units', '季度内经 MLS 租出的镇屋套数；' + TOWNHOUSE_NOTE),
+    'gta_townhouse_lease_rent_1br': ('TRREB 镇屋一卧平均签约租金（季度）', 'CAD/month', TOWNHOUSE_NOTE),
+    'gta_townhouse_lease_rent_2br': ('TRREB 镇屋两卧平均签约租金（季度）', 'CAD/month', TOWNHOUSE_NOTE),
+    'gta_townhouse_lease_rent_3br': ('TRREB 镇屋三卧平均签约租金（季度）', 'CAD/month', TOWNHOUSE_NOTE),
+}
+SERIES = {**SERIES, **TOWNHOUSE_SERIES}
 
 
 def quarters(today=None):
@@ -57,10 +67,10 @@ def _total_rows(page):
             yield words[3:]
 
 
-def parse_report(path, year, quarter):
-    """Return observation rows; any shifted, missing or inconsistent value fails."""
+def parse_report(path, year, quarter, kind='Apartments'):
+    """Return observation rows for 'Apartments' or 'Townhouses'; any shifted, missing or inconsistent value fails."""
     import pymupdf
-    label = f'Apartments, {year} Q{quarter}'
+    label = f'{kind}, {year} Q{quarter}'
     totals = []
     with pymupdf.open(path) as document:
         front = ' '.join(document[0].get_text().split())
@@ -71,13 +81,13 @@ def parse_report(path, year, quarter):
             if 'SUMMARY OF RENTAL TRANSACTIONS' in title and label in title:
                 totals.extend(_total_rows(page))
     if not totals:
-        raise ValueError('Apartment rental table for All TRREB Areas not found')
+        raise ValueError(f'{kind} rental table for All TRREB Areas not found')
     if any(row != totals[0] for row in totals):
-        raise ValueError('All TRREB Areas apartment totals differ across pages')
+        raise ValueError(f'All TRREB Areas {kind.lower()} totals differ across pages')
     tokens = totals[0]
     if (len(tokens) != 10 or any(not re.fullmatch(r'\$[\d,]+', tokens[i]) for i in (3, 5, 7, 9))
             or any(not re.fullmatch(r'[\d,]+', tokens[i]) for i in (0, 1, 2, 4, 6, 8))):
-        raise ValueError(f'Unexpected All TRREB Areas apartment row: {tokens}')
+        raise ValueError(f'Unexpected All TRREB Areas {kind.lower()} row: {tokens}')
     values = [_amount(token) for token in tokens]
     listed, leased = values[:2]
     by_type = values[2:]
@@ -86,9 +96,14 @@ def parse_report(path, year, quarter):
     if f'${by_type[3]:,}' not in front or f'{leased:,}' not in front:
         raise ValueError('Front-page summary does not show the table totals')
     period = period_for(year, quarter)
-    names = ['gta_condo_lease_listed', 'gta_condo_leased', 'gta_condo_lease_rent_bachelor',
-             'gta_condo_lease_rent_1br', 'gta_condo_lease_rent_2br', 'gta_condo_lease_rent_3br']
-    numbers = [listed, leased, *by_type[1::2]]
+    if kind == 'Townhouses':
+        names = ['gta_townhouse_lease_listed', 'gta_townhouse_leased', 'gta_townhouse_lease_rent_1br',
+                 'gta_townhouse_lease_rent_2br', 'gta_townhouse_lease_rent_3br']
+        numbers = [listed, leased, *by_type[3::2]]
+    else:
+        names = ['gta_condo_lease_listed', 'gta_condo_leased', 'gta_condo_lease_rent_bachelor',
+                 'gta_condo_lease_rent_1br', 'gta_condo_lease_rent_2br', 'gta_condo_lease_rent_3br']
+        numbers = [listed, leased, *by_type[1::2]]
     return [(name, period, float(number)) for name, number in zip(names, numbers)]
 
 
@@ -104,6 +119,7 @@ def refresh(db, root, today=None, opener=None):
     folder.mkdir(parents=True, exist_ok=True)
     report = {'downloaded': [], 'pending': [], 'inserted': 0}
     every = list(quarters(today))
+    backed_up = False
     for year, quarter in every:
         period = period_for(year, quarter)
         pdf = folder / f'rental_report_Q{quarter}-{year}.pdf'
@@ -123,18 +139,23 @@ def refresh(db, root, today=None, opener=None):
             temporary.chmod(0o600)
             temporary.replace(pdf)
             report['downloaded'].append(f'{year}Q{quarter}')
-        if db.execute("SELECT 1 FROM observations WHERE series_id='gta_condo_leased' AND period=?",
-                      (period,)).fetchone():
-            continue  # Revisions need a separately reviewed source, not a replay.
-        rows = parse_report(pdf, year, quarter)
-        backup = root / 'data/backups' / f'trreb-rental-before-{datetime.now().strftime("%Y%m%dT%H%M%S%f")}.sqlite3'
-        backup.parent.mkdir(parents=True, exist_ok=True)
-        target = sqlite3.connect(backup)
-        try:
-            db.backup(target)
-        finally:
-            target.close()
-        backup.chmod(0o600)
-        result = ingest(db, SOURCE, pdf, url, period, 'quarterly PDF; All TRREB Areas apartment row', rows)
+        # Revisions need a separately reviewed source, not a replay; each table is ingested once.
+        rows = []
+        for kind, marker in (('Apartments', 'gta_condo_leased'), ('Townhouses', 'gta_townhouse_leased')):
+            if not db.execute("SELECT 1 FROM observations WHERE series_id=? AND period=?", (marker, period)).fetchone():
+                rows += parse_report(pdf, year, quarter, kind)
+        if not rows:
+            continue
+        if not backed_up:  # one restore point per run, taken before the first change
+            backup = root / 'data/backups' / f'trreb-rental-before-{datetime.now().strftime("%Y%m%dT%H%M%S%f")}.sqlite3'
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            target = sqlite3.connect(backup)
+            try:
+                db.backup(target)
+            finally:
+                target.close()
+            backup.chmod(0o600)
+            backed_up = True
+        result = ingest(db, SOURCE, pdf, url, period, 'quarterly PDF; All TRREB Areas apartment and townhouse rows', rows)
         report['inserted'] += result.get('inserted', 0)
     return report

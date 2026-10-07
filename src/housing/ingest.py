@@ -120,7 +120,7 @@ def validate_rows(rows):
     bounds.update({series_id: ((0, 100) if definition[4] == "%" else (300, 10000))
                    for series_id, definition in SERIES.items() if definition[1] == "CMHC"})
     bounds.update({s: (300, 10000) for s in SERIES if s.startswith(("toronto_asking_rent_", "regional_asking_"))})
-    bounds.update({s: (300, 20000) if "_rent_" in s else (0, 200000) for s in SERIES if s.startswith("gta_condo_lease")})
+    bounds.update({s: (300, 20000) if "_rent_" in s else (0, 200000) for s in SERIES if s.startswith(("gta_condo_lease", "gta_townhouse_lease"))})
     bounds.update({s: (-100, 1000) for s in SERIES if s.endswith("_yoy_published")})
     bounds.update({s: (0, 30000) for s in SERIES if s.startswith("trreb_sales_band_")})
     bounds.update({"ontario_mortgage_arrears_rate": (0, 5), "ontario_mortgage_arrears_count": (0, 200000)})
@@ -308,6 +308,7 @@ def parse_cmhc_rental_details(path, region_label="Toronto CMA", series_prefix="t
     for sheet_name, market, measure in (
         ("Table 1.1.1", "pbr", "vacancy"),
         ("Table 1.1.2", "pbr", "rent"),
+        ("Table 2.1.2", "row", "rent"),
         ("Table 4.1.1", "condo", "vacancy"),
         ("Table 4.1.3", "condo", "rent"),
     ):
