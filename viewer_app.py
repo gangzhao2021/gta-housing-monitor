@@ -83,6 +83,8 @@ if page == "市场总览":
     from housing.district_view import render as render_districts
     render_districts(snapshot.get('districts', []))
 elif page == "租赁市场":
+    from housing.rental_view import render_measures
+    render_measures(snapshot["observations"], "viewer-rent-measure-room")
     mode = st.radio("租金口径", ["月度挂牌", "年度存量", "地区对比"], horizontal=True)
     if mode == "月度挂牌":
         room = st.selectbox("房型", ["total", "1br", "2br", "3br"], format_func={"total": "公寓全部卧室类型", "1br": "一卧", "2br": "两卧", "3br": "三卧"}.get)

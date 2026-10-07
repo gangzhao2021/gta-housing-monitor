@@ -176,6 +176,8 @@ if page == "市场总览":
     from housing.district_view import render as render_districts
     render_districts(display_rows(db))
 elif page == "租赁市场":
+    from housing.rental_view import latest_observations, measure_fields, render_measures
+    render_measures(latest_observations(db, measure_fields()), "rent-measure-room")
     with st.container(key="rental-view-nav"):
         view = st.radio("租金数据口径", ["月度挂牌租金", "年度存量租金（CMHC）", "地区租金对比"],
                         format_func=lambda v: {"月度挂牌租金": "月度挂牌", "年度存量租金（CMHC）": "年度存量", "地区租金对比": "地区对比"}[v],

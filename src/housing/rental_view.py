@@ -1,9 +1,11 @@
 """Monthly asking rents remain separate from CMHC's annual occupied stock."""
+from html import escape
+
 import pandas as pd
 from .catalog import ASKING_ROOMS
 from .dashboard import cards, line_chart, bar_chart, note
 from .freshness import assess
-from .i18n import st
+from .i18n import st, english
 from .presentation import available_periods
 from .rentals import PREFIX
 
@@ -75,3 +77,57 @@ def render_monthly(db, data, today, controls):
         st.download_button("下载月度租金与来源", export.to_csv(index=False).encode("utf-8-sig"),
                            f"asking-rents-{start}-{end}.csv", "text/csv")
         st.markdown("[Rentals.ca / Urbanation — 报告归档](https://rentals.ca/blog/canada-national-rent-reports)")
+
+
+MEASURES = (
+    ("toronto_asking_rent_{}", "#2855d9", ("挂牌租金", "Asking rent"), "Rentals.ca", "month",
+     ("房东开价。最快反映新租约行情，但不是成交价。", "What landlords ask. Fastest read on new leases, but not a signed rent.")),
+    ("gta_condo_lease_rent_{}", "#007f86", ("签约租金", "Signed lease rent"), "TRREB", "quarter",
+     ("经 MLS 实际租出的 condo 平均月租。季度更新。", "Average rent on condos actually leased through the MLS. Quarterly.")),
+    ("toronto_condo_rent_{}", "#bf6517", ("年度调查 · condo", "Annual survey · condo"), "CMHC", "year",
+     ("含已住租客的平均实租。每年一次，变化最慢。", "Average rent actually paid, including sitting tenants. Yearly; moves slowest.")),
+    ("toronto_pbr_rent_{}", "#7952be", ("年度调查 · 专建出租", "Annual survey · purpose-built"), "CMHC", "year",
+     ("专门建来出租的公寓，多为长期租客。", "Buildings built as rentals; mostly long-term tenants.")),
+)
+
+
+def latest_observations(db, fields):
+    """{field: {period: value}} holding only each field's latest period, from the newest version."""
+    out = {}
+    for field in fields:
+        row = db.execute("""SELECT period, value FROM observations o WHERE series_id=? AND version=(SELECT MAX(version)
+            FROM observations WHERE series_id=o.series_id AND period=o.period) ORDER BY period DESC LIMIT 1""", (field,)).fetchone()
+        if row:
+            out[field] = {row[0]: row[1]}
+    return out
+
+
+def measure_fields():
+    return [template.format(room) for template, *_ in MEASURES for room in ("1br", "2br")]
+
+
+def render_measures(observations, key):
+    """Asking, signed and surveyed rents side by side for one bedroom type (published site, Figma 09)."""
+    en = english()
+    i = 1 if en else 0
+    st.subheader("One unit type, different rent measures" if en else "同一房型，不同口径的租金")
+    room = st.radio("房型", ["1br", "2br"], format_func={"1br": "一卧", "2br": "两卧"}.get, horizontal=True,
+                    label_visibility="collapsed", key=key)
+    cards = []
+    for template, color, label, source, kind, meaning in MEASURES:
+        series = observations.get(template.format(room)) or {}
+        if not series:
+            continue
+        period = max(series)
+        if kind == "year":
+            when = f"Oct {period}" if en else f"{period} 年 10 月"
+        elif kind == "quarter":
+            q = (int(period[5:7]) - 1) // 3 + 1
+            when = f"{period[:4]} Q{q}" if en else f"{period[:4]} 年第 {q} 季度"
+        else:
+            when = period if en else f"{period[:4]} 年 {int(period[5:7])} 月"
+        cards.append(f'<div class="measure" style="border-left-color:{color}"><span class="measure-name">{escape(label[i])}</span>'
+                     f'<strong>${series[period]:,.0f}</strong><small>{escape(when)} · {source}</small><p>{escape(meaning[i])}</p></div>')
+    st.html(f'<div class="measure-row">{"".join(cards)}</div>')
+    st.caption("Asking, signed and surveyed rents answer different questions; one cannot stand in for another." if en else
+               "开价、成交和存量调查回答不同的问题，不能互相替代。")
