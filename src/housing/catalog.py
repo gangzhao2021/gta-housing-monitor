@@ -148,6 +148,12 @@ for series_id, (label, unit, _) in TERANET_SERIES.items():
                          'monthly', 'SA' if series_id.endswith('_sa') else 'not adjusted', 'none', TERANET_NOTE)
     SERIES_URLS[series_id] = TERANET_URL
 
+from .cba_arrears import DEFINITION as ARREARS_DEFINITION, PAGE as ARREARS_PAGE, SERIES as ARREARS_SERIES
+for series_id, (label, unit) in ARREARS_SERIES.items():
+    SERIES[series_id] = (label, 'CBA mortgage arrears', 'CBA residential mortgages in arrears, Ontario', 'Ontario',
+                         unit, 'monthly', 'not adjusted', 'none', ARREARS_DEFINITION)
+    SERIES_URLS[series_id] = ARREARS_PAGE
+
 from .trreb_rental import ARCHIVE as RENTAL_ARCHIVE, GEO as RENTAL_GEO, SERIES as RENTAL_SERIES
 for series_id, (label, unit, definition) in RENTAL_SERIES.items():
     SERIES[series_id] = (label, 'TRREB rental', 'Rental Market Report, apartments', RENTAL_GEO, unit,

@@ -6,13 +6,15 @@
 
 四项外部背景的管理入口是 `http://127.0.0.1:8501/` → “数据与记录” → “外部因素背景（研究中）”；本人演示入口是 `http://127.0.0.1:8502/` → 登录 → “经济与供给” → “外部背景（研究中）”。展示端表格列出每项最近值、单位、所属期和地区；点名称旁的 ⓘ 可查看可能的影响路径、不能直接推断房价的限制及该项官方来源，表格下方也保留直接来源链接。展示端不提供这四项的摘要复制／下载控件；首页另有入口提示。需运行发布脚本或成功完成更新周期，才会把后台新值写入展示快照；仅刷新网页不会抓取官网。[页面验收证据](PROJECT_ACCEPTANCE.md)记录了本机实际结果。
 
-本机两端仅供本人演示。页面装饰线已先在 Figma 精简、再落实代码；图表数据曲线保留。管理端和本机只读展示端都设本机密码门禁并仅监听 `127.0.0.1`；展示页读取经筛选快照，不能访问管理页“数据与记录”、保存和完整下载功能。两个本机进程仍使用同一本机账户；此外已部署仅所有者账号可访问的 Codex Sites 静态只读版，未迁移后台。具体计划见[实施计划第 7 节](IMPLEMENTATION_ROADMAP.md#7-p4展示端私有后台与交付)。
+本机两端仅供本人演示。页面装饰线已先在 Figma 精简、再落实代码；图表数据曲线保留。管理端和本机只读展示端都设本机密码门禁并仅监听 `127.0.0.1`；展示页读取经筛选快照，不能访问管理页“数据与记录”、保存和完整下载功能。两个本机进程仍使用同一本机账户；另有发布为私有 Claude Artifact 的静态网页版，未迁移后台。具体计划见[实施计划第 7 节](IMPLEMENTATION_ROADMAP.md#7-p4展示端私有后台与交付)。
 
-## Codex Sites 私有展示版
+## 网页版（私有 Claude Artifact）
 
-打开 [GTA Housing Monitor](https://gta-housing-monitor-ryan.yashirq.chatgpt.site)。Sites 展示版提供市场、租赁、经济与供给、月供四页，含中英文、部分日期和地区／房型筛选、指标说明及四项背景最近值。租赁市场 → 地区对比可在 OpenStreetMap 地理底图的位置点或下方勾选框选最多三个地区，选择同步到曲线；灰点表示所选期无观测，点位不是统计边界。地图按需从 OpenStreetMap 加载瓦片并显示署名，底图加载失败时仍可用位置点与勾选框。鼠标在图内移动可按月份查看数值；触摸点图可查看，键盘聚焦图表后用左右方向键逐期查看。静态网站**不是**把 8502 的 Streamlit 程序原样搬到云端：来源明细表及其选行联动、私人记录、后台管理和完整导出仍不在网站。站点访问受 Sites 策略控制；本机管理密码不用于网站。访客范围须以当前 Sites 设置核对，不能凭此前私有部署记录推断。
+打开 [GTA Housing Monitor](https://claude.ai/artifact/6kMnQMgJdnwbPuiMC4taXK)，默认只有本人可见；如需给他人看，在页面的分享菜单设置，并先确认 TRREB 与 Teranet 数据的使用条款（Teranet 仅限非商业个人用途）。网页版提供市场、租赁、经济与供给、月供四页，含中英文、市场温度、价格段分布与指标说明。地区对比地图用随数据打包的统计局市镇边界绘制，不依赖外部地图服务。它是 `site/dist` 静态文件，不运行 Streamlit：来源明细表、私人记录、后台管理和完整导出不在网页版。
 
-线上数据是发布时的 `data/display_snapshot.json` 经 `site/export_site_data.py` 导出的只读副本，页面显示快照生成时间。电脑上的 09:00 更新及本机快照重发均不会自动更新 Sites；如需同步，先核验本机数据并发布快照，再从项目根目录运行 `python3 site/export_site_data.py`，检查 `site/dist/data.json` 的范围并重新发布站点。具体边界见 [site/README.md](../site/README.md)。发布包仅包含筛选后的数值与公开指标说明，不含 SQLite、原件、记录、本机路径或口令；已有浏览器可读取页面发送的数值，私有访问控制不能代替对发布范围的审核。
+**自动更新**：本机每天 09:00 与 14:00 更新数据并导出 `site/dist/data.json`；Claude 定时任务 `republish-gta-housing-artifact` 在 09:20 与 14:20 检查，只有当天周期成功且网站文件变化时才重新发布到同一链接。任务需要 Claude 应用开着，关闭时会在下次打开补跑。首次使用请在侧边栏“定时任务”点“立即运行”批准权限。手动检查：`.venv/bin/python scripts/artifact_publish_state.py --check`。
+
+**原 Codex Sites 版**已于 2026-10-07 停止更新（`~/.codex/automations/automation/automation.toml` 设为 PAUSED，原文件已备份），站点本身需在 Codex 中删除。
 
 ## 中英文切换 / Language
 
@@ -239,8 +241,21 @@ PYTHONPATH=src .venv/bin/python -m housing.cli rentals-regions \
 
 ## 地区转售与新增背景（2026-09-26）
 
-“市场总览”底部打开“地区转售明细”，选择房型、TRREB 地区、指标及观察月。Sites 明细表点击月份会更新曲线截止期；曲线支持键盘左右键逐月查看。这里是实际转售统计，不能与挂牌租金系列合并，父子统计地区不可相加。
+“市场总览”底部打开“地区转售明细”，选择房型、TRREB 地区、指标（含成交价／挂牌价比、挂牌天数）及观察月。网页版明细表点击月份会更新曲线截止期；曲线支持键盘左右键逐月查看。这里是实际转售统计，不能与挂牌租金系列合并，父子统计地区不可相加。
 
 “经济与供给”底部现有九项外部背景摘要，名称旁 ⓘ 提供说明。更新状态按各自发布节奏判断，待发布不等于零；传统五年按揭公布利率不是实际新增贷款加权利率。顶部可重置筛选或保存视图链接；链接不赋予访客权限，也不保存贷款本金情景。
 
-本机每日 09:00 更新；本线程每日 09:30 检查有效变更并尝试发布网站。电脑／Codex 不可运行时无法保证准点，网页仍显示最近一次成功发布的时间。
+本机每日 09:00／14:00 更新，09:20／14:20 由 Claude 定时任务按需重新发布网页版；电脑或 Claude 应用未运行时无法保证准点，网页仍显示最近一次成功发布的数据时间。
+
+## 市场温度
+
+“市场总览”中的市场温度：近三个月成交／新挂牌比与过去各年同月平均的差，高于 10 个百分点为偏热、低于 10 个百分点为偏冷。表格列出 2012 年以来各温度之后 12 个月 HPI 的平均变化与上涨比例。依据见 [研究 v4](LEADING_STUDY_V4.md)；只描述供需，不是预测。计算需要本机研究存档 `data/research/trreb-history.csv`（由 `scripts/build_trreb_history.py` 从 `data/raw/trreb_history/` 生成）。
+
+## 每月人工步骤
+
+- **Rentals.ca 月报**（约每月中旬）：网站拦截自动下载，按“导入”一节处理。
+- **Teranet 指数**（约每月下旬）：在 housepriceindex.ca 填表下载 `House_Price_Index.csv`，运行 `.venv/bin/python scripts/import_teranet.py ~/Downloads/House_Price_Index.csv`，然后请 Claude 重新发布网页版（Teranet 不在自动周期内）。
+
+## 备份
+
+更新时只在有新数据写入前备份数据库到 `data/backups/`（未变化不备份）。旧备份可只保留每类最新一份。完整私有备份：`.venv/bin/python scripts/backup_private.py --output-parent ~/Library/Application\ Support/TorontoHousing/backups`；同机备份不能防硬盘损坏，请另存外部硬盘或云盘，并包括 `data/raw/trreb_history/`、`data/research/` 与 `data/raw/teranet/`。

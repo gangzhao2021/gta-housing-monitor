@@ -161,6 +161,13 @@ DEFINITIONS.update({
     'canada_policy_uncertainty': ('根据加拿大主要报纸中同时谈到“经济、政策、不确定”的文章比例编制的指数，越高表示政策不确定性越大。',
                                   'An index built from the share of major Canadian newspaper articles mentioning economy, policy and uncertainty together; higher means more policy uncertainty.'),
 })
+from .cba_arrears import PAGE as ARREARS_PAGE
+DEFINITIONS['ontario_mortgage_arrears_rate'] = ('Ontario 银行发放的住宅按揭中，已经逾期 3 个月以上没还款的笔数占全部按揭的比例。',
+                                                'The share of residential mortgages from Ontario banks that are three or more months behind on payments.')
+HELP['ontario_mortgage_arrears_rate'] = ('拖欠上升说明部分房主还款吃力，可能增加被迫出售的房源、压制房价；通常在失业上升、续贷利率走高时出现。',
+                                         '比例很低（不到 1%），变化慢、滞后于就业；只含银行按揭，不含信用社和私人贷款。',
+                                         'Rising arrears show more owners struggling to pay, which can add forced sales and weigh on prices; they tend to follow job losses and higher renewal rates.',
+                                         'Rates are very low (under 1%), move slowly and lag employment; only bank mortgages are covered, not credit unions or private lenders.', ARREARS_PAGE)
 DEFINITIONS['gta_condo_lease_listed'] = ('季度内经 TRREB MLS 挂牌出租的 condo 公寓套数。', 'Condo apartments listed for lease on TRREB’s MLS during the quarter.')
 DEFINITIONS['gta_condo_leased'] = ('季度内经 TRREB MLS 实际租出的 condo 公寓套数。', 'Condo apartments actually leased through TRREB’s MLS during the quarter.')
 

@@ -75,6 +75,9 @@ def run_cycle(root=ROOT, runner=subprocess.run):
                 rental = _run(runner, root, "scripts/refresh_trreb_rental.py")
                 report.update(rental_exit_code=rental.returncode, rental_stdout=rental.stdout[-4000:],
                               rental_stderr=rental.stderr[-4000:])
+                arrears = _run(runner, root, "scripts/refresh_cba_arrears.py")
+                report.update(arrears_exit_code=arrears.returncode, arrears_stdout=arrears.stdout[-4000:],
+                              arrears_stderr=arrears.stderr[-4000:])
                 report["factor_recovery_check"] = verify_dataset(root)
                 if report["snapshot_published"]:
                     if factors.returncode == 0:
@@ -98,7 +101,7 @@ def run_cycle(root=ROOT, runner=subprocess.run):
 
 def succeeded(result):
     return bool(result["snapshot_published"] and result.get("factors_exit_code") == 0
-                and result.get("rental_exit_code") == 0 and result.get("context_publish_exit_code") == 0
+                and result.get("rental_exit_code") == 0 and result.get("arrears_exit_code") == 0 and result.get("context_publish_exit_code") == 0
                 and result.get('trreb_exit_code') == 0 and result.get('site_export_exit_code') == 0)
 
 

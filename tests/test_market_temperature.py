@@ -47,3 +47,17 @@ class TemperatureSnapshotTests(unittest.TestCase):
         bad['months']['2026-09']['gap'] = float('nan')
         with self.assertRaises(ValueError):
             validate_temperature(bad)
+
+
+class CbaArrearsTests(unittest.TestCase):
+    def test_saved_workbook_rates_follow_counts_and_heading(self):
+        from pathlib import Path
+        from housing.cba_arrears import parse
+        files = sorted((Path(__file__).resolve().parents[1] / 'data/raw/cba').glob('*.xlsx'))
+        if not files:
+            self.skipTest('private CBA workbook not present')
+        rows = parse(files[-1], start='1995-01')
+        rates = {p: v for s, p, v in rows if s == 'ontario_mortgage_arrears_rate'}
+        self.assertEqual(min(rates), '1995-01')
+        self.assertAlmostEqual(rates['2026-05'], 0.3232, places=4)
+        self.assertEqual(len(rates), len({p for _, p, _ in rows}))

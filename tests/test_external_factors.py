@@ -120,8 +120,8 @@ class ExternalFactorsTests(unittest.TestCase):
                 result = run_cycle(root, runner)
             self.assertTrue(result["snapshot_published"])
             self.assertEqual(result["factors_exit_code"], 1)
-            # Core, TRREB, publish, factors, rental, site export; no context republish.
-            self.assertEqual(len(calls), 6)
+            # Core, TRREB, publish, factors, rental, arrears, site export; no context republish.
+            self.assertEqual(len(calls), 7)
             self.assertNotIn("context_publish_exit_code", result)
             self.assertEqual(result["site_export_exit_code"], 0)
 

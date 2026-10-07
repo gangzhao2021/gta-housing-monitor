@@ -32,7 +32,7 @@ from .background_series import CONFIG as BACKGROUND_CONFIG
 CONTEXT_SERIES |= frozenset(c['id'] for c in BACKGROUND_CONFIG.values() if not c.get('archived'))
 from .trreb_rental import SERIES as RENTAL_SERIES
 CONTEXT_SERIES |= frozenset(RENTAL_SERIES)
-CONTEXT_SERIES |= {"teranet_toronto_index", "teranet_toronto_index_sa"}
+CONTEXT_SERIES |= {"teranet_toronto_index", "teranet_toronto_index_sa", "ontario_mortgage_arrears_rate"}
 QUARTERLY_CONTEXT = frozenset({"toronto_residential_construction_cost_index", "ontario_net_interprovincial_migration",
                                "ontario_net_international_migration", *RENTAL_SERIES})
 

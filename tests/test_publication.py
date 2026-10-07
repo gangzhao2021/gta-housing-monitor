@@ -205,7 +205,8 @@ class PublicationTests(unittest.TestCase):
             self.assertFalse(report["snapshot_published"])
             # Context sources still refresh the owner database; nothing is published.
             self.assertEqual([Path(c[1]).name for c in calls],
-                             ["refresh_official.py", "refresh_official.py", "refresh_trreb_rental.py"])
+                             ["refresh_official.py", "refresh_official.py", "refresh_trreb_rental.py",
+                              "refresh_cba_arrears.py"])
             self.assertEqual(current.read_text(), "last-good")
             self.assertEqual(len(list((root / "data/run_reports").glob("*.json"))), 1)
 
@@ -227,13 +228,13 @@ class PublicationTests(unittest.TestCase):
             self.assertFalse(report["snapshot_published"])
             self.assertIn("bad manifest", report["error"])
             self.assertEqual(current.read_text(), "last-good")
-            self.assertEqual(len(calls), 3)
+            self.assertEqual(len(calls), 4)
 
             with patch("scripts.run_refresh_cycle.verify_dataset", return_value={"source_files": 1}):
                 report = run_cycle(root, successful_refresh)
             self.assertTrue(report["snapshot_published"])
             self.assertEqual(report["recovery_check"], {"source_files": 1})
-            self.assertEqual(len(calls), 10)
+            self.assertEqual(len(calls), 12)
             self.assertEqual(report["context_publish_exit_code"], 0)
             self.assertEqual(report["rental_exit_code"], 0)
 
@@ -256,6 +257,6 @@ class PublicationTests(unittest.TestCase):
             self.assertFalse(report["snapshot_published"])
             self.assertEqual(report["trreb_exit_code"], 1)
             self.assertEqual(calls, ["refresh_official.py", "refresh_trreb.py", "refresh_official.py",
-                                     "refresh_trreb_rental.py"])
+                                     "refresh_trreb_rental.py", "refresh_cba_arrears.py"])
             self.assertEqual(report["factors_exit_code"], 0)
             self.assertEqual(current.read_text(), "last-good")

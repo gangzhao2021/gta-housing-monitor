@@ -123,6 +123,7 @@ def validate_rows(rows):
     bounds.update({s: (300, 20000) if "_rent_" in s else (0, 200000) for s in SERIES if s.startswith("gta_condo_lease")})
     bounds.update({s: (-100, 1000) for s in SERIES if s.endswith("_yoy_published")})
     bounds.update({s: (0, 30000) for s in SERIES if s.startswith("trreb_sales_band_")})
+    bounds.update({"ontario_mortgage_arrears_rate": (0, 5), "ontario_mortgage_arrears_count": (0, 200000)})
     bounds.update({s: (0, 100000) if s.endswith("_pairs") else (1, 2000) for s in SERIES if s.startswith("teranet_")})
     for series_id, period, value in rows:
         if series_id not in SERIES:
