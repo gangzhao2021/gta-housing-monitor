@@ -11,7 +11,7 @@ import streamlit as native_st
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT / "src"))
-from housing.i18n import st
+from housing.i18n import st, english
 from housing.catalog import SERIES, SERIES_URLS
 from housing.db import connect, latest
 from housing.freshness import assess, RULES, STATUS_LABELS
@@ -85,11 +85,10 @@ def source_rows(fields, start, end, key, month_key=None):
 
             st.dataframe(frame, hide_index=True, width="stretch", key=table_key,
                          on_select=select_month, selection_mode="single-row")
-            st.caption("勾选左侧选择框可将观察月份设为该行月份；卡片、图表与其他数据表随之更新。")
         else:
             st.dataframe(frame, hide_index=True, width="stretch")
         st.download_button("下载 CSV", frame.to_csv(index=False).encode("utf-8-sig"), f"{key}-{start}-{end}.csv", "text/csv", key=f"download-{key}")
-        st.caption("空白表示没有观测。按当前期间导出；历史对照使用当前数据库版本，不代表当时已知信息。")
+        st.caption("空白表示没有观测。")
 
 
 with st.container(key="masthead"):
@@ -123,10 +122,9 @@ if page == "市场总览":
         with price:
             cards(data, ["trreb_hpi_benchmark"], end, {"trreb_hpi_benchmark": "HPI 标准化住宅价格"})
         with context:
-            st.caption("MLS HPI 综合基准房价 · 非平均成交价 · 纵轴按所选期间缩放")
+            st.caption("MLS HPI 基准价，不是成交均价")
         with plot:
             line_chart(data, ["trreb_hpi_benchmark"], start, end, height=330)
-            st.caption(f"TRREB 全市场 · 全房型 · {period_label(end)} · 金额为加元 · 月度原始值，未季调")
     temperature_csv = ROOT / "data/research/trreb-history.csv"
     if temperature_csv.is_file():
         from housing.market_temperature import build as build_temperature
@@ -135,12 +133,11 @@ if page == "市场总览":
     cards(data, ["trreb_sales", "trreb_active_listings", "moi_raw"], end,
           {"moi_raw": "月末有效挂牌 ÷ 当月成交"})
     st.subheader("成交与新增挂牌")
-    st.caption("观察需求与新进入市场的供应")
     cards(data, ["trreb_new_listings", "snlr_raw"], end,
           {"snlr_raw": "当月成交 ÷ 新增挂牌 × 100"})
     line_chart(data, ["trreb_sales", "trreb_new_listings"], start, end, height=300)
     st.subheader("成交季节分布")
-    st.caption("按年份与月份对齐成交量，便于比较同月季节性。颜色越深表示成交越多；灰格为缺失观测，空白为所选范围之外。仅描述历史，不代表季调或预测。")
+    st.caption("颜色越深成交越多；灰格为缺失月份。")
     sales_heatmap(data, start, end)
     supply, turnover = st.columns(2, gap="large")
     with supply:
@@ -152,9 +149,9 @@ if page == "市场总览":
     with st.expander("月末有效挂牌走势"):
         line_chart(data, ["trreb_active_listings"], start, end, height=220)
     with st.expander("查看三个月平滑趋势"):
-        st.caption("连续三个月的原始成交／新挂牌比作算术平均；缺月不计算。均线仅帮助阅读短期波动，不是季节调整，也不是三个月成交合计除以挂牌合计。")
+        st.caption("连续三个月的平均，帮助看短期走势；不是季节调整。")
         snlr_rolling_chart(data, start, end)
-    st.caption("卡片同时列出按各期原始月报自算的同比和 TRREB 公布的同比；后者以修订后的上年同月为分母，两者可能相差 1 个百分点以上。库存月数与成交／新挂牌比使用原始月度公式，不等于 TRREB 的平滑 Trend。")
+    st.caption("TRREB 公布的同比以修订后的上年同月为分母，可能与原发布值自算的同比相差 1 个百分点以上。")
     source_rows(resale_fields, start, end, "trreb", "market-month")
     st.divider()
     st.subheader("各房型基准价")
@@ -168,7 +165,9 @@ if page == "市场总览":
         with st.expander("房型数值与来源"):
             frame = pd.DataFrame(details).pivot(index=["type_label", "source_type"], columns="metric", values="value").reset_index().rename(columns={"type_label": "房型", "source_type": "原始分类", "benchmark": "基准价（加元）", "index": "HPI 指数", "source_yoy": "原报告同比（%）"})
             st.dataframe(frame, hide_index=True, width="stretch")
-            st.caption(f"来源：{Path(details[0]['source_path']).name}，第 {details[0]['source_page']} 页。报告同比使用报告内的历史比较基期，与上方跨月原始版自算同比不同。Attached 保留原 HPI 分类，不替换为成交表的 Semi-Detached。")
+            source_file, source_page = Path(details[0]['source_path']).name, details[0]['source_page']
+            native_st.caption(f"Source: TRREB report {source_file}, page {source_page}." if english() else
+                              f"来源：TRREB 月报 {source_file} 第 {source_page} 页。")
             st.download_button("下载 HPI 房型数据与来源", pd.DataFrame(details).to_csv(index=False).encode("utf-8-sig"), f"hpi-types-{end}.csv", "text/csv")
     except (ValueError, FileNotFoundError) as exc:
         st.warning(f"该月房型原表未通过来源检查：{exc}")
@@ -320,7 +319,6 @@ elif page == "经济与供给":
                     with plot:
                         st.subheader("人口长期变化")
                         line_chart(population, [field], min(population), year, height=350)
-                    st.caption("不将年度人口插值为月度数值；不与 2011 边界的建设数据计算人均比率。")
                 else:
                     st.info("尚无人口年度观测。")
                 continue
@@ -340,7 +338,7 @@ elif page == "经济与供给":
                         st.warning(f"{period_label(end)}的{label(field)}暂无观测。最近较早值：{period_label(last)}，{formatted(data[last][field], field)}。")
             with plot:
                 if topic == "住宅建设":
-                    st.caption("开工与竣工是当月流量；在建是月末存量。三图共用观察期，纵轴各自按数值缩放，不能相加。")
+                    st.caption("开工、竣工为当月数量；在建为月末总量。")
                     for construction_field in fields:
                         st.subheader(label(construction_field))
                         line_chart(data, [construction_field], start, end, height=185)
@@ -348,8 +346,6 @@ elif page == "经济与供给":
                     options = ["all", *fields] if topic == "利率与融资" else fields
                     field = st.selectbox("趋势指标", options, format_func=lambda f: "利率对照" if f == "all" else label(f), key=f"trend-field-{anchor}")
                     line_chart(data, fields if field == "all" else [field], start, end, height=340)
-            if topic == "利率与融资":
-                st.caption("按揭系列：特许银行新增非受保固定五年及以上，金额加权，含续贷和再融资。官方平均利率不等于当前银行报价。")
             if topic == "住宅建设":
                 st.subheader("按住宅类型比较")
                 metric = st.selectbox("建设指标", ["starts", "completions", "under_construction"], format_func={"starts": "开工", "completions": "竣工", "under_construction": "在建"}.get, key="construction-metric")
@@ -362,7 +358,6 @@ elif page == "经济与供给":
                             bar_chart(frame, "type_label", "value", "住宅单位（套）", frame["type_label"].tolist())
                             if any(r["reconciliation_ok"] is not True for r in details):
                                 st.warning("该期原表分项与总数无法核对一致；保留各项原始值，不重算总量。")
-                            st.caption("公寓及其他住宅包括多种产权和用途，不等于 condo 预售或待售库存。")
                             with st.expander("建设房型数据与来源"):
                                 st.dataframe(pd.DataFrame(details)[["type_label", "value", "quality_note"]].rename(columns={"type_label": "房型", "value": "套数", "quality_note": "原表质量"}), hide_index=True, width="stretch")
                                 st.download_button("下载建设房型数据与来源", pd.DataFrame(details).to_csv(index=False).encode("utf-8-sig"), f"construction-types-{end}-{metric}.csv", "text/csv")
@@ -372,7 +367,6 @@ elif page == "经济与供给":
 
 elif page == "月供情景":
     st.subheader("比较两种利率下的月供")
-    st.caption("固定贷款本金与摊还期，计算每月本息；金额为加元。")
     observations = latest(db, "mortgage_uninsured_fixed_5plus")
     default = observations[-1] if observations else None
     default_rate = float(default["value"]) if default else 5.0
@@ -420,7 +414,7 @@ elif page == "月供情景":
     history = historical_payment_rows(observations, principal, amortization)
     if history:
         st.subheader("固定条件下的历史月供")
-        st.caption("保持当前贷款本金和摊还期不变，只替换 BoC 已接入的新增固定按揭利率。缺月留空；这不是历史借款人的实际月供或银行报价。")
+        st.caption("按各月利率重算同一笔贷款的月供，不是当时借款人的实际月供。")
         frame = pd.DataFrame(history)
         history_chart = alt.Chart(frame).mark_line(color=BLUE, strokeWidth=2.3, point=alt.OverlayMarkDef(filled=True, size=42)).encode(
             x=alt.X("日期:T", title=None, scale=alt.Scale(type="utc"), axis=alt.Axis(format="%y/%m", grid=False)),
@@ -454,7 +448,7 @@ else:
                 st.metric(name, str(count))
     st.dataframe(pd.DataFrame(freshness_rows), hide_index=True, width="stretch")
     st.subheader("外部因素背景（研究中）")
-    st.caption("这些数值用于解释市场背景，尚未计入预测或买卖评分；来源地区和资料频率不同，不直接与本地房价合并。油价暂不上图。")
+    st.caption("各项的地区、频率与单位不同，不能直接相加或比较。")
     factor_rows = []
     for field in ("wti_cushing_spot_price", "usd_cad_monthly", "boc_energy_price_index",
                   "toronto_residential_construction_cost_index"):
@@ -505,5 +499,5 @@ else:
         st.write("TRREB 原报告还有地区及成交房型细分；当前界面提供全市场总量和 HPI 房型比较。租赁页范围为公寓，不覆盖全部出租住宅类型。")
         st.write("目前不提供复苏评分或预测。逐期发布日期、历史修订可用时点、季节比较规则与样本外验证尚未齐备。Condo 纯预售也没有纳入；建设公寓类别不能替代预售库存。")
 
-st.caption("公开数据研究工具 · 非实时行情 · 领先信号尚未验证")
+st.caption("公开数据研究工具 · 非实时行情 · 不构成投资建议")
 db.close()

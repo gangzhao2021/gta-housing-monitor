@@ -504,5 +504,18 @@
   "TRREB condo 开间平均签约租金（季度）": "TRREB condo bachelor average lease rent (quarterly)",
   "TRREB condo 一卧平均签约租金（季度）": "TRREB condo one-bedroom average lease rent (quarterly)",
   "TRREB condo 两卧平均签约租金（季度）": "TRREB condo two-bedroom average lease rent (quarterly)",
-  "TRREB condo 三卧平均签约租金（季度）": "TRREB condo three-bedroom average lease rent (quarterly)"
+  "TRREB condo 三卧平均签约租金（季度）": "TRREB condo three-bedroom average lease rent (quarterly)",
+  "价格为 HPI 基准价，不是成交均价。": "Prices are HPI benchmarks, not average sale prices.",
+  "开工、竣工为当月数量；在建为月末总量。": "Starts and completions are monthly counts; under construction is the month-end total.",
+  "各项的地区、频率与单位不同，不能直接相加或比较。": "Geographies, frequencies and units differ; do not add or compare them directly.",
+  "按固定假设计算，不代表贷款批准或利率预测。": "A fixed-assumption calculation, not a loan approval or rate forecast.",
+  "公开数据研究工具 · 非实时行情 · 不构成投资建议": "Public-data research tool · Not live market data · Not investment advice",
+  "空白表示没有观测。": "Blank means no observation.",
+  "MLS HPI 基准价，不是成交均价": "MLS HPI benchmark, not the average sale price",
+  "颜色越深成交越多；灰格为缺失月份。": "Darker cells mean more sales; grey cells are missing months.",
+  "连续三个月的平均，帮助看短期走势；不是季节调整。": "A three-month average to show the short-term trend; not seasonal adjustment.",
+  "按各月利率重算同一笔贷款的月供，不是当时借款人的实际月供。": "Recalculates the same loan's payment at each month's rate; not what borrowers actually paid then.",
+  "分房型数据历史较短；三卧不含四卧及以上。": "Bedroom-type history is short; three-bedroom excludes four or more.",
+  "均值变化可能来自挂牌房源构成变化，不等于同一套房的租金涨幅。": "Changes in averages can come from the mix of listings, not same-unit rent changes.",
+  "TRREB 公布的同比以修订后的上年同月为分母，可能与原发布值自算的同比相差 1 个百分点以上。": "TRREB's published year-over-year change uses the revised prior-year month and can differ by over one point from the change computed from original releases."
 }

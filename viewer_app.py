@@ -46,8 +46,8 @@ with st.container(key="main-nav"):
     page = st.radio("导航", ["市场总览", "租赁市场", "经济与供给", "月供情景"],
                     horizontal=True, label_visibility="collapsed", key="navigation")
 st.title(page)
-native_st.caption((f"Read-only display · Snapshot created {snapshot['created_at']} · Visitors can read chart values"
-                   if english() else f"只读展示 · 资料快照生成于 {snapshot['created_at']} · 图表数值可被访问者读取"))
+_created = datetime.fromisoformat(snapshot["created_at"]).astimezone(ZoneInfo("America/Toronto")).strftime("%Y-%m-%d %H:%M")
+native_st.caption(f"Data updated {_created} (Toronto time)" if english() else f"数据更新于 {_created}（多伦多时间）")
 
 
 def period_control(fields, key):
@@ -79,11 +79,9 @@ if page == "市场总览":
         with b:
             indicator_legend(["snlr_raw"])
             line_chart(data, ["snlr_raw"], start, end, external_legend=True)
-        st.caption("TRREB 全市场月度资料。价格为 HPI 基准价，非平均成交价；历史序列为当前所存版本。")
+        st.caption("价格为 HPI 基准价，不是成交均价。")
     from housing.district_view import render as render_districts
     render_districts(snapshot.get('districts', []))
-    if snapshot.get("context"):
-        st.info("新增能源、汇率与建筑造价背景资料：见“经济与供给”页底部。")
 elif page == "租赁市场":
     mode = st.radio("租金口径", ["月度挂牌", "年度存量", "地区对比"], horizontal=True)
     if mode == "月度挂牌":
@@ -153,7 +151,6 @@ elif page == "经济与供给":
             st.markdown("**就业率与劳动参与率**")
             indicator_legend(employment[1:])
             line_chart(data, employment[1:], *scope, height=260, external_legend=True)
-        st.caption("三项均为百分比，但失业率的数值范围与另外两项不同；分图比较变化。")
     st.subheader("住宅建设")
     construction = ["toronto_cma_2011_starts", "toronto_cma_2011_completions", "toronto_cma_2011_under_construction"]
     scope = period_control(construction, "viewer-住宅建设")
@@ -167,7 +164,7 @@ elif page == "经济与供给":
             st.markdown("**月末在建住宅**")
             indicator_legend(construction[2:])
             line_chart(data, construction[2:], *scope, height=260, external_legend=True)
-        st.caption("开工、竣工是当月流量；在建是月末存量。两图共用观察期，纵轴各自缩放，不能相加。")
+        st.caption("开工、竣工为当月数量；在建为月末总量。")
     st.subheader("人口")
     population = snapshot["observations"].get("toronto_cma_2021_population", {})
     if population:
@@ -175,9 +172,8 @@ elif page == "经济与供给":
         end = st.selectbox("人口估计年份", list(reversed(annual_population)), key="viewer-population-year")
         indicator_legend(["toronto_cma_2021_population"])
         line_chart(annual_population, ["toronto_cma_2021_population"], min(annual_population), end, height=290, external_legend=True)
-    st.caption("利率为加拿大背景；就业为 Toronto CMA 2021 边界；建设为 CMA 2011 边界。不同总体不计算交叉比率。")
     st.subheader("外部背景（研究中）")
-    st.caption("仅供解释市场背景；油价暂不上图，这些指标尚未用于评分或预测。不同地区、频率与单位不能直接合并。")
+    st.caption("各项的地区、频率与单位不同，不能直接相加或比较。")
     context_html_rows = []
     context_fields = sorted(CONTEXT_SERIES)
     for field in context_fields:
@@ -199,7 +195,6 @@ elif page == "经济与供给":
         headings = ''.join(f'<th scope="col">{column}</th>' for column in ("指标", "最近值", "单位", "资料期", "地区"))
         st.html('<table class="context-table"><thead><tr>' + headings + '</tr></thead><tbody>'
                 + ''.join(context_html_rows) + '</tbody></table>')
-        st.caption("官方来源：" + " · ".join(f"[{SERIES[field][1]}]({SERIES_URLS[field]})" for field in context_fields))
 else:
     from housing.affordability import monthly_payment
     st.subheader("固定本金的月供情景")
@@ -207,6 +202,6 @@ else:
     years = st.number_input("摊还年限", min_value=1, max_value=40, value=25)
     rate = st.number_input("名义年利率（%）", min_value=0.0, max_value=30.0, value=5.0, step=0.1)
     st.metric("每月本息", f"${monthly_payment(principal, rate, years):,.0f}")
-    st.caption("仅为固定假设的计算情景，不代表贷款批准、实际家庭负担能力或利率预测。")
+    st.caption("按固定假设计算，不代表贷款批准或利率预测。")
 
-st.caption("公开数据研究工具 · 非实时行情 · 领先信号尚未验证")
+st.caption("公开数据研究工具 · 非实时行情 · 不构成投资建议")

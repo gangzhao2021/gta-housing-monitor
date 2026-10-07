@@ -34,7 +34,6 @@ def render_monthly(db, data, today, controls):
             st.caption(f"{ASKING_ROOMS[field.removeprefix(PREFIX)]} · 所选期间实际观测：{len(visible)} 个")
             if 0 < len(visible) < 3:
                 st.warning(f"{ASKING_ROOMS[field.removeprefix(PREFIX)]}：当前仅有 {len(visible)} 个观测点；连线只表示已知点之间的变化，不足以判断长期趋势。")
-        st.caption("按所选房型的实际月度观测绘制；总体均值为来源发布值。不同房型使用独立颜色，纵轴按所选期间缩放。")
     st.caption(f"当前房型历史覆盖：{coverage[0]} — {coverage[-1]}；缺月保留空白。")
     st.caption("Toronto · Rentals.ca / Urbanation · 专建出租公寓与 condo · 加元/月 · 未季调")
     note("挂牌租金反映出租广告报价，不是已签租约租金。Toronto 沿用来源市场定义；不能直接与 CMA 年度调查或 TRREB 全市场拼接。")
@@ -51,7 +50,7 @@ def render_monthly(db, data, today, controls):
             st.caption(f"{ASKING_ROOMS[field.removeprefix(PREFIX)]} · 较上月变化：{(value / prior - 1) * 100:+.2f}%")
     st.divider()
     st.subheader("所选月份的房型报价")
-    st.caption("已接入的图表数据提供一卧、两卧、三卧；开间历史尚未核验。三卧不代表三卧及以上。分房型历史覆盖少于总体走势。")
+    st.caption("分房型数据历史较短；三卧不含四卧及以上。")
     rooms = [{"房型": name, "月租金": data.get(end, {}).get(PREFIX + room)}
              for room, name in ASKING_ROOMS.items() if room != "total"]
     frame = pd.DataFrame(rooms)
@@ -60,7 +59,7 @@ def render_monthly(db, data, today, controls):
         st.dataframe(frame, hide_index=True, width="stretch")
     else:
         st.info("该月尚无已接入的分房型报价；请勿用最新一期替代历史月份。")
-    st.caption("均值变化可能来自挂牌住房构成变化，不等于同一套房的租金涨幅。总体均值直接取自来源，未对房型均值再求平均。")
+    st.caption("均值变化可能来自挂牌房源构成变化，不等于同一套房的租金涨幅。")
     with st.expander("月度租金数据与来源"):
         records = [dict(row) for row in db.execute('''
             SELECT o.period AS period, o.series_id AS series_id, o.value AS rent_cad_per_month,
@@ -76,4 +75,3 @@ def render_monthly(db, data, today, controls):
         st.download_button("下载月度租金与来源", export.to_csv(index=False).encode("utf-8-sig"),
                            f"asking-rents-{start}-{end}.csv", "text/csv")
         st.markdown("[Rentals.ca / Urbanation — 报告归档](https://rentals.ca/blog/canada-national-rent-reports)")
-        st.caption("历史对照使用当前数据库版本，不代表当时已知信息。原始 CSV 与图表元数据均保留校验哈希。")

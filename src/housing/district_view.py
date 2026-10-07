@@ -26,8 +26,8 @@ def render(rows):
         data = df[(df.region.isin(areas)) & (df.ym <= end)].copy()
         months = sorted(data.ym.unique())[-36:]
         data = data[data.ym.isin(months)]
-        st.caption('TRREB report areas are not interchangeable with rental-market areas. Average prices reflect the sales mix; not HPI. Overlapping areas are not summed.' if english() else
-                   'TRREB 报告地区不能与租赁市场地区互换。均价受成交构成影响，不是 HPI；父子地区有重叠，不相加。')
+        st.caption('Average prices depend on the sales mix and are not HPI; overlapping areas cannot be added.' if english() else
+                   '均价受成交构成影响，不是 HPI；上下级地区有重叠，不能相加。')
         if data.empty:
             st.info('No observations.' if english() else '该选择暂无观测。')
             return
