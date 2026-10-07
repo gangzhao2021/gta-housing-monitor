@@ -129,3 +129,9 @@ for config in BACKGROUND_CONFIG.values():
     SERIES[config['id']] = (config['label'], config['source'], str(config['vector']),
         config['geo'], config['unit'], 'monthly', 'not adjusted', 'none', config['definition'])
     SERIES_URLS[config['id']] = url_for(config)
+
+from .trreb_rental import ARCHIVE as RENTAL_ARCHIVE, GEO as RENTAL_GEO, SERIES as RENTAL_SERIES
+for series_id, (label, unit, definition) in RENTAL_SERIES.items():
+    SERIES[series_id] = (label, 'TRREB rental', 'Rental Market Report, apartments', RENTAL_GEO, unit,
+                         'quarterly', 'not adjusted', 'none', definition)
+    SERIES_URLS[series_id] = RENTAL_ARCHIVE

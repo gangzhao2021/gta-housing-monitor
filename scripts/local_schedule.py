@@ -16,7 +16,8 @@ def definition(root=ROOT):
         "Label": LABEL,
         "ProgramArguments": [str(root / ".venv/bin/python"), str(root / "scripts/run_refresh_cycle.py")],
         "WorkingDirectory": str(root),
-        "StartCalendarInterval": {"Hour": 9, "Minute": 0},
+        # 14:00 retries a morning network failure; unchanged sources are idempotent.
+        "StartCalendarInterval": [{"Hour": 9, "Minute": 0}, {"Hour": 14, "Minute": 0}],
         "RunAtLoad": False,
         "StandardOutPath": str(root / "data/run_reports/launchd.stdout.log"),
         "StandardErrorPath": str(root / "data/run_reports/launchd.stderr.log"),

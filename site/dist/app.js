@@ -260,7 +260,7 @@ function districtSection(){
  const chosen=rows.filter(r=>r.house_type===state.districtType);
  const areas=[...new Set(chosen.map(r=>r.region))].sort();
  if(!areas.includes(state.districtRegion))state.districtRegion=areas[0];
- const fields={average_price:['均价','Average price','CAD'],sales:['成交','Sales','sales'],new_listings:['新增挂牌','New listings','listings'],active_listings:['在售挂牌','Active listings','listings'],median_price:['中位价','Median price','CAD'],avg_ldom:['挂牌天数','Listing days','days']};
+ const fields={average_price:['均价','Average price','CAD'],sales:['成交','Sales','sales'],new_listings:['新增挂牌','New listings','listings'],active_listings:['在售挂牌','Active listings','listings'],median_price:['中位价','Median price','CAD'],avg_ldom:['挂牌天数','Listing days','days'],avg_pdom:['物业在市天数','Property days on market','days'],avg_sp_lp:['成交价／挂牌价','Sale-to-list price ratio','%']};
  const field='district_selected',definition=fields[state.districtMetric];
  payload.series[field]={zh:state.districtRegion+' · '+definition[0],en:state.districtRegion+' · '+definition[1],unit:definition[2],source:'TRREB',url:'https://trreb.ca/market-data/market-watch/market-watch-archive/'};
  for(const period of Object.keys(monthly))delete monthly[period][field];

@@ -200,9 +200,12 @@ class PublicationTests(unittest.TestCase):
                 calls.append(command)
                 return SimpleNamespace(returncode=1, stdout="", stderr="source unavailable")
 
-            report = run_cycle(root, fail_refresh)
+            with patch("scripts.run_refresh_cycle.verify_dataset", return_value={"source_files": 1}):
+                report = run_cycle(root, fail_refresh)
             self.assertFalse(report["snapshot_published"])
-            self.assertEqual(len(calls), 1)
+            # Context sources still refresh the owner database; nothing is published.
+            self.assertEqual([Path(c[1]).name for c in calls],
+                             ["refresh_official.py", "refresh_official.py", "refresh_trreb_rental.py"])
             self.assertEqual(current.read_text(), "last-good")
             self.assertEqual(len(list((root / "data/run_reports").glob("*.json"))), 1)
 
@@ -224,14 +227,15 @@ class PublicationTests(unittest.TestCase):
             self.assertFalse(report["snapshot_published"])
             self.assertIn("bad manifest", report["error"])
             self.assertEqual(current.read_text(), "last-good")
-            self.assertEqual(len(calls), 1)
+            self.assertEqual(len(calls), 3)
 
             with patch("scripts.run_refresh_cycle.verify_dataset", return_value={"source_files": 1}):
                 report = run_cycle(root, successful_refresh)
             self.assertTrue(report["snapshot_published"])
             self.assertEqual(report["recovery_check"], {"source_files": 1})
-            self.assertEqual(len(calls), 7)
+            self.assertEqual(len(calls), 10)
             self.assertEqual(report["context_publish_exit_code"], 0)
+            self.assertEqual(report["rental_exit_code"], 0)
 
     def test_failed_trreb_refresh_does_not_publish_a_partial_snapshot(self):
         from scripts.run_refresh_cycle import run_cycle
@@ -251,5 +255,7 @@ class PublicationTests(unittest.TestCase):
                 report = run_cycle(root, runner)
             self.assertFalse(report["snapshot_published"])
             self.assertEqual(report["trreb_exit_code"], 1)
-            self.assertEqual(calls, ["refresh_official.py", "refresh_trreb.py"])
+            self.assertEqual(calls, ["refresh_official.py", "refresh_trreb.py", "refresh_official.py",
+                                     "refresh_trreb_rental.py"])
+            self.assertEqual(report["factors_exit_code"], 0)
             self.assertEqual(current.read_text(), "last-good")

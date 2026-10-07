@@ -20,8 +20,8 @@ def render(rows):
         areas = st.multiselect('Compare up to three areas' if english() else '比较地区（最多三个）', options,
                                default=defaults, max_selections=3, key='district-regions')
         field = st.selectbox('Measure' if english() else '转售指标',
-                             ['average_price', 'sales', 'new_listings', 'active_listings', 'median_price', 'avg_ldom'],
-                             format_func=lambda v: {'average_price': ('均价','Average price'), 'sales': ('成交','Sales'), 'new_listings': ('新增挂牌','New listings'), 'active_listings': ('在售挂牌','Active listings'), 'median_price': ('中位价','Median price'), 'avg_ldom': ('挂牌天数','Listing days')}[v][1 if english() else 0], key='district-field')
+                             ['average_price', 'sales', 'new_listings', 'active_listings', 'median_price', 'avg_ldom', 'avg_pdom', 'avg_sp_lp'],
+                             format_func=lambda v: {'average_price': ('均价','Average price'), 'sales': ('成交','Sales'), 'new_listings': ('新增挂牌','New listings'), 'active_listings': ('在售挂牌','Active listings'), 'median_price': ('中位价','Median price'), 'avg_ldom': ('挂牌天数','Listing days'), 'avg_pdom': ('物业在市天数','Property days on market'), 'avg_sp_lp': ('成交价／挂牌价 %','Sale-to-list price %')}[v][1 if english() else 0], key='district-field')
         end = st.selectbox('Month' if english() else '转售观察月', sorted(df.ym.unique(), reverse=True), key='district-month')
         data = df[(df.region.isin(areas)) & (df.ym <= end)].copy()
         months = sorted(data.ym.unique())[-36:]
@@ -32,7 +32,7 @@ def render(rows):
             st.info('No observations.' if english() else '该选择暂无观测。')
             return
         chart = alt.Chart(data).mark_line().encode(x=alt.X('ym:O', title=None),
-            y=alt.Y(field+':Q', title='CAD' if 'price' in field else ('Days' if field=='avg_ldom' else 'Count'), scale=alt.Scale(zero=False)),
+            y=alt.Y(field+':Q', title='CAD' if 'price' in field else ('%' if field=='avg_sp_lp' else 'Days' if field in ('avg_ldom', 'avg_pdom') else 'Count'), scale=alt.Scale(zero=False)),
             color=alt.Color('region:N', title=None), tooltip=['ym:N','region:N',alt.Tooltip(field+':Q',format=',.0f')]).properties(height=280)
         st.altair_chart(chart, use_container_width=True)
         st.table(data[data.ym == end][['region',field]].set_index('region'))

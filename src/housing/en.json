@@ -481,5 +481,16 @@
   "Toronto 住宅许可新增单位（停更历史表）": "Toronto residential units authorized (archived)",
   "Toronto 住宅许可新增单位": "Toronto residential units authorized",
   "Ontario 省际净迁移": "Ontario net interprovincial migration",
-  "Ontario 国际净迁移": "Ontario net international migration"
+  "Ontario 国际净迁移": "Ontario net international migration",
+  "Toronto 新建完工住宅吸纳量": "Toronto absorptions of newly completed homes",
+  "Toronto 新建完工未吸纳库存": "Toronto unabsorbed inventory of newly completed homes",
+  "Toronto 开工量：condo 市场": "Toronto starts: condo market",
+  "Toronto 开工量：专建出租": "Toronto starts: purpose-built rental",
+  "Toronto 开工量：自住市场": "Toronto starts: homeowner market",
+  "TRREB condo 公寓租赁挂牌量（季度）": "TRREB condo apartments listed for lease (quarterly)",
+  "TRREB condo 公寓签约租出量（季度）": "TRREB condo apartments leased (quarterly)",
+  "TRREB condo 开间平均签约租金（季度）": "TRREB condo bachelor average lease rent (quarterly)",
+  "TRREB condo 一卧平均签约租金（季度）": "TRREB condo one-bedroom average lease rent (quarterly)",
+  "TRREB condo 两卧平均签约租金（季度）": "TRREB condo two-bedroom average lease rent (quarterly)",
+  "TRREB condo 三卧平均签约租金（季度）": "TRREB condo three-bedroom average lease rent (quarterly)"
 }

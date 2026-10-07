@@ -181,6 +181,10 @@ RULES.update({series_id: FreshnessRule("monthly", "day_15", "每月报告；次�
               for series_id in SERIES if series_id.startswith(("toronto_asking_rent_", "regional_asking_"))})
 
 
+RULES.update({series_id: FreshnessRule("quarterly", "quarter_plus_45", "TRREB 季度租赁报告；季度结束后 45 日为本地检查日，非官方保证")
+              for series_id in SERIES if series_id.startswith("gta_condo_lease")})
+
+
 from .background_series import CONFIG as BACKGROUND_CONFIG
 STATUS_LABELS['archived'] = '来源已停更（历史表）'
 for key, config in BACKGROUND_CONFIG.items():
