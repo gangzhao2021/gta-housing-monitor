@@ -45,7 +45,7 @@ def run():
                             report['pending'].append(period);continue
                         raise
                     if not content.startswith(b'%PDF-'):raise ValueError('Expected official PDF')
-                    temporary=pdf.with_suffix('.download');temporary.write_bytes(content);temporary.replace(pdf)
+                    temporary=pdf.with_suffix('.download');temporary.write_bytes(content);temporary.chmod(0o600);temporary.replace(pdf)
                     report['downloaded'].append(period)
                 # Existing observations are left untouched. Revisions require a
                 # separately reviewed source, never an older archive replay.

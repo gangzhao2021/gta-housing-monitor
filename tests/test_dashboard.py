@@ -24,6 +24,14 @@ def isolated_database(_path):
     return target
 
 
+def mortgage_gap_database(path):
+    # Fixed gap so the missing-month assertions do not depend on later BoC releases.
+    db = isolated_database(path)
+    db.execute("DELETE FROM observations WHERE series_id='mortgage_uninsured_fixed_5plus' AND period>'2026-06'")
+    db.commit()
+    return db
+
+
 def chart_frame(element):
     spec = json.loads(element.proto.spec)
     dataset = next(item for item in element.proto.datasets if item.name == spec["data"]["name"])
@@ -239,9 +247,10 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(spec["mark"]["point"])  # A single survey must still be visible.
 
     def test_mortgage_missing_month_remains_missing_in_card_chart_and_source(self):
-        self.navigate("经济与供给")
-        self.app.selectbox(key="context-rates-month").set_value("2026-08").run()
-        self.app.selectbox(key="trend-field-rates").set_value("mortgage_uninsured_fixed_5plus").run()
+        with patch("housing.db.connect", side_effect=mortgage_gap_database):
+            self.navigate("经济与供给")
+            self.app.selectbox(key="context-rates-month").set_value("2026-08").run()
+            self.app.selectbox(key="trend-field-rates").set_value("mortgage_uninsured_fixed_5plus").run()
         markup = "".join(item.proto.body for item in self.app.get("html") if "metric-grid" in item.proto.body and not item.proto.body.startswith("<style>"))
         self.assertIn("新增固定按揭利率", markup)
         self.assertIn("暂无数据", markup)
@@ -322,7 +331,8 @@ class DashboardTests(unittest.TestCase):
 
     def test_source_status_distinguishes_withheld_values_from_late_updates(self):
         from housing.catalog import SERIES
-        self.navigate("数据与记录")
+        with patch("housing.db.connect", side_effect=mortgage_gap_database):
+            self.navigate("数据与记录")
         table = self.app.dataframe[0].value
         withheld = table[table["状态"] == "来源抑制发布"]
         self.assertEqual(len(withheld), 11)

@@ -25,6 +25,7 @@ import hashlib
 import io
 from datetime import datetime
 import re
+import unicodedata
 from pathlib import Path
 
 import pymupdf  # PyMuPDF  (pip install pymupdf)
@@ -132,6 +133,36 @@ def page_text(page):
     return page.get_text()
 
 
+def page_words(page):
+    # Reports from September 2026 print ligature glyphs (e.g. "Stouﬀville").
+    return [(*w[:4], unicodedata.normalize("NFKC", w[4]), *w[5:]) for w in page.get_text("words")]
+
+
+MONTH_NAMES = "|".join(MONTHS)
+# Layout introduced with the September 2026 report: one table per page, titled
+# "ALL TRREB AREAS" or "City of Toronto Municipal Breakdown", then
+# "<home type>, <Month YYYY>" (or "Year-to-Date YYYY").
+DASHBOARD_TITLE = re.compile(
+    r"^TORONTO REGIONAL REAL ESTATE BOARD (?:ALL TRREB AREAS|CITY OF TORONTO MUNICIPAL BREAKDOWN) "
+    rf"(.+?), (?:YEAR-TO-DATE 20\d\d|({MONTH_NAMES}) (20\d\d))$")
+
+
+def dashboard_section(page, header_y):
+    """Return (home_type, period) for a new-layout monthly table; (None, None)
+    for year-to-date pages and pages with another title."""
+    above = [w for w in page_words(page) if w[1] < header_y - 3]
+    title = norm(" ".join(w[4] for w in sorted(above, key=lambda w: (round(w[1] / 3.0), w[0]))))
+    match = DASHBOARD_TITLE.match(title)
+    if not match or not match.group(2):
+        return None, None
+    label = match.group(1)
+    if label == "ALL HOME TYPES":
+        return "all_types", f"{match.group(3)}-{MONTHS[match.group(2)]}"
+    if label not in HOME_TYPE_SLUGS:
+        raise ValueError(f"unknown home-type section: {label!r}")
+    return HOME_TYPE_SLUGS[label], f"{match.group(3)}-{MONTHS[match.group(2)]}"
+
+
 def section_home_type(text):
     """Return home-type slug, 'INHERIT' (municipal-breakdown continuation page),
     or None for year-to-date pages."""
@@ -183,14 +214,16 @@ def y_groups(words, tol=3.0):
 
 def header_columns(page):
     """Find the table header row; return (header_y, [(field, kind, xc, x0)])."""
-    words = page.get_text("words")
+    words = page_words(page)
     for key in sorted(y_groups(words)):
         ws = sorted(y_groups(words)[key], key=lambda w: w[0])
         txt = " ".join(w[4] for w in ws)
         if "Sales" in txt and "Dollar" in txt:
             header_y = sum(w[1] for w in ws) / len(ws)
             cols = []
-            i = 0
+            # The 2026-09 layout prefixes the header with "All TRREB Areas".
+            labels = [w[4] for w in ws]
+            i = labels.index("Sales") if "Sales" in labels else 0
             for title, field, kind in COLUMNS:
                 parts = title.split(" ")
                 if [w[4] for w in ws[i : i + len(parts)]] == parts:
@@ -209,7 +242,7 @@ def data_rows(page, header_y, columns, page_no, problems):
     """Parse data rows below the header using word-box geometry."""
     words = [
         w
-        for w in page.get_text("words")
+        for w in page_words(page)
         if not FOOTNOTE.match(w[4])
     ]
     groups = y_groups(words)
@@ -262,23 +295,29 @@ def scan_pdf(path, period, problems):
     prev_type = None
     for i, page in enumerate(doc):
         text = page_text(page)
-        if norm(MARKER) not in norm(text):
-            continue
-        home_type = section_home_type(text)
-        if home_type is None:
-            continue  # year-to-date page
-        if home_type == "INHERIT":
-            if prev_type is None:
-                raise ValueError(f"p{i + 1}: municipal-breakdown page with no section")
-            home_type = prev_type
-        title_ym = title_period(text)
+        if norm(MARKER) in norm(text):
+            home_type = section_home_type(text)
+            if home_type is None:
+                continue  # year-to-date page
+            if home_type == "INHERIT":
+                if prev_type is None:
+                    raise ValueError(f"p{i + 1}: municipal-breakdown page with no section")
+                home_type = prev_type
+            title_ym = title_period(text)
+            header_y, columns = header_columns(page)
+            if not columns:
+                raise ValueError(f"p{i + 1}: district table header not found")
+        else:
+            header_y, columns = header_columns(page)
+            if not columns:
+                continue
+            home_type, title_ym = dashboard_section(page, header_y)
+            if home_type is None:
+                continue  # year-to-date or non-table page
         if title_ym and title_ym != period:
             raise ValueError(
                 f"p{i + 1}: period mismatch: file says {period}, page says {title_ym}"
             )
-        header_y, columns = header_columns(page)
-        if not columns:
-            raise ValueError(f"p{i + 1}: district table header not found")
         rows = data_rows(page, header_y, columns, i + 1, problems)
         by_type.setdefault(home_type, []).extend(rows)
         prev_type = home_type

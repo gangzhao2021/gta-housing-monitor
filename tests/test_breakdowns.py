@@ -65,6 +65,16 @@ class BreakdownTests(unittest.TestCase):
         historic = trreb_hpi_breakdown(ROOT / "data/raw/trreb/mw2209.pdf")
         self.assertEqual(next(r["value"] for r in historic if r["type_id"] == "composite" and r["metric"] == "benchmark"), 1110700)
 
+    def test_september_2026_layout_hpi_types_use_word_boxes(self):
+        # TRREB's September 2026 redesign drops ligatures in pypdf text.
+        rows = trreb_hpi_breakdown(ROOT / "data/raw/trreb/mw2609.pdf")
+        benchmarks = {r["type_id"]: r["value"] for r in rows if r["metric"] == "benchmark"}
+        self.assertEqual(benchmarks, {"composite": 917600, "detached": 1196400, "attached": 912000,
+                                      "townhouse": 668800, "apartment": 527200})
+        self.assertEqual(next(r["value"] for r in rows if r["type_id"] == "composite" and r["metric"] == "index"), 291.0)
+        self.assertEqual(next(r["value"] for r in rows if r["type_id"] == "composite" and r["metric"] == "source_yoy"), -4.65)
+        self.assertTrue(all(r["source_page"] == 25 and r["period"] == "2026-09" for r in rows))
+
     def test_report_period_cannot_come_from_a_wrong_filename(self):
         with tempfile.TemporaryDirectory() as directory:
             renamed = Path(directory) / "mw2607.pdf"

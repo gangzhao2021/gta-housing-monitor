@@ -7,12 +7,14 @@ import csv
 import hashlib
 import io
 import re
+import unicodedata
 import zipfile
 from collections import defaultdict
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
+import pymupdf
 from pypdf import PdfReader
 
 
@@ -103,6 +105,55 @@ def construction_breakdown(path, period=None):
     return result
 
 
+def _hpi_rows(period, triplets, page_index, provenance):
+    if len(triplets) != len(HPI_TYPES):
+        raise ValueError("TRREB HPI total row has missing or shifted type columns")
+    result = []
+    for (type_id, label, source_type), triplet in zip(HPI_TYPES, triplets):
+        for metric, raw_value, unit in zip(("index", "benchmark", "source_yoy"), triplet,
+                                           ("index", "CAD", "%")):
+            value = float(raw_value.replace(",", ""))
+            if metric != "source_yoy" and value <= 0:
+                raise ValueError("TRREB HPI levels must be positive")
+            result.append({
+                "period": period, "type_id": type_id, "type_label": label,
+                "source_type": source_type, "metric": metric, "value": value, "unit": unit,
+                "geography": "All TRREB Areas", "source_page": page_index + 1, **provenance,
+            })
+    return result
+
+
+def _dashboard_hpi(path, period, provenance):
+    """Read the HPI page of the layout TRREB introduced with September 2026.
+
+    That layout drops ligatures in pypdf text, so its word boxes are read with
+    PyMuPDF. The title must name All TRREB Areas and the file's month.
+    """
+    reference_label = datetime.strptime(period, "%Y-%m").strftime("%B %Y")
+    with pymupdf.open(path) as document:
+        for page_index, page in enumerate(document):
+            words = [(*w[:4], unicodedata.normalize("NFKC", w[4])) for w in page.get_text("words")]
+            flat = " ".join(" ".join(w[4] for w in words).split())
+            if "MLS® Home Price Index" not in flat or "All TRREB Areas," not in flat:
+                continue
+            if f"All TRREB Areas, {reference_label}" not in flat:
+                raise ValueError("TRREB filename and HPI reference month differ")
+            if not all(source_type in flat for _, _, source_type in HPI_TYPES):
+                raise ValueError("TRREB HPI home-type header changed")
+            rows = defaultdict(list)
+            for word in words:
+                rows[round(word[1] / 3)].append(word)
+            for key in sorted(rows):
+                line = " ".join(w[4] for w in sorted(rows[key], key=lambda w: w[0]))
+                match = re.match(r"^All TRREB Areas\s+(\d.*)$", line)
+                if match:
+                    triplets = re.findall(r"(\d+(?:\.\d+)?)\s+\$([\d,]+)\s+(-?\d+(?:\.\d+)?)%",
+                                          match.group(1))
+                    return _hpi_rows(period, triplets, page_index, provenance)
+            raise ValueError("TRREB HPI page has no All TRREB Areas row")
+    return None
+
+
 def trreb_hpi_breakdown(pdf_path):
     """Read the source report's All TRREB Areas HPI comparison, with page proof.
 
@@ -135,22 +186,11 @@ def trreb_hpi_breakdown(pdf_path):
                 continue
             # Exact triplets make a suppressed/shifted column fail closed.
             triplets = re.findall(r"(\d+(?:\.\d+)?)\s+\$([\d,]+)\s+(-?\d+(?:\.\d+)?)%", match.group(1))
-            if len(triplets) != len(HPI_TYPES):
-                raise ValueError("TRREB HPI total row has missing or shifted type columns")
-            result = []
-            for (type_id, label, source_type), triplet in zip(HPI_TYPES, triplets):
-                for metric, raw_value, unit in zip(("index", "benchmark", "source_yoy"), triplet,
-                                                   ("index", "CAD", "%")):
-                    value = float(raw_value.replace(",", ""))
-                    if metric != "source_yoy" and value <= 0:
-                        raise ValueError("TRREB HPI levels must be positive")
-                    result.append({
-                        "period": period, "type_id": type_id, "type_label": label,
-                        "source_type": source_type, "metric": metric, "value": value, "unit": unit,
-                        "geography": "All TRREB Areas", "source_page": page_index + 1, **provenance,
-                    })
-            return result
-    raise ValueError("TRREB report has no verified HPI All TRREB Areas type comparison")
+            return _hpi_rows(period, triplets, page_index, provenance)
+    rows = _dashboard_hpi(path, period, provenance)
+    if rows is None:
+        raise ValueError("TRREB report has no verified HPI All TRREB Areas type comparison")
+    return rows
 
 
 def trreb_hpi_for_observation(db, period, root):
