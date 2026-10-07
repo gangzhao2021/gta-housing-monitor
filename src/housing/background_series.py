@@ -155,6 +155,13 @@ def refresh_background(db, key, root, today=None, requester=request_json, text_r
             path.write_bytes(raw)
         elif hashlib.sha256(path.read_bytes()).hexdigest() != sha:
             raise ValueError('Existing source snapshot hash mismatch')
+        # An identical snapshot already ingested successfully needs no new backup or batch.
+        if db.execute("SELECT 1 FROM ingestion_runs WHERE raw_sha256=? AND source=? AND status='success' LIMIT 1",
+                      (sha, source)).fetchone():
+            with db:
+                db.execute('INSERT INTO ingestion_runs (source,started_at,status,raw_sha256) VALUES (?,?,?,?)',
+                           (source, now(), 'unchanged', sha))
+            return {'source': key, 'status': 'unchanged', 'sha256': sha}
         rows = parse_snapshot(document, config, end)
         validate_rows(rows)
         # Only this extractor's declared series is allowed to enter the batch.

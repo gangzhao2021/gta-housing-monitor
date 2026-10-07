@@ -31,12 +31,16 @@ def run():
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         db=connect(ROOT/'data/housing.sqlite3')
         try:
-            backup=ROOT/'data/backups'/('trreb-before-'+datetime.now().strftime('%Y%m%dT%H%M%S%f')+'.sqlite3')
-            backup.parent.mkdir(parents=True,exist_ok=True)
-            target=sqlite3.connect(backup)
-            try:db.backup(target)
-            finally:target.close()
-            backup.chmod(0o600)
+            backed_up=[]
+            def ensure_backup():
+                # One backup per run, taken only before the first write.
+                if backed_up:return
+                backup=ROOT/'data/backups'/('trreb-before-'+datetime.now().strftime('%Y%m%dT%H%M%S%f')+'.sqlite3')
+                backup.parent.mkdir(parents=True,exist_ok=True)
+                target=sqlite3.connect(backup)
+                try:db.backup(target)
+                finally:target.close()
+                backup.chmod(0o600);backed_up.append(backup)
             for y,m in months('2022-09',end):
                 period=f'{y:04d}-{m:02d}';pdf=ROOT/'data/raw/trreb'/f'mw{y%100:02d}{m:02d}.pdf'
                 url='https://trreb.ca/wp-content/files/market-stats/market-watch/'+pdf.name
@@ -53,6 +57,7 @@ def run():
                 # Existing observations are left untouched. Revisions require a
                 # separately reviewed source, never an older archive replay.
                 if db.execute("SELECT 1 FROM observations WHERE series_id='trreb_sales' AND period=?",(period,)).fetchone():continue
+                ensure_backup()
                 record=extract(pdf);buffer=io.StringIO(newline='');writer=csv.writer(buffer);writer.writerow(FIELDS);writer.writerow(record)
                 content=buffer.getvalue();sha=hashlib.sha256(content.encode()).hexdigest()[:10]
                 path=ROOT/'data/manual'/f'trreb-extracted-{period}-to-{period}-{sha}.csv'
@@ -69,6 +74,7 @@ def run():
             exists=db.execute("SELECT 1 FROM sqlite_master WHERE name='district_observations'").fetchone()
             district_end=db.execute('SELECT MAX(ym) FROM district_observations').fetchone()[0] if exists else None
             if latest and district_end!=latest:
+                ensure_backup()
                 result=subprocess.run([sys.executable,str(ROOT/'scripts/extract_trreb_districts.py'),'2022-09',latest],cwd=ROOT,capture_output=True,text=True,timeout=300)
                 if result.returncode or 'PROBLEM' in result.stdout or 'warning' in (result.stdout+result.stderr).lower():raise RuntimeError('District extraction failed: '+result.stdout[-2000:]+result.stderr[-2000:])
                 candidates=list((ROOT/'data/manual').glob(f'trreb-districts-2022-09-to-{latest}-*.csv'))

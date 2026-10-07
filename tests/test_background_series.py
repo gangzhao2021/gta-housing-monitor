@@ -64,7 +64,10 @@ class BackgroundSeriesTests(unittest.TestCase):
             old = tuple(db.execute('SELECT * FROM observations').fetchone())
             first = refresh_background(db, 'toronto_nhpi', root, date(2026, 9, 26), requester)
             second = refresh_background(db, 'toronto_nhpi', root, date(2026, 9, 26), requester)
-            self.assertEqual((first['inserted'], second['unchanged'], second['revised']), (1, 1, 0))
+            self.assertEqual((first['inserted'], second['status']), (1, 'unchanged'))
+            # An identical snapshot is not re-ingested and does not add another database backup.
+            self.assertEqual(len(list((root / 'data/backups').glob('background-before-*'))), 1)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM observations WHERE series_id='toronto_nhpi_total'").fetchone()[0], 1)
             self.assertEqual(tuple(db.execute('SELECT * FROM observations WHERE id=1').fetchone()), old)
             self.assertTrue(Path(first['csv']).exists())
             self.assertTrue((root / 'data/raw/manifest.csv').exists())
