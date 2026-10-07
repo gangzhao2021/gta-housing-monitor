@@ -1,4 +1,4 @@
-"""Run protocol v2 and write data/research/v2-report.json (private)."""
+"""Run protocol v3 and write data/research/v3-report.json (private)."""
 import json
 import sys
 from datetime import datetime, timezone
@@ -6,13 +6,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-from housing import leading
+from housing import leading, leading_v3
 
-PROTOCOL = json.loads((ROOT / "src/housing/research_protocol_v2.json").read_text())
+PROTOCOL = json.loads((ROOT / "src/housing/research_protocol_v3.json").read_text())
 
 
 def main():
-    data = leading.load(ROOT / "data/research/v2-inputs.csv")
+    data = leading_v3.load_trreb(ROOT / "data/research/trreb-history.csv", leading.load(ROOT / "data/research/v2-inputs.csv"))
     last_index = max(data["teranet_index_sa"])
     current = leading.shift(datetime.now().strftime("%Y-%m"), -1)  # last complete month
     report = {"protocol": PROTOCOL["version"], "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -20,10 +20,11 @@ def main():
     (first_sub, second_sub) = PROTOCOL["sample"]["subperiods"]
     for h in PROTOCOL["target"]["horizons_months"]:
         last_matured = leading.shift(last_index, 2 - h)
-        decisions = leading.months("2005-01", current)
-        rows = leading.forecasts(data, h, decisions, PROTOCOL["sample"]["minimum_training_observations"])
+        decisions = leading.months("2006-01", current)
+        rows = leading.forecasts(data, h, decisions, PROTOCOL["sample"]["minimum_training_observations"],
+                                 features=leading_v3.FEATURES, feature_fn=leading_v3.feature)
         models = {}
-        for model in leading.FEATURES + ["combination"]:
+        for model in leading_v3.FEATURES + ["combination"]:
             full = leading.evaluate(rows, model, h, PROTOCOL["sample"]["oos_start"], last_matured)
             a = leading.evaluate(rows, model, h, *first_sub)
             b = leading.evaluate(rows, model, h, second_sub[0], last_matured)
@@ -35,7 +36,7 @@ def main():
             "last_matured_decision": last_matured, "models": models,
             "current_forecasts_research_only": {k: round(v, 2) for k, v in latest.items() if k != "actual" and v is not None},
         }
-    output = ROOT / "data/research/v2-report.json"
+    output = ROOT / "data/research/v3-report.json"
     output.write_text(json.dumps(report, indent=2, ensure_ascii=False))
     output.chmod(0o600)
     for h, part in report["horizons"].items():

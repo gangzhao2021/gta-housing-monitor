@@ -34,3 +34,25 @@ class LeadingStudyTests(unittest.TestCase):
         self.assertAlmostEqual(result['oos_r2'], 1.0)
         self.assertLess(result['clark_west_p_one_sided'], 0.01)
         self.assertEqual(leading.evaluate(rows, 'perfect', 6, '2010-01', '2010-06')['status'], 'too_few_cases')
+
+
+class LeadingV3Tests(unittest.TestCase):
+    @unittest.skipUnless((INPUTS.parent / 'trreb-history.csv').exists(), 'private TRREB history not present')
+    def test_trreb_features_ignore_months_after_t_minus_one(self):
+        from housing import leading_v3
+        data = leading_v3.load_trreb(INPUTS.parent / 'trreb-history.csv', leading.load(INPUTS))
+        T = '2016-03'
+        before = leading.forecasts(data, 12, [T], features=leading_v3.FEATURES, feature_fn=leading_v3.feature)[T]
+        scrambled = copy.deepcopy(data)
+        for period, row in scrambled['trreb'].items():
+            if period > leading.shift(T, -1):
+                for key, value in row.items():
+                    if isinstance(value, float):
+                        row[key] = value * 2.9
+        for period in scrambled['teranet_index_sa']:
+            if period > leading.shift(T, -2):
+                scrambled['teranet_index_sa'][period] *= 1.7
+        after = leading.forecasts(scrambled, 12, [T], features=leading_v3.FEATURES, feature_fn=leading_v3.feature)[T]
+        for key in before:
+            if key != 'actual':
+                self.assertAlmostEqual(before[key], after[key], places=10, msg=key)

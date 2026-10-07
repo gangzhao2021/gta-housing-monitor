@@ -90,10 +90,12 @@ def ols(xs, ys):
     return my - b * mx, b
 
 
-def forecasts(data, h, decisions, minimum=60):
+def forecasts(data, h, decisions, minimum=60, features=None, feature_fn=None):
     """Return {decision: {'actual', 'benchmark', model: forecast}} with no look-ahead."""
-    all_months = sorted({p for d in decisions for p in [d]})
-    table = {T: {f: feature(data, f, T) for f in FEATURES} for T in months(shift(all_months[0], -400), all_months[-1])}
+    features = features or FEATURES
+    feature_fn = feature_fn or feature
+    all_months = sorted(decisions)
+    table = {T: {f: feature_fn(data, f, T) for f in features} for T in months(shift(all_months[0], -400), all_months[-1])}
     labels = {T: target(data, T, h) for T in table}
     result = {}
     for T in decisions:
@@ -101,14 +103,14 @@ def forecasts(data, h, decisions, minimum=60):
         if len(matured) < minimum:
             continue
         row = {'actual': labels.get(T), 'benchmark': fmean(labels[d] for d in matured)}
-        for f in FEATURES:
+        for f in features:
             x_now = table[T][f]
             train = [(table[d][f], labels[d]) for d in matured if table[d][f] is not None]
             if x_now is None or len(train) < minimum:
                 continue
             a, b = ols([x for x, _ in train], [y for _, y in train])
             row[f] = a + b * x_now
-        univariate = [row[f] for f in FEATURES if f in row]
+        univariate = [row[f] for f in features if f in row]
         if univariate:
             row['combination'] = fmean(univariate)
         result[T] = row
