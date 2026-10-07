@@ -267,3 +267,14 @@ python3 scripts/check_trreb_districts.py data/manual/trreb-districts-2022-09-to-
 | [Statistics Canada 17-10-0040-01](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710004001) | Ontario 同一 DGUID／单位；`Immigrants` `v29850372`（7.1）加 `Net non-permanent residents` `v29850376`（7.5），减 `Net emigration` `v1566834794`（7.6） | 2022Q3—2026Q2，16 季 | Ontario 国际净迁移可为负；净非永久居民变化不等于当季新到达人数 |
 
 `scripts/extract_ontario_migration.py` 独立下载两张官方 CSV ZIP，逐行校验表头、向量、坐标、地区、单位、倍率、季度及抑制状态；缺任一组成项或两表季度不一致即拒绝导入。两份原 ZIP 以 SHA256 后缀保存于 `data/raw/statcan/`，派生 CSV 为 `data/manual/statcan-ontario-migration-<内容哈希>.csv`，三者登记在 manifest。`refresh_official.py --source migration` 及现有 `--source factors` 周期包含此来源。2026-09-26 运行退出 0，新增 32 条、无修订；最新 2026Q2 省际净迁移 −7,063 人、国际净迁移 18,385 人。数值在管理端和展示站点仅作背景摘要，不计入预测评分。官方历史数据可能修订；当前下载版不是逐期首次发布版本，不能据此做严格的“当时可得”回测。
+
+## 2026-10-07 镇屋租金、利率长历史与 Teranet 长期序列
+
+| 来源 | 采用口径与核验 | 本次覆盖 | 限制 |
+| --- | --- | --- | --- |
+| [TRREB Rental Market Report](https://trreb.ca/market-data/rental-market-report/rental-market-report-archive/) “Townhouses” 表 | All TRREB Areas 行；与公寓表相同的列形状校验、各房型租出量合计等于总租出量、首页摘要含总数；`parse_report(..., 'Townhouses')` | 2022Q3—2026Q2，16 季；挂牌量、租出量、一卧／两卧／三卧平均签约租金 | 开间镇屋每季 1–10 套成交，不导入；不含独立屋、半独立屋；季度流量，受房型与地点构成影响 |
+| CMHC Rental Market Survey Table 2.1.2 Private Row (Townhouse) Average Rents | Toronto CMA 行，2021 普查边界校验与公寓表相同；保留质量标记与压制状态 | 2022—2025（2023、2025 两本工作簿） | 开间全部年份、2024 一卧被来源压制，保持缺失；2022 年及更早版本为 2016 普查边界，解析器拒绝，不拼接 |
+| BoC Valet `V39079`、`BD.CDN.5YR.DQ.YLD`、`V122667786` | 与原 2022-09 起数据同一接口与解析；重叠期 2,119 个值全部不变（0 修订） | 2015-01 起：政策利率 3,051 个日值、五年国债 2,931 个交易日值、新增按揭 139 个月 | 新增按揭仍滞后约两个月 |
+| Teranet–National Bank Toronto 季调指数 | 改为随展示快照发布全部历史（此前只发布最新值） | 1998-06—2026-08，339 个月 | 按产权登记日期计，比 MLS 签约晚 1–3 个月；独立屋占比较高；与 TRREB HPI 口径不同 |
+
+Ontario 按揭拖欠率同样改为带全部历史（2022-09 起）发布，用于经济页“一年前”对比。独立屋、半独立屋租金和单间合租租金未找到可靠的公开定期来源，没有接入。
