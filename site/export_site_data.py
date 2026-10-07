@@ -51,6 +51,13 @@ for field in fields:
         metadata[field]["help"] = {"zh": [zh, limit_zh], "en": [en, limit_en]}
 
 payload = {"snapshot": snapshot, "series": metadata}
+# Market temperature needs the 2004+ TRREB archive (private research data) for its seasonal norm.
+history_csv = ROOT / "data/research/trreb-history.csv"
+if history_csv.exists():
+    import sqlite3
+    from housing.market_temperature import build as build_temperature
+    with sqlite3.connect(f"file:{ROOT / 'data/housing.sqlite3'}?mode=ro", uri=True) as temperature_db:
+        payload["market_temperature"] = build_temperature(history_csv, temperature_db)
 editorial_file = Path(__file__).resolve().parent / "editorial.json"
 editorial = json.loads(editorial_file.read_text())
 assert isinstance(editorial, dict)
