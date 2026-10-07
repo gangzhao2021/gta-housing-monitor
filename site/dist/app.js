@@ -9,8 +9,7 @@ const PROPERTY_TYPES = {"all_types": ["全部房型", "All property types"], "de
 const COLORS = ['#2855d9','#007f86','#bf6517','#7952be'];
 const ROOM = {total:'total',studio:'studio','1br':'one','2br':'two','3br':'three','3plus':'threePlus'};
 const AREAS = {toronto:'Toronto',north_york:'North York',scarborough:'Scarborough',markham:'Markham',vaughan:'Vaughan',mississauga:'Mississauga',oakville:'Oakville',richmond_vaughan_king:'Richmond Hill / Vaughan / King',aurora_newmarket_whit:'Aurora / Newmarket / Whit-St.'};
-const MAP_POINTS = {toronto:[-79.3832,43.6532],north_york:[-79.4111,43.7615],scarborough:[-79.2318,43.7764],markham:[-79.3370,43.8561],vaughan:[-79.5083,43.8372],mississauga:[-79.6441,43.5890],oakville:[-79.6877,43.4675],richmond_vaughan_king:[-79.4700,43.8800],aurora_newmarket_whit:[-79.4400,44.0200]};
-const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',measureType:'apartment',leaseType:'condo',regions:['north_york','markham','scarborough'],regionFeedback:'',supplyMetric:'moi_raw',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
+const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',measureType:'apartment',leaseType:'condo',regions:['north_york','markham','scarborough'],regionFeedback:'',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
 const initialState=JSON.parse(JSON.stringify(state));
 let payload, observations, monthly;
 let chartModels = [];
@@ -235,15 +234,23 @@ function segmented(key,options,current,label){return `<div class="segmented" rol
 function marketPage(){
  const fields=['trreb_hpi_benchmark','trreb_sales','moi_raw'];
  const end=last(fields,false,'market');if(!end)return `<p>${t('noData')}</p>`;
- const periods=viewPeriods(fields,end),zh=state.lang==='zh', supply=state.supplyMetric==='snlr_raw'?'snlr_raw':'moi_raw',comparison=state.marketView;
+ const periods=viewPeriods(fields,end),zh=state.lang==='zh',comparison=state.marketView;
  const views=[['level',zh?'原值':'Values'],['mom',zh?'环比':'MoM'],['yoy',zh?'同比':'YoY']];
  return `<div class="overview-heading"><div><h1>${t('market')}</h1><p class="caption">${zh?'TRREB 全市场 · 全部房型':'All TRREB areas · All home types'}</p></div>${select(t('date'),'market',allPeriods(fields))}</div>
  <div class="overview-hero">${metric('trreb_hpi_benchmark',end)}${temperatureCard(end)}</div>
  <div class="kpi-strip">${metric('trreb_sales',end)}${metric('trreb_new_listings',end)}${metric('trreb_active_listings',end)}${metric('moi_raw',end,2)}</div>
- <section class="price-panel"><div class="chart-heading"><h2>${t('price')}</h2>${segmented('marketView',views,comparison,zh?'价格及供需图表显示方式':'Price and supply chart mode')}</div>${comparison==='level'?'':`<p class="note comparison-note">${(comparison==='yoy'?(zh?'房价、成交与新增挂牌的同比使用 TRREB 公布值（以修订后的上年同月为分母）；其余同比按原发布值自算，前期缺失时留空。':'Price, sales and new-listing YoY use TRREB published figures, which divide by revised prior-year values. Other YoY values are computed from original releases and stay blank without a base.'):(zh?'前期缺失、分母为零或 HPI 跨 2025-04 口径断点时留空；百分比指标显示百分点差，其余显示百分比变化。':'Missing bases, zero denominators and HPI comparisons across April 2025 stay blank. Rate measures show percentage-point differences; others show percent changes.'))}</p>`}${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:comparison==='level'?'CAD':'%',hpiNote:comparison==='level',comparison})}<p class="note">${zh?'基准价格是标准化住宅的价格，不是成交均价。':'The benchmark is the price of a standardized home, not the average sale price.'} ${periods.includes('2025-04')?esc(hpiRebaseNote()):''}</p><details class="price-comparison"><summary>${zh?'查看双轴比较样图：基准价与成交均价':'View dual-axis study: benchmark and average sale price'}</summary>${svgChart(['trreb_hpi_benchmark','trreb_average_price'],periods,{height:300,width:1280,unit:'CAD',secondaryField:'trreb_average_price',labels:{trreb_hpi_benchmark:zh?'左轴 · HPI 基准价':'Left axis · HPI benchmark',trreb_average_price:zh?'右轴 · 成交均价':'Right axis · Average sale price'}})}<p class="note">${zh?'双轴样图始终显示原值。两轴均为加元但独立缩放，曲线交叉没有估值含义。成交均价受成交构成影响；跨 2025-04 比较 HPI 须留意口径可能变化。':'The dual-axis study always shows values. Both CAD axes use independent scales; crossing lines have no valuation meaning. The sale average depends on transaction mix. Compare HPI across April 2025 with care.'}</p></details></section>
+ <section class="price-panel"><div class="chart-heading"><h2>${t('price')}</h2>${segmented('marketView',views,comparison,zh?'价格及供需图表显示方式':'Price and supply chart mode')}</div>${comparison==='level'?'':`<p class="note comparison-note">${(comparison==='yoy'?(zh?'房价、成交与新增挂牌的同比使用 TRREB 公布值（以修订后的上年同月为分母）；其余同比按原发布值自算，前期缺失时留空。':'Price, sales and new-listing YoY use TRREB published figures, which divide by revised prior-year values. Other YoY values are computed from original releases and stay blank without a base.'):(zh?'前期缺失、分母为零或 HPI 跨 2025-04 口径断点时留空；百分比指标显示百分点差，其余显示百分比变化。':'Missing bases, zero denominators and HPI comparisons across April 2025 stay blank. Rate measures show percentage-point differences; others show percent changes.'))}</p>`}${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:comparison==='level'?'CAD':'%',hpiNote:comparison==='level',comparison})}<p class="note">${zh?'基准价格是标准化住宅的价格，不是成交均价。':'The benchmark is the price of a standardized home, not the average sale price.'} ${periods.includes('2025-04')?esc(hpiRebaseNote()):''}</p></section>
+ ${longRunSection()}
  ${temperatureSection(end)}
- <section class="supply-dashboard"><div class="split overview-support"><div><h2>${t('sales')}</h2>${svgChart(['trreb_sales','trreb_new_listings'],periods,{height:230,width:616,zero:comparison==='level',unit:comparison==='level'?(zh?'笔 / 套':'Sales / listings'):'%',comparison})}</div><div><h2>${zh?'市场平衡':'Market balance'}</h2><div class="supply-options" role="group" aria-label="${zh?'供需指标':'Supply measure'}">${['moi_raw','snlr_raw'].map(f=>`<span><button data-supply="${f}" aria-pressed="${supply===f}">${esc(name(f))}</button>${help(f,null,true)}</span>`).join('')}</div>${svgChart([supply],periods,{height:230,width:616,zero:comparison==='level',legend:false,unit:comparison==='level'?(supply==='moi_raw'?(zh?'月':'Months'):'%'):(supply==='snlr_raw'?'pp':'%'),comparison})}</div></div></section>
+ <section class="supply-dashboard"><div class="split overview-support"><div><h2>${t('sales')}</h2>${svgChart(['trreb_sales','trreb_new_listings'],periods,{height:230,width:616,zero:comparison==='level',unit:comparison==='level'?(zh?'笔 / 套':'Sales / listings'):'%',comparison})}</div><div><h2>${help('moi_raw')}</h2>${svgChart(['moi_raw'],periods,{height:230,width:616,zero:comparison==='level',legend:false,unit:comparison==='level'?(zh?'月':'Months'):'%',comparison})}</div></div></section>
  ${priceBands(end)}${regionsPanel(end)}${editorialNote(end)}<details class="overview-sources"><summary>${zh?'来源与口径':'Sources and definitions'}</summary>${sourceNote()}<p class="note">${t('fixed')}</p><a href="https://trreb.ca/market-data/market-watch/" target="_blank" rel="noopener noreferrer">TRREB Market Watch ↗</a></details>`;
+}
+function longRunSection(){
+ const f='teranet_toronto_index_sa',series=observations[f];if(!series)return '';
+ const zh=state.lang==='zh',periods=Object.keys(series).sort(),last=periods.at(-1),peakPeriod=periods.reduce((a,p)=>series[p]>series[a]?p:a,periods[0]);
+ const fromPeak=(series[last]/series[peakPeriod]-1)*100,tenYear=series[previousMonth(last,120)],decade=tenYear?(series[last]/tenYear-1)*100:null;
+ const pct=v=>`${v>0?'+':v<0?'−':''}${number(Math.abs(v),1)}%`;
+ return `<section class="long-run"><div class="chart-heading"><h2>${zh?'长期房价走势':'Long-run home prices'}</h2><span class="caption">${monthLabel(periods[0])} — ${monthLabel(last)}</span></div><p class="long-run-stats"><span>${zh?`较 ${monthLabel(peakPeriod)} 高点 <b>${pct(fromPeak)}</b>`:`<b>${pct(fromPeak)}</b> from the ${peakPeriod} peak`}</span>${decade==null?'':`<span>${zh?`十年 <b>${pct(decade)}</b>`:`<b>${pct(decade)}</b> over ten years`}</span>`}</p>${svgChart([f],periods,{height:240,width:1280,legend:false,unit:zh?'指数':'Index'})}<p class="note">${zh?'Teranet–National Bank 多伦多重复交易指数（季调，2005 年 6 月 = 100）：按产权登记（交割）日期，比 MLS 签约晚 1–3 个月，独立屋占比较高；与上面的 TRREB HPI 口径不同，不能直接对比数值。':'Teranet–National Bank Toronto repeat-sales index (seasonally adjusted, June 2005 = 100): dated at registration (closing), 1–3 months after the MLS sale, with a heavier detached weighting. A different measure from the TRREB HPI above; do not compare levels.'}</p></section>`;
 }
 function regionsPanel(end){
  const map=municipalMap(end),district=districtSection();
@@ -348,28 +355,6 @@ function toggleRegion(region,choices){
   else state.regionFeedback=t('mapFull');
   render();
 }
-function areaMap(choices,annual,period){
-  const W=740,H=370,zoom=9,world=256*2**zoom;
-  const viewBox=window.innerWidth<=600?'240 0 310 370':`0 0 ${W} ${H}`;
-  const project=(lon,lat)=>[(lon+180)/360*world,(1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*world];
-  const [centerX,centerY]=project(-79.45,43.76),left=centerX-W/2,top=centerY-H/2;
-  const x=lon=>project(lon,43.76)[0]-left;
-  const y=lat=>project(-79.45,lat)[1]-top;
-  // Basemap from the bundled Statistics Canada municipal boundaries: no external tiles, so it
-  // renders where third-party images are blocked.
-  const px=([lon,lat])=>{const [X,Y]=project(lon,lat);return `${(X-left).toFixed(1)},${(Y-top).toFixed(1)}`};
-  const ring=r=>'M'+r.map(px).join('L')+'Z';
-  const tiles=(payload.municipal_boundaries||[]).map(f=>{const g=f.geometry,polys=g.type==='Polygon'?[g.coordinates]:g.coordinates;return `<path class="map-land" d="${polys.flatMap(poly=>poly.map(ring)).join('')}" fill-rule="evenodd"/>`}).join('');
-  const short={richmond_vaughan_king:'Richmond Hill area',aurora_newmarket_whit:'Aurora area'};
-  const labelOffsets={toronto:[16,24,'start'],north_york:[-16,26,'end'],scarborough:[18,-15,'start'],markham:[18,-15,'start'],vaughan:[-18,-15,'end'],mississauga:[-18,-15,'end'],oakville:[18,-12,'start'],richmond_vaughan_king:[-18,-14,'end'],aurora_newmarket_whit:[18,-12,'start']};
-  const points=choices.map(([id,label])=>{
-    const [lon,lat]=MAP_POINTS[id],field=areaField(id,annual,state.regionRoom),v=value(field,period,annual),chosen=state.regions.includes(id);
-    const xx=x(lon).toFixed(1),yy=y(lat).toFixed(1),status=v==null?t('noData'):tooltipValue(field,v),[dx,dy,anchor]=labelOffsets[id]||[18,-12,'start'];
-    const hitX=anchor==='end'?Number(xx)-125:Number(xx)-20;
-    return `<g class="map-point ${chosen?'selected':''} ${v==null?'unavailable':''}" data-map-region="${esc(id)}" role="button" tabindex="0" aria-pressed="${chosen}" aria-label="${esc(label)} · ${esc(status)}"><title>${esc(label)} · ${esc(status)}</title><rect class="map-hit" x="${hitX}" y="${Number(yy)-42}" width="145" height="68" fill="transparent"/><circle cx="${xx}" cy="${yy}" r="14"/><circle class="map-core" cx="${xx}" cy="${yy}" r="4"/><text x="${Number(xx)+dx}" y="${Number(yy)+dy}" text-anchor="${anchor}">${esc(short[id]||label)}</text></g>`;
-  }).join('');
-  return `<section class="area-map" aria-label="${t('mapTitle')}"><h2>${t('mapTitle')}</h2><p class="note">${t('mapNote')}</p><div class="map-surface"><svg viewBox="${viewBox}" role="group" aria-label="${t('mapTitle')}"><rect class="map-water" width="${W}" height="${H}"/>${tiles}${points}</svg><span class="map-attribution">${state.lang==='zh'?'边界：Statistics Canada 2021':'Boundaries: Statistics Canada 2021'}</span></div>${state.regionFeedback?`<p class="map-feedback" role="status">${esc(state.regionFeedback)}</p>`:''}</section>`;
-}
 // Each source names bedroom types differently; a null field means the source has no such category.
 const plus=r=>r==='3br'?'3plus':r;
 const RENT_MEASURES={
@@ -436,10 +421,9 @@ function rentPage(){
   const chips=state.regions.map((r,i)=>{const at=present.indexOf(fields[i]);return `<span class="region-chip${at<0?' unavailable':''}"><i data-bg="${at<0?'#c4c4c4':COLORS[at%COLORS.length]}"></i>${esc(AREAS[r])}<button data-remove-region="${esc(r)}" aria-label="${esc((zh?'移除 ':'Remove ')+AREAS[r])}">×</button></span>`}).join('');
   const remaining=choices.filter(([id])=>!state.regions.includes(id));
   const add=state.regions.length<3?`<select class="add-region" data-add-region aria-label="${zh?'添加地区':'Add area'}"><option value="">${zh?'＋ 添加地区':'＋ Add area'}</option>${remaining.map(([id,label])=>`<option value="${esc(id)}">${esc(label)}</option>`).join('')}</select>`:`<span class="add-region full">${zh?'已选三个地区':'Three areas selected'}</span>`;
-  out+=`<div class="chart-heading rent-heading"><div><h2>${t('region')}</h2><p class="caption">${zh?'最多三个地区；点地图或下拉加入':'Up to three areas; add from the map or the list'}</p></div>${segmented('regionFrequency',[['monthly',t('monthlySource')],['annual',t('annualSource')]],state.regionFrequency,t('dataSource'))}</div>`;
+  out+=`<div class="chart-heading rent-heading"><div><h2>${t('region')}</h2><p class="caption">${zh?'最多三个地区；用“添加地区”加入':'Up to three areas; add them from the list'}</p></div>${segmented('regionFrequency',[['monthly',t('monthlySource')],['annual',t('annualSource')]],state.regionFrequency,t('dataSource'))}</div>`;
   out+=`<div class="region-controls"><div class="region-chips" role="group" aria-label="${t('regionLabel')}">${chips}${add}</div><div class="heading-controls"><span class="control-label">${t('room')}</span>${picker}${chartPeriods.length?select(annual?t('year'):t('date'),present.join('-'),chartPeriods,annual,periods):''}</div></div>`;
   if(missing.length)out+=`<p class="message">${esc(missing.join(zh?'、':', '))}${zh?' 未提供该房型的数据，图中不显示，也不用总体代替。':' has no data for this unit type; it is left out rather than replaced with the overall average.'}</p>`;
-  out+=areaMap(choices,annual,end||periods.at(-1));
   out+=end?svgChart(present,chartPeriods,{annual,height:260,labels:names}):`<p class="chart-empty">${t('noData')}</p>`;
   return out;
 }
@@ -525,7 +509,6 @@ function attach(){
   document.querySelectorAll('[data-left]').forEach(el=>{el.style.left=`${el.dataset.left}%`});
   document.querySelectorAll('[data-pick]').forEach(el=>el.onclick=()=>{const key=el.dataset.pick,value=el.dataset.value;state[key]=value;state.regionFeedback='';render();document.querySelector(`[data-pick="${key}"][data-value="${value}"]`)?.focus()});
   document.querySelectorAll('[data-map-csd]').forEach(el=>{const activate=()=>{state.districtRegion=el.dataset.mapCsd;render();document.querySelector('#regions-panel')?.setAttribute('open','')};el.onclick=activate;el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();activate()}}});
-    document.querySelectorAll("[data-supply]").forEach(el=>el.onclick=()=>{state.supplyMetric=el.dataset.supply;render();document.querySelector(`[data-supply="${state.supplyMetric}"]`)?.focus()});
   document.querySelector('[data-reset]').onclick=()=>{const lang=state.lang;Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,JSON.parse(JSON.stringify(initialState)),{lang});history.replaceState(null,'',location.pathname);render()};
   document.querySelectorAll('[data-district-month]').forEach(el=>el.onclick=()=>{state.end.district=el.dataset.districtMonth;render();document.querySelector('#regions-panel')?.setAttribute('open','')});
   document.querySelectorAll('[data-lang]').forEach(el=>el.onclick=()=>{state.lang=el.dataset.lang;render()});
@@ -537,10 +520,6 @@ function attach(){
   document.querySelectorAll('[data-remove-region]').forEach(el=>el.onclick=()=>{toggleRegion(el.dataset.removeRegion,regionChoices());document.querySelector('[data-add-region]')?.focus()});
   document.querySelectorAll('[data-add-region]').forEach(el=>el.onchange=()=>{if(el.value)toggleRegion(el.value,regionChoices())});
   document.querySelectorAll('[data-border]').forEach(el=>{el.style.borderLeftColor=el.dataset.border});
-  document.querySelectorAll('[data-map-region]').forEach(el=>{
-    el.onclick=()=>toggleRegion(el.dataset.mapRegion,Object.entries(AREAS).filter(([id])=>state.regionFrequency==='annual'?id!=='toronto':!id.includes('richmond')&&!id.includes('aurora')));
-    el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();el.click()}};
-  });
   const refreshMortgage=()=>{const m=mortgageModel(),zh=state.lang==='zh';document.querySelector('.mortgage-results').innerHTML=mortgageResults();document.querySelector('[data-loan]').textContent=money(m.loan);document.querySelector('[data-down-amount]').textContent=`${zh?'首付':'Down payment'} ${money(m.price*m.down/100)}`;document.querySelector('[data-mortgage-hints]').innerHTML=mortgageHints()};
   document.querySelectorAll('[data-number]').forEach(el=>el.oninput=()=>{const v=Number(el.value);state[el.dataset.number]=el.value!==''&&Number.isFinite(v)?v:NaN;refreshMortgage()});
   document.querySelectorAll('[data-money]').forEach(el=>{el.oninput=()=>{const digits=el.value.replace(/[^0-9]/g,'');state[el.dataset.money]=digits?Number(digits):0;refreshMortgage()};el.onblur=()=>{el.value=money(state[el.dataset.money])}});
