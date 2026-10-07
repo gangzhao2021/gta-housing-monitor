@@ -181,6 +181,8 @@ RULES.update({series_id: FreshnessRule("monthly", "day_15", "每月报告；次�
               for series_id in SERIES if series_id.startswith(("toronto_asking_rent_", "regional_asking_"))})
 
 
+RULES.update({series_id: FreshnessRule("monthly", "day_15", "随 TRREB 月报公布；次月 15 日作保守检查日，不是官方保证")
+              for series_id in SERIES if series_id.endswith("_yoy_published")})
 RULES.update({series_id: FreshnessRule("quarterly", "quarter_plus_45", "TRREB 季度租赁报告；季度结束后 45 日为本地检查日，非官方保证")
               for series_id in SERIES if series_id.startswith("gta_condo_lease")})
 

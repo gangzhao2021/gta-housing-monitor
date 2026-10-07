@@ -149,7 +149,7 @@ if page == "市场总览":
     with st.expander("查看三个月平滑趋势"):
         st.caption("连续三个月的原始成交／新挂牌比作算术平均；缺月不计算。均线仅帮助阅读短期波动，不是季节调整，也不是三个月成交合计除以挂牌合计。")
         snlr_rolling_chart(data, start, end)
-    st.caption("同比按各期原始月报自算，可能不同于后续修订后的官方同比。库存月数与成交／新挂牌比使用原始月度公式，不等于 TRREB 的平滑 Trend。")
+    st.caption("卡片同时列出按各期原始月报自算的同比和 TRREB 公布的同比；后者以修订后的上年同月为分母，两者可能相差 1 个百分点以上。库存月数与成交／新挂牌比使用原始月度公式，不等于 TRREB 的平滑 Trend。")
     source_rows(resale_fields, start, end, "trreb", "market-month")
     st.divider()
     st.subheader("各房型基准价")

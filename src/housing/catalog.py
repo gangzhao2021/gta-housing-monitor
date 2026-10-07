@@ -130,6 +130,12 @@ for config in BACKGROUND_CONFIG.values():
         config['geo'], config['unit'], 'monthly', 'not adjusted', 'none', config['definition'])
     SERIES_URLS[config['id']] = url_for(config)
 
+from .trreb_yoy import DEFINITION as YOY_DEFINITION, SERIES as YOY_SERIES
+for series_id, label in YOY_SERIES.items():
+    SERIES[series_id] = (label, 'TRREB', 'Market Watch front page / HPI page', 'All TRREB Areas', '%',
+                         'monthly', 'not adjusted', 'none', YOY_DEFINITION)
+    SERIES_URLS[series_id] = 'https://trreb.ca/market-data/market-watch/market-watch-archive/'
+
 from .trreb_rental import ARCHIVE as RENTAL_ARCHIVE, GEO as RENTAL_GEO, SERIES as RENTAL_SERIES
 for series_id, (label, unit, definition) in RENTAL_SERIES.items():
     SERIES[series_id] = (label, 'TRREB rental', 'Rental Market Report, apartments', RENTAL_GEO, unit,

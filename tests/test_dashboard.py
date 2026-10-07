@@ -335,15 +335,18 @@ class DashboardTests(unittest.TestCase):
             self.navigate("数据与记录")
         table = self.app.dataframe[0].value
         withheld = table[table["状态"] == "来源抑制发布"]
-        self.assertEqual(len(withheld), 11)
-        self.assertTrue(withheld["应有所属期"].eq("2025").all())
+        # Derived from the stored survey so the check survives the next CMHC release.
+        with sqlite3.connect(f"file:{ROOT / 'data/housing.sqlite3'}?mode=ro", uri=True) as source:
+            survey_year = source.execute("SELECT MAX(period) FROM observations WHERE series_id LIKE 'toronto_pbr_rent_%'").fetchone()[0]
+        self.assertGreater(len(withheld), 0)
+        self.assertTrue(withheld["应有所属期"].eq(survey_year).all())
         mortgage = table[table["指标"] == SERIES["mortgage_uninsured_fixed_5plus"][0]].iloc[0]
         self.assertEqual(mortgage["状态"], "超过保守检查日")
         self.assertEqual(mortgage["最近所属期"], "2026-06")
         self.app.radio(key="language").set_value("English").run()
         self.assert_clean()
         translated = self.app.dataframe[0].value
-        self.assertEqual((translated["Status"] == "Withheld by source").sum(), 11)
+        self.assertEqual((translated["Status"] == "Withheld by source").sum(), len(withheld))
 
     def test_record_save_open_and_download_in_isolated_workspace(self):
         import shutil
