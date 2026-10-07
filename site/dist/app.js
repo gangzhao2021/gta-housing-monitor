@@ -23,6 +23,7 @@ const name = (field) => meta(field)[state.lang] || meta(field).zh;
 const number = (value,digits=0) => value==null ? '—' : Number(value).toLocaleString(state.lang==='zh'?'zh-CN':'en-CA',{maximumFractionDigits:digits,minimumFractionDigits:digits});
 const axisNumber = (v) => v===0?'0':Math.abs(v)>=1000000?`${number(v/1000000,2)}M`:Math.abs(v)>=10000?`${number(v/1000,0)}k`:number(v,Math.abs(v)<100?1:0);
 const monthLabel = (period) => state.lang==='zh' && /^\d{4}-\d{2}$/.test(period) ? `${period.slice(0,4)}年${Number(period.slice(5))}月` : period;
+const snapshotTime = () => {const d=new Date(payload.snapshot.created_at);return isNaN(d)?payload.snapshot.created_at:d.toLocaleString(state.lang==='zh'?'zh-CN':'en-CA',{timeZone:'America/Toronto',year:'numeric',month:state.lang==='zh'?'numeric':'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+(state.lang==='zh'?'（多伦多时间）':' Toronto time')};
 const quarterLabel = (period) => {const q=Math.floor((Number(period.slice(5))-1)/3)+1;return state.lang==='zh'?`${period.slice(0,4)}年第${q}季度`:`${period.slice(0,4)} Q${q}`};
 function prepare() {
   observations = payload.snapshot.observations;
@@ -70,7 +71,7 @@ function help(field,visible,iconOnly=false) {
 function shell(body) {
   document.documentElement.lang=state.lang;
   $('#app').classList.toggle('overview',state.page==='market');
-  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1><p class="caption intro">${t('snapshot')} ${esc(payload.snapshot.created_at)} · ${t('fixed')}</p>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button><a href="${esc(viewLink())}">${state.lang==='zh'?'保存视图链接':'Save view link'}</a></div><p>${t('snapshot')} ${esc(payload.snapshot.created_at)}</p><p>${t('notForecast')}</p></footer>`;
+  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1><p class="caption intro">${t('snapshot')} ${esc(snapshotTime())} · ${t('fixed')}</p>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button><a href="${esc(viewLink())}">${state.lang==='zh'?'保存视图链接':'Save view link'}</a></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
   attach();
 }
 function select(label,key,periods,annual=false,availablePeriods=periods) {
@@ -94,7 +95,8 @@ function tooltipValue(field,v) {
   const units={sales:state.lang==='zh'?'宗':'sales',units:state.lang==='zh'?'套':'units',persons:state.lang==='zh'?'人':'people','月':state.lang==='zh'?'个月':'months'};
   return `${shown}${unit?` ${units[unit]||unit}`:''}`;
 }
-function hpiAnnotation(periods,x,y,plotH,W,narrow) {
+function hpiAnnotation(periods,x,y,plotH,W,narrowScreen) {
+  const narrow=narrowScreen||W<900;
   const i=periods.indexOf('2025-04');
   if(i<0)return '';
   const zh=state.lang==='zh';
@@ -132,18 +134,31 @@ function comparisonValue(field,period,mode,annual=false){
  if(meta(field).unit==='%')return current-base;
  return base===0?null:(current/base-1)*100;
 }
+// Draw at the width the chart will occupy, so 11px labels stay 11px on screen.
+function chartWidth(width,compact){
+  const market=state.page==='market',vw=Math.min(window.innerWidth,market?1440:1160);
+  const pad=window.innerWidth<=760?(market?24:20):(market?80:48),inner=vw-2*pad-(window.innerWidth>vw?0:16);
+  const split=(compact||width===616)&&window.innerWidth>760;
+  return Math.round(Math.max(300,split?(inner-(market?48:28))/2:Math.min(inner,market?inner:980)));
+}
+function niceScale(min,max,count=4){
+  const span=max-min||Math.abs(max)||1,raw=span/count,mag=10**Math.floor(Math.log10(raw));
+  const step=[1,2,2.5,5,10].map(m=>m*mag).find(v=>v>=raw);
+  return {min:Math.floor(min/step)*step,max:Math.ceil(max/step)*step,step};
+}
 function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null,compact=false,width=null,legend=true,unit=null,hpiNote=false,secondaryField=null,comparison='level'}={}) {
   const narrow=window.innerWidth<=480;
-  const W=narrow?Math.max(300,Math.min(440,window.innerWidth-40)):(width||(compact?520:680));
-  const noteHeight=hpiNote&&periods.includes('2025-04')?(narrow?122:72):0;
+  const W=narrow?Math.max(300,Math.min(440,window.innerWidth-40)):chartWidth(width,compact);
+  const noteHeight=hpiNote&&periods.includes('2025-04')?(W<900?122:72):0;
   const H=(narrow?220:height)+noteHeight,plotH=H-noteHeight;
   const pad={l:unit?65:(narrow?47:(compact?47:55)),r:secondaryField?65:28,t:15,b:30},innerW=W-pad.l-pad.r,innerH=plotH-pad.t-pad.b;
   const shown=(f,p)=>comparisonValue(f,p,comparison,annual);
   const vals=fields.filter(f=>f!==secondaryField).flatMap(f=>periods.map(p=>shown(f,p))).filter(v=>Number.isFinite(v));
   if(!vals.length) return `<p class="chart-empty">${t('noData')}</p>`;
-  let min=zero?0:Math.min(...vals),max=Math.max(...vals);
-  if(min===max){min=Math.max(0,min-1);max+=1}
-  const margin=(max-min)*.08;max+=margin;if(!zero)min-=margin;
+  let min=zero?Math.min(0,...vals):Math.min(...vals),max=Math.max(...vals);
+  if(min===max){min-=1;max+=1}
+  const scale=niceScale(min,max);min=scale.min;max=scale.max;
+  const tickCount=Math.round((max-min)/scale.step);
   const x=i=>pad.l+(periods.length===1?innerW/2:i*innerW/(periods.length-1));
   const y=v=>pad.t+(max-v)/(max-min)*innerH;
   const secondaryValues=secondaryField?periods.map(p=>shown(secondaryField,p)).filter(v=>Number.isFinite(v)):[];
@@ -152,12 +167,16 @@ function svgChart(fields,periods,{annual=false,zero=false,height=240,labels=null
   const secondaryMargin=(secondaryMax-secondaryMin)*.08;
   secondaryMin-=secondaryMargin;secondaryMax+=secondaryMargin;
   const yFor=(f,v)=>f===secondaryField?pad.t+(secondaryMax-v)/(secondaryMax-secondaryMin)*innerH:y(v);
-  const grids=Array.from({length:5},(_,i)=>{const yy=pad.t+i*innerH/4, vv=max-i*(max-min)/4;return `<line class="grid-line" x1="${pad.l}" x2="${W-pad.r}" y1="${yy}" y2="${yy}"/><text class="axis-label" x="${pad.l-9}" y="${yy+4}" text-anchor="end">${axisNumber(vv)}</text>${secondaryField?`<text class="axis-label secondary-axis" x="${W-pad.r+8}" y="${yy+4}" text-anchor="start">${axisNumber(secondaryMax-i*(secondaryMax-secondaryMin)/4)}</text>`:''}`}).join('');
+  const grids=Array.from({length:tickCount+1},(_,i)=>{const yy=pad.t+i*innerH/tickCount, vv=max-i*scale.step;return `<line class="grid-line" x1="${pad.l}" x2="${W-pad.r}" y1="${yy}" y2="${yy}"/><text class="axis-label" x="${pad.l-9}" y="${yy+4}" text-anchor="end">${axisNumber(vv)}</text>${secondaryField?`<text class="axis-label secondary-axis" x="${W-pad.r+8}" y="${yy+4}" text-anchor="start">${axisNumber(secondaryMax-i*(secondaryMax-secondaryMin)/tickCount)}</text>`:''}`}).join('');
   const step=Math.max(1,Math.ceil((periods.length-1)/(narrow?2:4)));
   const ticks=periods.map((p,i)=>i===0||i===periods.length-1||i%step===0?`<text class="axis-label" x="${x(i)}" y="${plotH-5}" text-anchor="middle">${annual?p:p.slice(2).replace('-','/')}</text>`:'').join('');
-  const lines=fields.map((f,j)=>{let paths=[],part=[];periods.forEach((p,i)=>{const v=shown(f,p);if(v==null){if(part.length){paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);part=[]}return}part.push(`${part.length?'L':'M'}${x(i).toFixed(1)},${yFor(f,v).toFixed(1)}`)});if(part.length)paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);return paths.join('')}).join('');
+  let bridged=false;
+  const lines=fields.map((f,j)=>{let paths=[],part=[],lastIndex=null;periods.forEach((p,i)=>{const v=shown(f,p);if(v==null){if(part.length){paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);part=[]}return}
+    // A short source gap is bridged with a faint dashed line; no value is drawn or reported for missing periods.
+    if(lastIndex!=null&&i-lastIndex>1&&i-lastIndex<=3&&!part.length){bridged=true;paths.push(`<path class="gap-bridge" d="M${x(lastIndex).toFixed(1)},${yFor(f,shown(f,periods[lastIndex])).toFixed(1)}L${x(i).toFixed(1)},${yFor(f,v).toFixed(1)}" stroke="${COLORS[j%COLORS.length]}"/>`)}
+    part.push(`${part.length?'L':'M'}${x(i).toFixed(1)},${yFor(f,v).toFixed(1)}`);lastIndex=i});if(part.length)paths.push(`<path class="series-line" d="${part.join(' ')}" stroke="${COLORS[j%COLORS.length]}"/>`);return paths.join('')}).join('');
   const index=chartModels.push({fields,periods,annual,labels,W,H,pad,innerW,innerH,yFor,shown,comparison})-1;
-  return `<div class="chart-area">${legend?`<div class="legend">${fields.map((f,i)=>`<span class="legend-item"><span class="legend-line series-color-${i%COLORS.length}"></span>${help(f,labels?.[f])}</span>`).join('')}</div>`:''}<div class="chart-wrap"><svg class="chart" data-chart="${index}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(fields.map(f=>labels?.[f]||name(f)).join(', '))}">${grids}${ticks}${unit?`<text class="axis-label" transform="translate(12 ${plotH/2}) rotate(-90)" text-anchor="middle">${esc(unit)}</text>`:''}${secondaryField?`<text class="axis-label secondary-axis" transform="translate(${W-12} ${plotH/2}) rotate(90)" text-anchor="middle">CAD</text>`:''}${lines}${hpiNote?hpiAnnotation(periods,x,y,plotH,W,narrow):''}<line class="chart-cursor" data-cursor x1="0" x2="0" y1="${pad.t}" y2="${plotH-pad.b}" visibility="hidden"/><g data-points></g><rect class="chart-hit" x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="transparent" tabindex="0" role="button" aria-label="${state.lang==='zh'?'图表数据；使用左右方向键查看各期':'Chart values; use left and right arrows to inspect periods'}"/></svg><div class="chart-tooltip" hidden></div></div></div>`;
+  return `<div class="chart-area">${legend?`<div class="legend">${fields.map((f,i)=>`<span class="legend-item"><span class="legend-line series-color-${i%COLORS.length}"></span>${help(f,labels?.[f])}</span>`).join('')}</div>`:''}<div class="chart-wrap"><svg class="chart" data-chart="${index}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(fields.map(f=>labels?.[f]||name(f)).join(', '))}">${grids}${ticks}${unit?`<text class="axis-label" transform="translate(12 ${plotH/2}) rotate(-90)" text-anchor="middle">${esc(unit)}</text>`:''}${secondaryField?`<text class="axis-label secondary-axis" transform="translate(${W-12} ${plotH/2}) rotate(90)" text-anchor="middle">CAD</text>`:''}${lines}${hpiNote?hpiAnnotation(periods,x,y,plotH,W,narrow):''}<line class="chart-cursor" data-cursor x1="0" x2="0" y1="${pad.t}" y2="${plotH-pad.b}" visibility="hidden"/><g data-points></g><rect class="chart-hit" x="${pad.l}" y="${pad.t}" width="${innerW}" height="${innerH}" fill="transparent" tabindex="0" role="button" aria-label="${state.lang==='zh'?'图表数据；使用左右方向键查看各期':'Chart values; use left and right arrows to inspect periods'}"/></svg><div class="chart-tooltip" hidden></div></div>${bridged?`<p class="gap-note">${state.lang==='zh'?'虚线跨过来源未发布的月份，只作连接，不代表该月数值。':'Dashed segments span months the source did not publish; they are not values for those months.'}</p>`:''}</div>`;
 }
 function attachChartTooltips() {
   document.querySelectorAll('[data-chart]').forEach(svg=>{
@@ -197,6 +216,7 @@ function supplyStat(field,end,digits=0,suffix=''){
 }
 function editorialNote(end){
  const item=payload.editorial?.[end],valid=item&&typeof item.zh==='string'&&typeof item.en==='string'&&typeof item.author==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(item.reviewed_at||'');
+ if(!valid)return '';
  return `<aside class="editorial"><h2>${state.lang==='zh'?'每月解读':'Monthly commentary'}</h2>${valid?`<p>${esc(item[state.lang])}</p><small>${esc(item.author)} · ${esc(item.reviewed_at)} · ${monthLabel(end)}</small>`:`<p class="note">${state.lang==='zh'?'本月尚无人工审核的解读。':'No manually reviewed commentary for this month.'}</p>`}</aside>`;
 }
 function municipalMap(period){
@@ -335,7 +355,11 @@ function rentPage(){
   return out;
 }
 function economicSection(title,fields,key,opts={}){const periods=allPeriods(fields,!!opts.annual),end=last(fields,!!opts.annual,key);return `<section class="economic-panel"><h2>${title}</h2><div class="controls">${select(opts.annual?t('year'):t('date'),key,periods,!!opts.annual)}</div>${end?svgChart(fields,viewPeriods(fields,end,!!opts.annual),opts):`<p>${t('noData')}</p>`}</section>`}
-function contextTable(){const data=payload.snapshot.context||{};const fields=Object.keys(data);const rows=fields.map(f=>{const v=data[f],unit=meta(f).unit,period=v?.period||'—';const area=meta(f).geography||'—';const quarterly=f==='toronto_residential_construction_cost_index'||f.startsWith('ontario_net_')||f.startsWith('gta_condo_lease');const digits=f==='usd_cad_monthly'?4:f==='toronto_residential_construction_cost_index'?1:f.startsWith('ontario_net_')||['units','CAD/month'].includes(unit)?0:2;const cells=[[t('latest'),number(v?.value,digits)],[t('unit'),unit],[t('period'),quarterly&&v?quarterLabel(period):period],[t('geography'),area],[state.lang==='zh'?'更新状态':'Freshness',freshnessLabel(f)]];return `<tr><th scope="row">${help(f)}</th>${cells.map(([label,val])=>`<td data-label="${esc(label)}">${esc(val)}</td>`).join('')}</tr>`}).join('');return `<h2>${t('context')}</h2><p class="note">${t('contextNote')}</p><table class="context-table"><thead><tr>${['indicator','latest','unit','period','geography',state.lang==='zh'?'更新状态':'Freshness'].map(k=>`<th scope="col">${t(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table><p class="source-links">${t('sources')}: ${fields.map(f=>`<a href="${esc(meta(f).url)}" target="_blank" rel="noopener noreferrer">${esc(meta(f).source)}</a>`).join('')}</p>`}
+const CONTEXT_GROUPS=[['toronto_starts_','toronto_cmhc_','toronto_permits_','toronto_nhpi','toronto_residential_construction'],['gta_condo_lease'],['boc_','ontario_cpi','ontario_net_'],['usd_cad','wti_','boc_energy']];
+const UNIT_ZH={units:'套','CAD/month':'加元/月',persons:'人','%':'%','USD/barrel':'美元/桶','CAD/USD':'加元/美元'};
+const CONTEXT_ORDER=['toronto_starts_condo','toronto_starts_rental','toronto_starts_homeowner','toronto_cmhc_absorptions','toronto_cmhc_unabsorbed_inventory','toronto_permits_units','toronto_nhpi_total','toronto_residential_construction_cost_index','gta_condo_lease_listed','gta_condo_leased','gta_condo_lease_rent_bachelor','gta_condo_lease_rent_1br','gta_condo_lease_rent_2br','gta_condo_lease_rent_3br'];
+function contextOrder(f){const g=CONTEXT_GROUPS.findIndex(prefixes=>prefixes.some(p=>f.startsWith(p)));const i=CONTEXT_ORDER.indexOf(f);return (g<0?CONTEXT_GROUPS.length:g)*100+(i<0?50:i)}
+function contextTable(){const data=payload.snapshot.context||{};const fields=Object.keys(data).sort((a,b)=>contextOrder(a)-contextOrder(b)||name(a).localeCompare(name(b)));const rows=fields.map(f=>{const v=data[f],rawUnit=meta(f).unit,unit=state.lang==='zh'&&UNIT_ZH[rawUnit]?UNIT_ZH[rawUnit]:rawUnit,period=v?.period||'—';const area=meta(f).geography||'—';const quarterly=f==='toronto_residential_construction_cost_index'||f.startsWith('ontario_net_')||f.startsWith('gta_condo_lease');const digits=f==='usd_cad_monthly'?4:f==='toronto_residential_construction_cost_index'?1:f.startsWith('ontario_net_')||['units','CAD/month'].includes(rawUnit)?0:2;const cells=[[t('latest'),number(v?.value,digits)],[t('unit'),unit],[t('period'),quarterly&&v?quarterLabel(period):period],[t('geography'),area],[state.lang==='zh'?'更新状态':'Freshness',freshnessLabel(f)]];return `<tr><th scope="row">${help(f)}</th>${cells.map(([label,val])=>`<td data-label="${esc(label)}">${esc(val)}</td>`).join('')}</tr>`}).join('');return `<h2>${t('context')}</h2><p class="note">${t('contextNote')}</p><table class="context-table"><thead><tr>${['indicator','latest','unit','period','geography',state.lang==='zh'?'更新状态':'Freshness'].map(k=>`<th scope="col">${t(k)}</th>`).join('')}</tr></thead><tbody>${rows}</tbody></table><p class="source-links">${t('sources')}: ${fields.map(f=>`<a href="${esc(meta(f).url)}" target="_blank" rel="noopener noreferrer">${esc(meta(f).source)}</a>`).join('')}</p>`}
 function economyPage(){return economicSection(t('rates'),['boc_policy_rate','goc_5y_yield','mortgage_uninsured_fixed_5plus'],'rates',{height:235})+`<h2>${t('jobs')}</h2><div class="split">${economicSection(t('unemployment'),['toronto_unemployment_rate'],'unemployment',{height:250,compact:true})}${economicSection(t('employment'),['toronto_employment_rate','toronto_participation_rate'],'employment',{height:250,compact:true})}</div>`+`<h2>${t('construction')}</h2><div class="split">${economicSection(t('starts'),['toronto_cma_2011_starts','toronto_cma_2011_completions'],'starts',{height:250,zero:true,compact:true})}${economicSection(t('stock'),['toronto_cma_2011_under_construction'],'stock',{height:250,compact:true})}</div>`+economicSection(t('population'),['toronto_cma_2021_population'],'population',{annual:true,height:235})+sourceNote()+contextTable()}
 function monthlyPayment(principal,rate,years){if(principal<=0)return 0;const r=Math.pow(1+rate/200,1/6)-1,n=years*12;return r===0?principal/n:principal*r/(1-Math.pow(1+r,-n))}
 function mortgagePage(){const {principal,years,rate}=state;return `<div class="controls"><label class="control">${t('principal')}<input data-number="principal" type="number" min="0" step="10000" value="${principal}"></label><label class="control">${t('years')}<input data-number="years" type="number" min="1" max="40" step="1" value="${years}"></label><label class="control">${t('rate')}<input data-number="rate" type="number" min="0" max="30" step="0.1" value="${rate}"></label></div><h2>${t('payment')}</h2><div class="payment-result">$${number(monthlyPayment(principal,rate,years),2)}</div><p class="note">${t('paymentNote')}</p>`}
