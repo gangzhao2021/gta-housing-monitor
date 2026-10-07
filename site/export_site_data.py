@@ -10,7 +10,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from housing.catalog import SERIES, SERIES_URLS
 from housing.dashboard import LABELS
 from housing.i18n import EN
-from housing.metric_help import explanation
+from housing.metric_help import definition, explanation
 from housing.publication import CONTEXT_SERIES, DISPLAY_SERIES, load_display_snapshot
 
 snapshot = load_display_snapshot(ROOT / "data/display_snapshot.json")
@@ -49,6 +49,8 @@ for field in fields:
     if details := explanation(field):
         zh, limit_zh, en, limit_en, _ = details
         metadata[field]["help"] = {"zh": [zh, limit_zh], "en": [en, limit_en]}
+        if what := definition(field):
+            metadata[field]["what"] = {"zh": what[0], "en": what[1]}
 
 payload = {"snapshot": snapshot, "series": metadata}
 # Market temperature needs the 2004+ TRREB archive (private research data) for its seasonal norm.

@@ -70,3 +70,4 @@
 .temperature{max-width:980px;margin:0 0 40px}.temperature-reading{display:flex;gap:18px;align-items:center;margin:10px 0 14px}.temperature-reading p{margin:0;font-size:14px;line-height:1.6;max-width:70ch}.temperature-chip{flex:none;display:inline-block;padding:8px 16px;border-radius:999px;font-size:18px;font-weight:600}.temperature-chip.cool{background:#e8eeff;color:#1f45b5}.temperature-chip.balanced{background:#f0f0f0;color:#333}.temperature-chip.hot{background:#fbeee3;color:#9a4f10}.temp-hot{fill:#fbeee3}.temp-cool{fill:#e8eeff}.temperature-table{max-width:720px;margin-top:6px}.temperature-table td{font-variant-numeric:tabular-nums}.temperature-table tr.current th,.temperature-table tr.current td{font-weight:600}
 @media(max-width:600px){.temperature-reading{flex-direction:column;align-items:flex-start}}
 .temp-label{font-size:11px;fill:#666}
+.help-caveat{color:#666;font-size:12px}

@@ -41,7 +41,7 @@ HELP = {
     'ontario_net_interprovincial_migration': ('省际净迁移可反映 Ontario 与其他省份之间的人口流动，长期可能影响住房需求。','这是 Ontario 季度人数，可为负值；不能当作 Toronto CMA 人口、家庭或购房人数。历史估计可能修订。','Net interprovincial migration tracks movement between Ontario and other provinces and may affect housing demand over time.','This is a quarterly Ontario person count that can be negative, not Toronto CMA households or homebuyers. History may be revised.', 'https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710002001'),
     'ontario_net_international_migration': ('国际净迁移反映跨境流动与非永久居民净变化，可影响省级住房需求背景。','这是 Ontario 季度人数，可为负值；不能当作 Toronto CMA 新增家庭或购买需求。历史估计可能修订。','Net international migration includes cross-border flows and changes in non-permanent residents, informing provincial housing-demand context.','This is a quarterly Ontario person count that can be negative, not Toronto CMA new households or buyers. History may be revised.', 'https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1710004001'),
 }
-PRICE = ('HPI 描述标准化住宅价格变化，是市场结果指标。','它本身不是推动房价的原因；应结合需求、供应和融资条件分析，不直接外推未来涨跌。','HPI tracks standardized home prices and is an outcome measure.','It is not itself a driver of prices. Read it alongside demand, supply and financing rather than extrapolating future gains or losses.', BOC)
+PRICE = ('HPI 本身就是房价的衡量：上升表示同类住房变贵，下降表示变便宜。它反映已经签约的成交价格，是市场的结果，不是原因。','判断后市要看供需（库存月数、成交／新挂牌比）、利率和收入；不能把过去的涨跌直接外推到未来。','HPI is itself a measure of home prices: a rise means comparable homes cost more. It reflects prices already agreed, so it is an outcome rather than a cause.','To judge what comes next, look at supply and demand (months of inventory, sales-to-new-listings), rates and incomes rather than extrapolating past changes.', BOC)
 RENT = ('租金上升可能反映租赁需求强于供应，也可能提高出租物业的潜在收入，对投资需求形成支持。','租金与房价并非同步变化；利率、费用、空置风险以及挂牌样本构成都很重要。','Higher rents may reflect rental demand exceeding supply and can support investment demand through potential rental income.','Rents and home prices need not move together. Interest rates, costs, vacancy risk and the sample mix also matter.', BOC)
 VACANCY = ('空置率上升通常意味着租客选择增加，租金上涨压力减弱，也可能削弱出租物业的收入预期。','对房价的影响是间接的；需结合地区、房型、租金和融资成本判断。','Higher vacancy generally gives renters more choice, easing rent pressure and potentially weakening expected rental income.','The effect on home prices is indirect and depends on location, unit type, rents and financing costs.', BOC)
 
@@ -49,17 +49,120 @@ VACANCY = ('空置率上升通常意味着租客选择增加，租金上涨压�
 from .background_series import CONFIG as BACKGROUND_CONFIG, url_for
 for c in BACKGROUND_CONFIG.values():
     if not c.get('archived'):
-        HELP[c['id']] = (c['definition'], '描述性背景，尚未验证预测价值；按来源地区与所属期解释。',
-                        c['title'], 'Descriptive context; not a validated forecast. Respect the source geography and reference period.', url_for(c))
+        HELP[c['id']] = ('作为背景参考，帮助理解市场环境；本项目尚未验证它对房价的预测作用。', '按来源的地区与所属期解读，不同来源不直接相加或比较。',
+                        'Context for understanding the market; this project has not validated it as a predictor of prices.', 'Read it with its own geography and reference period; do not add or compare across sources directly.', url_for(c))
 
 
 from .teranet import URL as TERANET_URL
 for _field in ('teranet_toronto_index', 'teranet_toronto_index_sa'):
-    HELP[_field] = ('按土地登记处同一住房的两次成交计算价格变化，可与 TRREB 的 MLS HPI 相互印证，历史从 1998 年开始。',
+    HELP[_field] = ('它本身就是房价的衡量，可与 TRREB 的 MLS HPI 相互印证；历史从 1998 年开始，适合看长期走势。',
                     '重复交易指数会随新配对修订历史，发布晚于 TRREB；地区与方法不同，不与 TRREB HPI 合并或互相替代。',
-                    'Measures price change from repeat sales of the same homes in land-registry records; a cross-check on TRREB MLS HPI with history from 1998.',
+                    'It is itself a measure of home prices and a cross-check on TRREB MLS HPI, with history back to 1998 for long-run trends.',
                     'Repeat-sales history is revised as new pairs arrive and is released later than TRREB; method and area differ, so it is not merged with TRREB HPI.',
                     TERANET_URL)
+
+
+# What each measure is, in plain words; shown before how it relates to prices.
+DEFINITIONS = {
+    'boc_policy_rate': ('加拿大央行设定的隔夜利率目标，即银行之间隔夜借钱的利率。各银行的优惠利率（Prime）和浮动按揭利率随它变动。',
+                        "The Bank of Canada's target for the overnight rate at which banks lend to each other. Banks' prime rates and variable mortgage rates move with it."),
+    'goc_5y_yield': ('加拿大政府五年期国债在市场上的年收益率，也就是投资者借钱给政府五年要求的回报。',
+                     'The market yield on five-year Government of Canada bonds: the annual return investors require to lend to the government for five years.'),
+    'mortgage_uninsured_fixed_5plus': ('银行当月实际新发放的、无需按揭保险（首付至少 20%）的五年及以上固定利率按揭的平均利率。',
+                                       'The average rate on new uninsured (at least 20% down) fixed-rate mortgages of five years or longer that banks actually lent that month.'),
+    'trreb_sales': ('当月在 TRREB 的 MLS 系统上签约成交的二手房套数，覆盖大多伦多及周边地区。',
+                    "Resale homes sold (deals agreed) that month through TRREB's MLS system across the Greater Toronto Area and surrounding areas."),
+    'trreb_new_listings': ('当月新挂到 MLS 上出售的房源数。', 'Homes newly listed for sale on the MLS that month.'),
+    'trreb_active_listings': ('月底仍在 MLS 上挂牌出售的房源总数，也就是买家当时能选的库存。',
+                              'Homes still listed for sale on the MLS at month-end: the inventory buyers can choose from.'),
+    'moi_raw': ('按当月的成交速度，把月底所有在售房源卖完需要几个月。例如 5 表示约需 5 个月。',
+                'How many months it would take to sell all homes listed at month-end at that month’s sales pace. For example, 5 means about five months.'),
+    'snlr_raw': ('当月成交套数 ÷ 当月新挂牌套数。例如 50% 表示每两套新挂牌对应一套成交。',
+                 'Sales divided by new listings in the month. For example, 50% means one sale for every two new listings.'),
+    'toronto_unemployment_rate': ('Toronto 都会区想工作、正在找工作却没有工作的人，占全部劳动力的比例（已剔除季节波动）。',
+                                  'People in the Toronto CMA who want work and are looking but have no job, as a share of the labour force (seasonally adjusted).'),
+    'toronto_employment_rate': ('Toronto 都会区 15 岁及以上人口中有工作的人所占的比例。', 'The share of people aged 15 and over in the Toronto CMA who have a job.'),
+    'toronto_participation_rate': ('Toronto 都会区 15 岁及以上人口中，有工作或正在找工作的人所占的比例。',
+                                   'The share of people aged 15 and over in the Toronto CMA who are working or looking for work.'),
+    'toronto_cma_2011_starts': ('当月开始动工（打地基）的新住宅套数，Toronto 都会区。', 'New homes on which construction began that month in the Toronto CMA.'),
+    'toronto_cma_2011_completions': ('当月完工、可以入住的新住宅套数，Toronto 都会区。', 'New homes finished and ready to occupy that month in the Toronto CMA.'),
+    'toronto_cma_2011_under_construction': ('月底已经开工但还没完工的住宅总套数，Toronto 都会区。',
+                                            'Homes started but not yet finished at month-end in the Toronto CMA.'),
+    'toronto_cma_2021_population': ('统计局估计的 Toronto 都会区每年 7 月 1 日人口。', "Statistics Canada's estimate of the Toronto CMA population on July 1 each year."),
+    'wti_cushing_spot_price': ('美国 WTI 原油每桶的月平均现货价格（美元）。', 'The monthly average spot price of U.S. WTI crude oil, in U.S. dollars per barrel.'),
+    'usd_cad_monthly': ('1 美元当月平均能兑换多少加元。', 'How many Canadian dollars one U.S. dollar bought on average that month.'),
+    'boc_energy_price_index': ('加拿大央行编制的能源类大宗商品价格指数，包括原油、天然气等。',
+                               "The Bank of Canada's price index for energy commodities such as crude oil and natural gas."),
+    'toronto_residential_construction_cost_index': ('统计局调查的、在 Toronto 建造住宅的承包商报价指数，2023 年 = 100。',
+                                                    "Statistics Canada's index of contractors' prices to build homes in Toronto, 2023 = 100."),
+    'ontario_net_interprovincial_migration': ('每季从其他省份搬来 Ontario 的人数减去从 Ontario 搬走的人数。',
+                                              'People moving to Ontario from other provinces minus those leaving, each quarter.'),
+    'ontario_net_international_migration': ('每季从国外移入 Ontario 的人数减去移出的人数，包括留学生、工签等非永久居民的净变化。',
+                                            'People arriving in Ontario from abroad minus those leaving each quarter, including the net change in non-permanent residents such as students and workers.'),
+    'teranet': ('Teranet 与国家银行编制的房价指数：比较同一套房子前后两次在土地登记处登记的成交价来计算价格变化，2005 年 6 月 = 100。',
+                'House price index by Teranet and National Bank: compares the registered prices of the same homes sold twice to measure price change, June 2005 = 100.'),
+    'hpi': ('MLS 房价指数：把每月成交的房子按面积、房龄、卧室数等特征折算成一套“标准房”的价格，避免“这个月豪宅卖得多、均价就高”的偏差。基准价是标准房的价格，指数是相对 2005 年 1 月（=100）的倍数。',
+            'MLS Home Price Index: prices each month’s sales as a standard home with typical size, age and bedrooms, so a month with more luxury sales does not inflate it. The benchmark is that standard home’s price; the index is relative to January 2005 = 100.'),
+    'asking_rent': ('Rentals.ca 网站上出租房源的平均挂牌要价（加元／月），是房东开价，不是最终签约租金。',
+                    'The average asking rent of rental listings on Rentals.ca (CAD per month): what landlords ask, not the final signed rent.'),
+    'cmhc_rent': ('CMHC 每年 10 月调查的出租单位平均实际月租（加元），包括已住租客，而不只是新出租的。',
+                  "CMHC's October survey of average monthly rents actually paid (CAD), including sitting tenants, not only new leases."),
+    'lease_rent': ('季度内经 TRREB MLS 租出的 condo 公寓平均签约月租（加元）。', 'The average signed monthly rent (CAD) of condo apartments leased through TRREB’s MLS in the quarter.'),
+    'vacancy': ('CMHC 每年 10 月调查时，空着待租的出租单位占全部出租单位的比例。', 'The share of rental units that were empty and available for rent at CMHC’s October survey.'),
+}
+
+
+def definition(field):
+    """Plain-language description of what the measure is."""
+    if field in DEFINITIONS:
+        return DEFINITIONS[field]
+    if field.startswith('teranet_'):
+        return DEFINITIONS['teranet']
+    if field in ('trreb_hpi_benchmark', 'trreb_hpi_composite'):
+        return DEFINITIONS['hpi']
+    if 'vacancy' in field:
+        return DEFINITIONS['vacancy']
+    if field.startswith('gta_condo_lease_rent_'):
+        return DEFINITIONS['lease_rent']
+    if field.startswith(('toronto_asking_rent_', 'regional_asking_')):
+        return DEFINITIONS['asking_rent']
+    if 'rent_' in field:
+        return DEFINITIONS['cmhc_rent']
+    config = next((c for c in BACKGROUND_CONFIG.values() if c['id'] == field), None)
+    if config:
+        return (config['definition'], config['title'])
+    return None
+
+
+HELP['gta_condo_lease_listed'] = ('出租挂牌多于租出时，租客选择增加、租金承压，也会削弱投资型买家的回报预期。', '只含经 TRREB MLS 出租的 condo 公寓，不代表全部出租房源。',
+                                  'When more units are listed than leased, renters gain choice and rents soften, which can cool investor demand for condos.', 'Covers only condo apartments leased through TRREB’s MLS, not all rentals.', 'https://trreb.ca/market-data/rental-market-report/')
+HELP['gta_condo_leased'] = ('租出量反映租赁需求；需求强、租金高时，出租 condo 的回报更好，对 condo 价格有支持。', '季度流量，受季节影响；只含经 TRREB MLS 的 condo 公寓。',
+                            'Leases reflect rental demand; strong demand and rents improve condo rental returns and can support condo prices.', 'A seasonal quarterly flow covering only condo apartments leased through TRREB’s MLS.', 'https://trreb.ca/market-data/rental-market-report/')
+DEFINITIONS.update({
+    'boc_prime_rate': ('各大银行对最优质客户的基准贷款利率，通常等于央行隔夜利率加 2.2 个百分点；浮动按揭按它加减定价。',
+                       "Banks' base lending rate for their best customers, usually the overnight rate plus 2.2 points; variable mortgages are priced off it."),
+    'boc_conventional_mortgage_5y': ('银行公布的五年期固定按揭“挂牌利率”。实际放贷通常有折扣，但压力测试常参考它。',
+                                     "Banks' posted five-year fixed mortgage rate. Actual loans are usually discounted, but stress tests often refer to it."),
+    'toronto_nhpi_total': ('统计局的新房价格指数：开发商对同样规格新建房屋（含土地）的售价变化，不包括二手房。',
+                           "Statistics Canada's new housing price index: builders' prices for comparable new homes including land; resale homes are excluded."),
+    'ontario_cpi_shelter': ('Ontario 消费物价指数中的“居住”部分，包括房租、按揭利息、物业税、水电等住房开销。',
+                            "The shelter part of Ontario's consumer price index: rent, mortgage interest, property tax, utilities and other housing costs."),
+    'toronto_permits_units': ('当月获批建筑许可的新增住宅套数，比开工更早反映未来供应。',
+                              'New dwelling units authorized by building permits that month; an earlier signal of future supply than starts.'),
+    'toronto_starts_condo': ('当月开工的、准备卖给个人的 condo 住宅套数。', 'New homes started that month that are intended to be sold as condos.'),
+    'toronto_starts_rental': ('当月开工的、专门建来长期出租的住宅套数（不含个人出租的 condo）。',
+                              'New homes started that month that are built to be rented out long-term (not condos rented by individual owners).'),
+    'toronto_starts_homeowner': ('当月开工的、卖给自住者或自建的非 condo 住宅套数，主要是独立屋、半独立屋和镇屋。',
+                                 'New non-condo homes started that month for owner-occupiers, mostly detached, semi-detached and townhouses.'),
+    'toronto_cmhc_absorptions': ('当月完工的新房里已经卖出的套数（含之前预售的），只算自住和 condo 项目。',
+                                 'Newly completed homes that were sold (including presales) that month, for owner-occupied and condo projects only.'),
+    'toronto_cmhc_unabsorbed_inventory': ('已经完工但还没卖出去的新房套数，只算自住和 condo 项目。',
+                                          'Newly completed homes still unsold, for owner-occupied and condo projects only.'),
+    'canada_policy_uncertainty': ('根据加拿大主要报纸中同时谈到“经济、政策、不确定”的文章比例编制的指数，越高表示政策不确定性越大。',
+                                  'An index built from the share of major Canadian newspaper articles mentioning economy, policy and uncertainty together; higher means more policy uncertainty.'),
+})
+DEFINITIONS['gta_condo_lease_listed'] = ('季度内经 TRREB MLS 挂牌出租的 condo 公寓套数。', 'Condo apartments listed for lease on TRREB’s MLS during the quarter.')
+DEFINITIONS['gta_condo_leased'] = ('季度内经 TRREB MLS 实际租出的 condo 公寓套数。', 'Condo apartments actually leased through TRREB’s MLS during the quarter.')
 
 
 def explanation(field):
@@ -79,7 +182,10 @@ def help_label(field, text):
     if not content:
         return escape(text)
     zh, caveat_zh, en, caveat_en, url = content
-    heading, reference = ('How it relates to home prices', 'Background · Bank of Canada') if english() else ('如何影响房价', '机制参考 · 加拿大央行')
+    heading, reference = ('How it relates to home prices', 'Background · Bank of Canada') if english() else ('与房价的关系', '机制参考 · 加拿大央行')
+    what = definition(field)
+    what_html = (f'<strong>{"What it is" if english() else "是什么"}</strong><p>{escape(what[1] if english() else what[0])}</p>'
+                 if what else '')
     if field in ('wti_cushing_spot_price', 'usd_cad_monthly', 'boc_energy_price_index',
                  'toronto_residential_construction_cost_index', 'ontario_net_interprovincial_migration',
                  'ontario_net_international_migration') or field in {c['id'] for c in BACKGROUND_CONFIG.values()}:
@@ -87,5 +193,6 @@ def help_label(field, text):
     body, caveat = (en, caveat_en) if english() else (zh, caveat_zh)
     # Native disclosure supplies touch/keyboard toggling; CSS adds pointer-hover preview.
     return (f'<details class="metric-help"><summary>{escape(tr(text))} <span class="help-icon" aria-hidden="true">ⓘ</span></summary>'
-            f'<div class="impact-bubble"><strong>{heading}</strong><p>{escape(body)}</p><p>{escape(caveat)}</p>'
+            f'<div class="impact-bubble">{what_html}<strong>{heading}</strong><p>{escape(body)}</p>'
+            f'<p class="help-caveat">{escape(caveat)}</p>'
             f'<a href="{url}" target="_blank" rel="noopener noreferrer">{reference} ↗</a></div></details>')
