@@ -90,13 +90,13 @@ def ols(xs, ys):
     return my - b * mx, b
 
 
-def forecasts(data, h, decisions, minimum=60, features=None, feature_fn=None):
+def forecasts(data, h, decisions, minimum=60, features=None, feature_fn=None, target_fn=None):
     """Return {decision: {'actual', 'benchmark', model: forecast}} with no look-ahead."""
     features = features or FEATURES
     feature_fn = feature_fn or feature
     all_months = sorted(decisions)
     table = {T: {f: feature_fn(data, f, T) for f in features} for T in months(shift(all_months[0], -400), all_months[-1])}
-    labels = {T: target(data, T, h) for T in table}
+    labels = {T: (target_fn or target)(data, T, h) for T in table}
     result = {}
     for T in decisions:
         matured = [d for d in table if d <= shift(T, -h) and labels[d] is not None]

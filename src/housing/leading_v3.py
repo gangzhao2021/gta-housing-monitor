@@ -80,3 +80,20 @@ def feature(data, name, T):
     if name == 'dom_yoy':
         return _family_change(rows, DOM_FAMILY, m, shift(m, -12), log=True)
     raise KeyError(name)
+
+
+# Protocol v4: deal-dated TRREB MLS HPI target; windows crossing a rebasing break are excluded.
+HPI_SEGMENTS = [('2012-02', '2022-04'), ('2022-06', '2025-03'), ('2025-04', '9999-12')]
+
+
+def _segment(period):
+    return next((i for i, (a, b) in enumerate(HPI_SEGMENTS) if a <= period <= b), None)
+
+
+def hpi_target(data, T, h):
+    rows = data['trreb']
+    start, end = shift(T, -1), shift(T, -1 + h)
+    a, b = rows.get(start, {}).get('hpi_index'), rows.get(end, {}).get('hpi_index')
+    if a in (None, '') or b in (None, '') or _segment(start) is None or _segment(start) != _segment(end):
+        return None
+    return 100 * math.log(b / a)
