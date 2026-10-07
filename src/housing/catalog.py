@@ -142,6 +142,12 @@ for series_id, (label, _) in PRICE_BANDS.items():
                          'monthly', 'not adjusted', 'none', BAND_DEFINITION)
     SERIES_URLS[series_id] = 'https://trreb.ca/market-data/market-watch/market-watch-archive/'
 
+from .teranet import GEO as TERANET_GEO, NOTE as TERANET_NOTE, SERIES as TERANET_SERIES, URL as TERANET_URL
+for series_id, (label, unit, _) in TERANET_SERIES.items():
+    SERIES[series_id] = (label, 'Teranet-National Bank HPI', 'housepriceindex.ca on_toronto', TERANET_GEO, unit,
+                         'monthly', 'SA' if series_id.endswith('_sa') else 'not adjusted', 'none', TERANET_NOTE)
+    SERIES_URLS[series_id] = TERANET_URL
+
 from .trreb_rental import ARCHIVE as RENTAL_ARCHIVE, GEO as RENTAL_GEO, SERIES as RENTAL_SERIES
 for series_id, (label, unit, definition) in RENTAL_SERIES.items():
     SERIES[series_id] = (label, 'TRREB rental', 'Rental Market Report, apartments', RENTAL_GEO, unit,

@@ -53,6 +53,15 @@ for c in BACKGROUND_CONFIG.values():
                         c['title'], 'Descriptive context; not a validated forecast. Respect the source geography and reference period.', url_for(c))
 
 
+from .teranet import URL as TERANET_URL
+for _field in ('teranet_toronto_index', 'teranet_toronto_index_sa'):
+    HELP[_field] = ('按土地登记处同一住房的两次成交计算价格变化，可与 TRREB 的 MLS HPI 相互印证，历史从 1998 年开始。',
+                    '重复交易指数会随新配对修订历史，发布晚于 TRREB；地区与方法不同，不与 TRREB HPI 合并或互相替代。',
+                    'Measures price change from repeat sales of the same homes in land-registry records; a cross-check on TRREB MLS HPI with history from 1998.',
+                    'Repeat-sales history is revised as new pairs arrive and is released later than TRREB; method and area differ, so it is not merged with TRREB HPI.',
+                    TERANET_URL)
+
+
 def explanation(field):
     if field in HELP:
         return HELP[field]

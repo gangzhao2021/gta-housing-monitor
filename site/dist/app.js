@@ -369,7 +369,7 @@ function rentPage(){
   return out;
 }
 function economicSection(title,fields,key,opts={}){const periods=allPeriods(fields,!!opts.annual),end=last(fields,!!opts.annual,key);return `<section class="economic-panel"><h2>${title}</h2><div class="controls">${select(opts.annual?t('year'):t('date'),key,periods,!!opts.annual)}</div>${end?svgChart(fields,viewPeriods(fields,end,!!opts.annual),opts):`<p>${t('noData')}</p>`}</section>`}
-const CONTEXT_GROUPS=[['toronto_starts_','toronto_cmhc_','toronto_permits_','toronto_nhpi','toronto_residential_construction'],['gta_condo_lease'],['boc_','ontario_cpi','ontario_net_'],['usd_cad','wti_','boc_energy','canada_policy']];
+const CONTEXT_GROUPS=[['teranet_'],['toronto_starts_','toronto_cmhc_','toronto_permits_','toronto_nhpi','toronto_residential_construction'],['gta_condo_lease'],['boc_','ontario_cpi','ontario_net_'],['usd_cad','wti_','boc_energy','canada_policy']];
 const UNIT_ZH={units:'套','CAD/month':'加元/月',persons:'人','%':'%','USD/barrel':'美元/桶','CAD/USD':'加元/美元'};
 const CONTEXT_ORDER=['toronto_starts_condo','toronto_starts_rental','toronto_starts_homeowner','toronto_cmhc_absorptions','toronto_cmhc_unabsorbed_inventory','toronto_permits_units','toronto_nhpi_total','toronto_residential_construction_cost_index','gta_condo_lease_listed','gta_condo_leased','gta_condo_lease_rent_bachelor','gta_condo_lease_rent_1br','gta_condo_lease_rent_2br','gta_condo_lease_rent_3br'];
 function contextOrder(f){const g=CONTEXT_GROUPS.findIndex(prefixes=>prefixes.some(p=>f.startsWith(p)));const i=CONTEXT_ORDER.indexOf(f);return (g<0?CONTEXT_GROUPS.length:g)*100+(i<0?50:i)}
