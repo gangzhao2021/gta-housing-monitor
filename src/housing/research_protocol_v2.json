@@ -1,0 +1,39 @@
+{
+  "version": "2026-10-07-v2",
+  "status": "frozen_before_results",
+  "supersedes": "none; v1 (2026-09-26-v1) stays frozen and not_evaluable for TRREB targets",
+  "design": "pseudo real-time: latest available vintage with conservative publication lags; results are an upper bound on real-time skill because later revisions are visible",
+  "decision_time": "end of calendar month T, America/Toronto",
+  "target": {
+    "series": "teranet_toronto_index_sa",
+    "origin": "T-2 (latest Teranet month treated as known at T)",
+    "formula": "100 * ln(index(T-2+h) / index(T-2))",
+    "horizons_months": [6, 12]
+  },
+  "features": {
+    "teranet_momentum": "100*ln(index_sa(T-2)/index_sa(T-8))",
+    "teranet_pairs_yoy": "100*ln(mean pairs(T-4..T-2) / mean pairs(T-16..T-14)); unadjusted counts, year-over-year removes seasonality",
+    "mortgage_rate_change": "BoC V80691335 monthly mean, rate(T) - rate(T-12), percentage points",
+    "bond_5y_change": "BoC BD.CDN.5YR.DQ.YLD monthly mean, yield(T) - yield(T-12)",
+    "ontario_unemployment_change": "StatCan v2063949 (14-10-0287-01 SA), u(T-1) - u(T-13)",
+    "starts_growth": "Toronto CMA 2011 starts (34-10-0154-01), 100*ln(sum12(T-1)/sum12(T-13))",
+    "new_home_price_growth": "StatCan NHPI Toronto v111955499, 100*ln(nhpi(T-2)/nhpi(T-14))",
+    "policy_uncertainty": "FRED CANEPUINDXM, ln(mean EPU(T-3..T-1))"
+  },
+  "models": {
+    "benchmark": "historical mean of all matured target values known at T (expanding window)",
+    "zero": "no change",
+    "univariate": "OLS y = a + b*x per feature, expanding window, trained only on decisions whose target index month T'-2+h <= T-2",
+    "combination": "equal-weight mean of available univariate forecasts at T"
+  },
+  "sample": {
+    "minimum_training_observations": 60,
+    "oos_start": "2010-01",
+    "subperiods": [["2010-01", "2019-12"], ["2020-01", "last matured"]],
+    "missing": "a feature missing at T gives no forecast from that model at T; no imputation"
+  },
+  "metrics": ["OOS R2 vs historical mean (Campbell-Thompson)", "RMSE", "direction hit rate", "Clark-West MSPE-adjusted test vs historical mean, Newey-West HAC with h-1 lags, one-sided"],
+  "evidence_rule": "a model shows evidence at horizon h only if OOS R2 > 0 over the full OOS period and in both subperiods, and the Clark-West one-sided p < 0.05 over the full OOS period",
+  "not_allowed": "changing features, lags, sample splits or the evidence rule after seeing results; doing so requires a new protocol version that reports this one too",
+  "adoption": "research evidence only; no dashboard signal or forecast is shown from this protocol"
+}
