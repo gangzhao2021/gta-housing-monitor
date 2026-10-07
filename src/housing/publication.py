@@ -37,7 +37,7 @@ QUARTERLY_CONTEXT = frozenset({"toronto_residential_construction_cost_index", "o
                                "ontario_net_international_migration", *RENTAL_SERIES})
 
 
-def build_display_snapshot(db, *, created_at=None):
+def build_display_snapshot(db, *, created_at=None, temperature_csv=None):
     """Only latest numerical observations; never provenance paths or credentials."""
     observations = {}
     for key in sorted(DISPLAY_SERIES):
@@ -59,12 +59,33 @@ def build_display_snapshot(db, *, created_at=None):
         "context": context,
         "districts": display_rows(db),
         "freshness": {key: assess(db, key) for key in sorted(DISPLAY_SERIES | CONTEXT_SERIES)},
+        **({"market_temperature": _temperature(db, temperature_csv)} if temperature_csv and Path(temperature_csv).is_file() else {}),
     }
 
 
+def _temperature(db, csv_path):
+    from .market_temperature import build
+    return build(csv_path, db)
+
+
+def validate_temperature(value):
+    if set(value) != {'band_pp', 'months', 'outcomes_12m'} or not isinstance(value['months'], dict):
+        raise ValueError('Invalid market temperature')
+    for period, row in value['months'].items():
+        if not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', period) or row.get('state') not in {'cool', 'balanced', 'hot'}:
+            raise ValueError('Invalid market temperature month')
+        for key in ('snlr3', 'snlr_norm', 'gap', 'moi3', 'moi_norm'):
+            if row.get(key) is not None and (not isinstance(row[key], (int, float)) or not math.isfinite(row[key])):
+                raise ValueError('Invalid market temperature value')
+    if set(value['outcomes_12m']) != {'cool', 'balanced', 'hot'}:
+        raise ValueError('Invalid market temperature outcomes')
+
+
 def validate_display_snapshot(value):
-    if set(value) - {'schema_version', 'created_at', 'observations', 'context', 'districts', 'freshness'}:
+    if set(value) - {'schema_version', 'created_at', 'observations', 'context', 'districts', 'freshness', 'market_temperature'}:
         raise ValueError('Unexpected display snapshot fields')
+    if 'market_temperature' in value:
+        validate_temperature(value['market_temperature'])
     from .districts import FIELDS, TYPES
     seen = set()
     for row in value.get('districts', []):
@@ -127,7 +148,8 @@ def publish(db_path, output):
     db = sqlite3.connect(f"file:{Path(db_path).resolve()}?mode=ro", uri=True)
     db.row_factory = sqlite3.Row
     try:
-        snapshot = validate_display_snapshot(build_display_snapshot(db))
+        snapshot = validate_display_snapshot(build_display_snapshot(
+            db, temperature_csv=Path(db_path).resolve().parent / 'research/trreb-history.csv'))
     finally:
         db.close()
     output = Path(output)

@@ -127,6 +127,11 @@ if page == "市场总览":
         with plot:
             line_chart(data, ["trreb_hpi_benchmark"], start, end, height=330)
             st.caption(f"TRREB 全市场 · 全房型 · {period_label(end)} · 金额为加元 · 月度原始值，未季调")
+    temperature_csv = ROOT / "data/research/trreb-history.csv"
+    if temperature_csv.is_file():
+        from housing.market_temperature import build as build_temperature
+        from housing.temperature_view import render as render_temperature
+        render_temperature(build_temperature(temperature_csv, db), end)
     cards(data, ["trreb_sales", "trreb_active_listings", "moi_raw"], end,
           {"moi_raw": "月末有效挂牌 ÷ 当月成交"})
     st.subheader("成交与新增挂牌")

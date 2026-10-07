@@ -38,8 +38,13 @@ def chart_frame(element):
     return ipc.open_stream(io.BytesIO(dataset.data.data)).read_all().to_pandas()
 
 
+def series_charts(app):
+    # Single-dataset series charts; the layered market-temperature chart is checked separately.
+    return [element for element in app.get("arrow_vega_lite_chart") if "data" in json.loads(element.proto.spec)]
+
+
 def chart_with_column(app, column):
-    return next(frame for element in app.get("arrow_vega_lite_chart")
+    return next(frame for element in series_charts(app)
                 if column in (frame := chart_frame(element)).columns)
 
 
@@ -79,7 +84,7 @@ class DashboardTests(unittest.TestCase):
         import re
         self.navigate("租赁市场")
         self.assertEqual(self.app.radio(key="rental-view").value, "月度挂牌租金")
-        trend = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+        trend = chart_frame(series_charts(self.app)[0])
         self.assertEqual(trend["period"].max(), "2026-08")
         self.assertEqual(trend["value"].iloc[-1], 2570)
         self.assertEqual(chart_with_column(self.app, "月租金")["月租金"].tolist(), [2229, 2955, 3642])
@@ -104,14 +109,14 @@ class DashboardTests(unittest.TestCase):
         self.navigate("租赁市场")
         self.app.selectbox(key="asking-room").set_value("compare").run()
         self.assert_clean()
-        trend = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+        trend = chart_frame(series_charts(self.app)[0])
         self.assertEqual(len(trend), 30)
         self.assertEqual(trend["period"].min(), "2025-11")
         self.assertEqual(trend["period"].max(), "2026-08")
         self.assertEqual(trend[trend["指标"] == "一卧"]["value"].tolist(), [2237,2228,2203,2206,2195,2214,2218,2220,2242,2229])
         self.app.selectbox(key="asking-room").set_value("3br").run()
         self.assert_clean()
-        trend = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+        trend = chart_frame(series_charts(self.app)[0])
         self.assertEqual(set(trend["指标"]), {"三卧"})
         self.assertEqual(trend["value"].tolist(), [3499,3508,3469,3508,3479,3567,3555,3588,3655,3642])
 
@@ -123,7 +128,7 @@ class DashboardTests(unittest.TestCase):
         with patch.object(st, "download_button", wraps=st.download_button) as downloads:
             self.app.selectbox(key="region-False-2").set_value("none").run()
         self.assert_clean()
-        trend = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+        trend = chart_frame(series_charts(self.app)[0])
         self.assertEqual(trend['period'].tolist()[:2], ['2025-09', '2025-10'])
         self.assertEqual(trend['value'].tolist()[:2], [2473, 2492])
         self.assertEqual(trend['value'].tolist()[-10:], [2390,2424,2448,2374,2324,2324,2239,2250,2211,2309])
@@ -170,7 +175,7 @@ class DashboardTests(unittest.TestCase):
             self.app.selectbox(key="region-room-False").set_value("2br").run()
         self.assert_clean()
         self.assertEqual(self.app.metric[0].value, "$3,034")
-        trend = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+        trend = chart_frame(series_charts(self.app)[0])
         self.assertEqual(trend["value"].tolist(), [2584,2629,2656,2820,3034])
         export = pd.read_csv(io.BytesIO(next(c for c in downloads.call_args_list if c.args[0]=="下载地区对比数据").args[1]))
         self.assertEqual(set(export['series_id']), {'regional_asking_oakville_2br'})
@@ -235,7 +240,7 @@ class DashboardTests(unittest.TestCase):
         self.app.radio(key="rental-view").set_value("年度存量租金（CMHC）").run()
         self.app.selectbox(key="rental-year").set_value("2023").run()
         self.app.selectbox(key="rental-trend-room").set_value("2br").run()
-        trend = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+        trend = chart_frame(series_charts(self.app)[0])
         self.assertEqual(set(trend["period"]), {"2022", "2023"})
         self.assertEqual(trend[trend["指标"] == "专建出租公寓"]["value"].tolist(), [1779, 1961])
         self.assertEqual(trend[trend["指标"] == "业主出租 condo"]["value"].tolist(), [2692, 2890])
@@ -243,7 +248,7 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(history["来源文件"].str.contains("2023").all())
         self.assertTrue(history["质量等级"].notna().all())
         self.app.selectbox(key="rental-year").set_value("2022").run()
-        spec = json.loads(self.app.get("arrow_vega_lite_chart")[0].proto.spec)
+        spec = json.loads(series_charts(self.app)[0].proto.spec)
         self.assertTrue(spec["mark"]["point"])  # A single survey must still be visible.
 
     def test_mortgage_missing_month_remains_missing_in_card_chart_and_source(self):
@@ -262,11 +267,11 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(table.loc["2026-06", mortgage_column], 4.35)
         self.assertTrue(pd.isna(table.loc["2026-07", mortgage_column]))
         self.assertTrue(pd.isna(table.loc["2026-08", mortgage_column]))
-        chart = chart_frame(self.app.get("arrow_vega_lite_chart")[0]).set_index("period")
+        chart = chart_frame(series_charts(self.app)[0]).set_index("period")
         self.assertEqual(chart.loc["2026-06", "value"], 4.35)
         self.assertTrue(pd.isna(chart.loc["2026-07", "value"]))
         self.assertTrue(pd.isna(chart.loc["2026-08", "value"]))
-        scale = json.loads(self.app.get("arrow_vega_lite_chart")[0].proto.spec)["encoding"]["x"]["scale"]
+        scale = json.loads(series_charts(self.app)[0].proto.spec)["encoding"]["x"]["scale"]
         self.assertEqual(scale["type"], "utc")
         self.assertEqual(scale["domain"][-1], "2026-08-01")
 
@@ -394,12 +399,12 @@ class DashboardTests(unittest.TestCase):
         markup = "".join(item.proto.body for item in self.app.get("html"))
         self.assertIn("5,211", markup)
         self.assertIn("$969,700", markup)
-        chart = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+        chart = chart_frame(series_charts(self.app)[0])
         self.assertEqual(chart["period"].min(), "2024-09")
         self.assertEqual(chart["period"].max(), "2025-08")
         price_column = next(column for column in table if column.startswith("HPI 综合基准房价"))
         self.assertEqual(chart["value"].tolist(), table[price_column].tolist())
-        sales_chart = chart_frame(self.app.get("arrow_vega_lite_chart")[1])
+        sales_chart = chart_frame(series_charts(self.app)[1])
         self.assertEqual(sales_chart[sales_chart["指标"] == "成交量"]["value"].tolist(), table[sales_column].tolist())
         download = next(call for call in downloads.call_args_list if call.kwargs.get("key") == "download-trreb")
         exported = pd.read_csv(io.BytesIO(download.args[1]))
@@ -432,14 +437,14 @@ class DashboardTests(unittest.TestCase):
 
     def test_language_switch_retains_chart_data_with_reference_transformer(self):
         import altair as alt
-        original = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+        original = chart_frame(series_charts(self.app)[0])
         # A host transformer may serialize data as a reference, not inline rows.
         # Language changes must retain the actual data independently of that context.
         alt.data_transformers.register("reference_only_test", lambda data: {"name": "external-data"})
         with alt.data_transformers.enable("reference_only_test"):
             self.app.radio(key="language").set_value("English").run()
             self.assert_clean()
-            translated = chart_frame(self.app.get("arrow_vega_lite_chart")[0])
+            translated = chart_frame(series_charts(self.app)[0])
         pd.testing.assert_frame_equal(original[["period", "value"]], translated[["period", "value"]])
 
     def test_english_pages_have_translated_text_and_nonempty_bound_chart_data(self):
@@ -456,6 +461,12 @@ class DashboardTests(unittest.TestCase):
                         self.assertIsNone(re.search(r"[\u4e00-\u9fff]", element.value), element.value)
                 for element in self.app.get("arrow_vega_lite_chart"):
                     spec = json.loads(element.proto.spec)
+                    if "layer" in spec:  # layered chart: every layer's dataset must be bound and translated
+                        frames = [ipc.open_stream(io.BytesIO(d.data.data)).read_all().to_pandas() for d in element.proto.datasets]
+                        self.assertTrue(frames and all(not f.empty for f in frames))
+                        for f in frames:
+                            self.assertIsNone(re.search(r"[\u4e00-\u9fff]", str(f.columns.tolist())))
+                        continue
                     values = chart_frame(element)
                     self.assertFalse(values.empty)
                     for encoding in spec["encoding"].values():

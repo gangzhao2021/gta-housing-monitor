@@ -30,3 +30,20 @@ class MarketTemperatureTests(unittest.TestCase):
         self.assertEqual(after['2009-06']['state'], 'hot')
         self.assertAlmostEqual(after['2009-06']['gap'], 20.0)
         self.assertNotIn('2006-06', before)  # fewer than three earlier years
+
+
+class TemperatureSnapshotTests(unittest.TestCase):
+    def test_snapshot_validation_accepts_reading_and_rejects_bad_state(self):
+        from housing.publication import validate_temperature
+        good = {'band_pp': 10.0, 'months': {'2026-09': {'snlr3': 37.4, 'snlr_norm': 53.8, 'gap': -16.5, 'state': 'cool',
+                                                        'moi3': 4.8, 'moi_norm': 2.6}},
+                'outcomes_12m': {k: {'n': 1, 'mean_change': 0.0, 'share_up': 0.5} for k in ('cool', 'balanced', 'hot')}}
+        validate_temperature(good)
+        bad = copy.deepcopy(good)
+        bad['months']['2026-09']['state'] = 'boiling'
+        with self.assertRaises(ValueError):
+            validate_temperature(bad)
+        bad = copy.deepcopy(good)
+        bad['months']['2026-09']['gap'] = float('nan')
+        with self.assertRaises(ValueError):
+            validate_temperature(bad)

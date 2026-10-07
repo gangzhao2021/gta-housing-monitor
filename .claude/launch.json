@@ -4,8 +4,33 @@
     {
       "name": "site-static",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8765", "--bind", "127.0.0.1", "--directory", "site/dist"],
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "8765",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "site/dist"
+      ],
       "port": 8765
+    },
+    {
+      "name": "viewer-test",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "HOUSING_REQUIRE_OWNER_AUTH=0",
+        ".venv/bin/streamlit",
+        "run",
+        "viewer_app.py",
+        "--server.address",
+        "127.0.0.1",
+        "--server.port",
+        "8599",
+        "--server.headless",
+        "true"
+      ],
+      "port": 8599
     }
   ]
 }

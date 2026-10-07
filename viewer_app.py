@@ -64,6 +64,8 @@ if page == "市场总览":
     if scope:
         start, end = scope
         cards(data, ["trreb_hpi_benchmark", "trreb_sales", "moi_raw"], end)
+        from housing.temperature_view import render as render_temperature
+        render_temperature(snapshot.get("market_temperature"), end)
         st.subheader("房价走势")
         line_chart(data, ["trreb_hpi_benchmark"], start, end, height=330)
         st.subheader("成交与新增挂牌")
