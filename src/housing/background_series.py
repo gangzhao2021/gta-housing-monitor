@@ -22,11 +22,14 @@ CONFIG = {
     'starts_condo': dict(id='toronto_starts_condo', label='Toronto 开工量：condo 市场', source='StatsCan CMHC starts by market', vector=1459027, table=34100148, coordinate='35.1.3.0.0.0.0.0.0.0', title='Toronto, Ontario;Total units;Condo', uom=300, unit='units', geo='Toronto CMA 2011 boundary', definition='CMHC 开工调查中预定为 condo 产权出售的住宅单位；与专建出租、自住市场分列，三者合计等于总开工（另有少量合作社／其他）'),
     'starts_rental': dict(id='toronto_starts_rental', label='Toronto 开工量：专建出租', source='StatsCan CMHC starts by market', vector=1458998, table=34100148, coordinate='35.1.2.0.0.0.0.0.0.0', title='Toronto, Ontario;Total units;Rental', uom=300, unit='units', geo='Toronto CMA 2011 boundary', definition='CMHC 开工调查中预定为专建出租的住宅单位；不含业主出租的 condo'),
     'starts_homeowner': dict(id='toronto_starts_homeowner', label='Toronto 开工量：自住市场', source='StatsCan CMHC starts by market', vector=1458969, table=34100148, coordinate='35.1.1.0.0.0.0.0.0.0', title='Toronto, Ontario;Total units;Homeowner', uom=300, unit='units', geo='Toronto CMA 2011 boundary', definition='CMHC 开工调查中预定为非 condo 产权出售或自建的住宅单位（主要为低层）'),
+    'canada_epu': dict(id='canada_policy_uncertainty', label='加拿大经济政策不确定性指数', source='Baker-Bloom-Davis EPU (FRED)', fred='CANEPUINDXM', vector='CANEPUINDXM', title='Economic Policy Uncertainty Index for Canada', unit='index', geo='Canada', definition='按加拿大主要报纸中同时提及经济、政策与不确定性的文章比例编制的月度指数（Baker、Bloom、Davis），新闻计数口径，波动大；只作不确定性背景，不是房价预测'),
     'toronto_permits': dict(id='toronto_permits_units', label='Toronto 住宅许可新增单位', source='StatsCan permits', vector=1675206466, table=34100292, coordinate='45.4.1.2.1.0.0.0.0.0', title='Toronto, Ontario;Total residential;Types of work, total;Number of dwelling-units created;Unadjusted, current', uom=223, unit='units', geo='Toronto CMA 2011 boundary', definition='现行后继表 34-10-0292；住宅总体、全部工作类型、新增住宅单位；不是许可证张数、净增量、开工或竣工'),
 }
 
 
 def url_for(config):
+    if 'fred' in config:
+        return f'https://fred.stlouisfed.org/series/{config["fred"]}'
     if 'table' in config:
         return f'https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid={config["table"]}01'
     return f'https://www.bankofcanada.ca/valet/observations/{config["vector"]}/json'
@@ -54,9 +57,32 @@ def successful(document):
     return obj
 
 
+def request_text(url):
+    request = Request(url, headers={'User-Agent': 'TorontoHousingMonitor/0.1'})
+    for attempt in range(3):
+        try:
+            with urlopen(request, timeout=90) as response:
+                return response.read().decode('utf-8')
+        except OSError:
+            if attempt == 2:
+                raise
+            time.sleep(0.5 * 2 ** attempt)
+
+
 def parse_snapshot(document, config, end):
     rows = []
-    if 'table' not in config:
+    if 'fred' in config:
+        lines = document['data']['csv'].strip().splitlines()
+        if lines[0].strip() != f'observation_date,{config["fred"]}':
+            raise ValueError('FRED series header changed')
+        for line in lines[1:]:
+            day, value = line.strip().split(',')
+            datetime.strptime(day, '%Y-%m-%d')
+            if not day.endswith('-01'):
+                raise ValueError('Expected monthly FRED observations')
+            if START <= day[:7] <= end and value not in ('', '.'):
+                rows.append((config['id'], day[:7], float(value)))
+    elif 'table' not in config:
         detail = document['data'].get('seriesDetail', {}).get(config['vector'], {})
         if detail.get('label') != config['title']:
             raise ValueError('BoC series definition changed')
@@ -97,7 +123,7 @@ def parse_snapshot(document, config, end):
     return rows
 
 
-def refresh_background(db, key, root, today=None, requester=request_json):
+def refresh_background(db, key, root, today=None, requester=request_json, text_requester=None):
     from .ingest import ingest, register_raw, validate_rows, now
     from .manifest import write_manifest
     from .catalog import SERIES
@@ -108,7 +134,10 @@ def refresh_background(db, key, root, today=None, requester=request_json):
     source = config['source']
     root = Path(root)
     try:
-        if 'table' in config:
+        if 'fred' in config:
+            url = f'https://fred.stlouisfed.org/graph/fredgraph.csv?id={config["fred"]}'
+            document = {'data': {'csv': (text_requester or request_text)(url)}}
+        elif 'table' in config:
             meta = requester(WDS + 'getSeriesInfoFromVector', [{'vectorId': config['vector']}])
             count = (year - 2022) * 12 + month - 9 + 1
             data = requester(WDS + 'getDataFromVectorsAndLatestNPeriods',

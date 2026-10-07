@@ -24,3 +24,14 @@ class TrrebPublishedYoyTests(unittest.TestCase):
             'trreb_sales': 5058, 'trreb_new_listings': 12075, 'trreb_active_listings': 24482})
         self.assertNotIn('Sales', result)
         self.assertIn('New Listings', result)
+
+
+class TrrebPriceBandTests(unittest.TestCase):
+    def test_bands_sum_to_monthly_sales_and_blank_cells_are_tolerated(self):
+        from housing.trreb_price_bands import rows_for
+        # September 2026 has a blank co-ownership cell in the $1.25M-$1.5M row.
+        rows = dict((series, value) for series, _, value in rows_for(RAW / 'mw2609.pdf', '2026-09', 5040))
+        self.assertEqual(rows['trreb_sales_band_under_500k'], 674)
+        self.assertEqual(sum(rows.values()), 5040)
+        with self.assertRaisesRegex(ValueError, 'not stored sales'):
+            rows_for(RAW / 'mw2608.pdf', '2026-08', 5058)

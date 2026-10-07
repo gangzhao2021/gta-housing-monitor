@@ -1,4 +1,4 @@
-"""One-off: store TRREB's published YoY for every saved Market Watch report."""
+"""Store TRREB's published YoY and price-band sales for every saved Market Watch report (idempotent)."""
 import json
 import sqlite3
 import sys
@@ -10,6 +10,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from housing.breakdowns import trreb_hpi_breakdown
 from housing.db import connect
 from housing.ingest import ingest
+from housing.trreb_price_bands import rows_for as band_rows
 from housing.trreb_yoy import rows_for
 
 if __name__ == "__main__":
@@ -26,7 +27,7 @@ if __name__ == "__main__":
                                  "('trreb_sales','trreb_new_listings','trreb_active_listings')", (period,)).fetchall())
         if len(stored) != 3:
             continue
-        rows = rows_for(pdf, period, stored, trreb_hpi_breakdown(pdf))
+        rows = rows_for(pdf, period, stored, trreb_hpi_breakdown(pdf)) + band_rows(pdf, period, int(stored["trreb_sales"]))
         url = "https://trreb.ca/wp-content/files/market-stats/market-watch/" + pdf.name
         result = ingest(db, "TRREB", pdf, url, period, "published YoY from front page and HPI page; checked against printed amounts", rows)
         for key, count in result.items():

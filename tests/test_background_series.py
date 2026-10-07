@@ -85,3 +85,13 @@ class BackgroundSeriesTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class FredSeriesTests(unittest.TestCase):
+    def test_fred_csv_keeps_window_skips_blanks_and_checks_header(self):
+        config = CONFIG['canada_epu']
+        csv_text = "observation_date,CANEPUINDXM\n2022-08-01,100.5\n2022-09-01,120.25\n2022-10-01,.\n2026-09-01,940.5\n"
+        rows = parse_snapshot({'data': {'csv': csv_text}}, config, '2026-08')
+        self.assertEqual(rows, [('canada_policy_uncertainty', '2022-09', 120.25)])
+        with self.assertRaisesRegex(ValueError, 'header'):
+            parse_snapshot({'data': {'csv': 'DATE,OTHER\n2022-09-01,1\n'}}, config, '2026-08')

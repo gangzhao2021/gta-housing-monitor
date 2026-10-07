@@ -136,6 +136,12 @@ for series_id, label in YOY_SERIES.items():
                          'monthly', 'not adjusted', 'none', YOY_DEFINITION)
     SERIES_URLS[series_id] = 'https://trreb.ca/market-data/market-watch/market-watch-archive/'
 
+from .trreb_price_bands import BANDS as PRICE_BANDS, DEFINITION as BAND_DEFINITION
+for series_id, (label, _) in PRICE_BANDS.items():
+    SERIES[series_id] = (label, 'TRREB', 'Market Watch page 2', 'All TRREB Areas', 'sales',
+                         'monthly', 'not adjusted', 'none', BAND_DEFINITION)
+    SERIES_URLS[series_id] = 'https://trreb.ca/market-data/market-watch/market-watch-archive/'
+
 from .trreb_rental import ARCHIVE as RENTAL_ARCHIVE, GEO as RENTAL_GEO, SERIES as RENTAL_SERIES
 for series_id, (label, unit, definition) in RENTAL_SERIES.items():
     SERIES[series_id] = (label, 'TRREB rental', 'Rental Market Report, apartments', RENTAL_GEO, unit,

@@ -20,6 +20,7 @@ from housing.ingest import ingest,register_raw,parse_trreb
 from housing.districts import import_csv
 from housing.breakdowns import trreb_hpi_breakdown
 from housing.trreb_yoy import rows_for as yoy_rows
+from housing.trreb_price_bands import rows_for as band_rows
 FIELDS=['period','geography','home_type','sales','new_listings','active_listings','hpi_composite','hpi_benchmark','source_pdf_sha256','sales_page','hpi_page','source_pdf_name']
 
 def run():
@@ -60,7 +61,7 @@ def run():
                 result=ingest(db,'TRREB',path,url,period,'existing headline extractor',parse_trreb(path,pdf))
                 report['headline_inserted']+=result.get('inserted',0)
                 stored={s:v for s,v in db.execute("SELECT series_id,value FROM observations WHERE period=? AND series_id IN ('trreb_sales','trreb_new_listings','trreb_active_listings')",(period,))}
-                rows=yoy_rows(pdf,period,stored,trreb_hpi_breakdown(pdf))
+                rows=yoy_rows(pdf,period,stored,trreb_hpi_breakdown(pdf))+band_rows(pdf,period,int(stored['trreb_sales']))
                 if rows:
                     result=ingest(db,'TRREB',pdf,url,period,'published YoY from front page and HPI page; checked against printed amounts',rows)
                     report['yoy_inserted']=report.get('yoy_inserted',0)+result.get('inserted',0)
