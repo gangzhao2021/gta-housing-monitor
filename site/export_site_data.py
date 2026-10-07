@@ -86,26 +86,14 @@ assert {feature["properties"]["CSDNAME"]: feature["properties"]["CSDUID"]
 assert all(feature["geometry"]["type"] in ("Polygon", "MultiPolygon")
            for feature in boundaries["features"])
 payload["municipal_boundaries"] = boundaries["features"]
-# The official all-area row uses the same month and property-type boundary as
-# the HPI chart. Keep its source value; do not derive an unweighted district mean.
-all_area_average = {
-    row["ym"]: row["average_price"]
-    for row in snapshot.get("districts", [])
-    if row["region"] == "All TRREB Areas"
-    and row["house_type"] == "all_types"
-    and row.get("average_price") is not None
-}
-if all_area_average:
-    payload["snapshot"]["observations"]["trreb_average_price"] = all_area_average
-    payload["series"]["trreb_average_price"] = {
-        "zh": "成交均价", "en": "Average sale price", "unit": "CAD",
-        "source": "TRREB Market Watch", "geography": "All TRREB Areas",
-        "url": "https://trreb.ca/market-data/market-watch/",
-        "help": {
-            "zh": ["当月全部房型成交价格的平均值。", "会随成交房型和地区构成变化，不等于标准化 HPI 基准价。"],
-            "en": ["Mean transaction price across all home types in the month.", "It moves with the mix of sold homes and areas; it is not the standardized HPI benchmark."],
-        },
-    }
+# The site reads only these district fields; dropping unused fields and empty values keeps
+# data.json well under the Artifact size limit as months accumulate. The display snapshot is unchanged.
+DISTRICT_FIELDS = ("ym", "house_type", "region", "average_price", "sales", "new_listings",
+                   "active_listings", "median_price", "avg_ldom", "avg_pdom", "avg_sp_lp")
+payload["snapshot"]["districts"] = [
+    trimmed for row in snapshot.get("districts", [])
+    if len(trimmed := {k: v for k, v in row.items() if k in DISTRICT_FIELDS and v is not None}) > 3
+]
 output = Path(__file__).resolve().parent / "dist/data.json"
 temporary = output.with_suffix('.json.tmp')
 temporary.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
