@@ -69,8 +69,18 @@ function help(field,visible,iconOnly=false) {
   const link=m.url?`<a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.source)} ↗</a>`:'';
   return `<details class="info"><summary aria-label="${esc(name(field))}">${iconOnly?'':esc(visible||name(field))}<span class="help-icon" aria-hidden="true">ⓘ</span></summary><div class="bubble"><strong class="bubble-title">${esc(name(field))}</strong>${m.what?`<p class="bubble-what">${esc(m.what[state.lang])}</p>`:''}<span class="bubble-label">${esc(t('impact'))}</span><p>${esc(h[0])}</p><p class="help-caveat">${esc(h[1])}</p>${link}</div></details>`;
 }
+// Page and rent tab live in a plain #token (the only hash form Artifact links keep), so reload and
+// the back button return to the same view. Language is a per-viewer convenience in localStorage.
+const PAGES=['market','rent','economy','mortgage'],RENT_MODES=['monthly','lease','annual','region'];
+function routeToken(){return state.page==='rent'&&state.rentMode!=='monthly'?`rent-${state.rentMode}`:state.page}
+function readRoute(){const [page,mode]=location.hash.slice(1).split('-');if(!PAGES.includes(page))return false;state.page=page;if(page==='rent')state.rentMode=RENT_MODES.includes(mode)?mode:'monthly';return true}
+function go(changes){const before=state.page;Object.assign(state,changes);const token=routeToken();if(location.hash.slice(1)!==token)history.pushState(null,'',`#${token}`);render();if(state.page!==before)window.scrollTo(0,0)}
+try{const saved=localStorage.getItem('gta-housing-lang');if(saved==='zh'||saved==='en')state.lang=saved}catch{}
+readRoute();
+window.addEventListener('popstate',()=>{if(!payload)return;if(!readRoute())state.page='market';render()});
 function shell(body) {
   document.documentElement.lang=state.lang;
+  document.title=`${state.page==='market'?'':t(state.page)+' · '}GTA Housing Monitor`;
   $('#app').classList.toggle('overview',state.page==='market');
   $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
   attach();
@@ -305,8 +315,8 @@ function priceBands(end){
  const now=share(end),before=share(prior);
  if(!now)return '';
  const top=Math.max(...now);
- const rows=PRICE_BANDS.map((f,i)=>{const change=before?now[i]-before[i]:null;return `<div class="band-row"><span class="band-label">${esc(name(f).replace(/^成交价\s*/,'').replace(/^Sold\s+/,''))}</span><span class="band-track"><span class="band-fill" data-width="${(now[i]/top*100).toFixed(1)}"></span></span><span class="band-share">${number(now[i],1)}%</span><span class="band-change">${change==null?'—':`${change>0?'+':change<0?'−':''}${number(Math.abs(change),1)} ${zh?'个百分点':'pp'}`}</span></div>`}).join('');
- return `<section class="price-bands"><div class="chart-heading"><h2>${zh?'成交价格段分布':'Sales by price band'}</h2><span class="caption">${monthLabel(end)} · ${zh?'较':'vs'} ${monthLabel(prior)}</span></div><div class="band-list" role="table" aria-label="${zh?'各价格段成交占比':'Share of sales by price band'}">${rows}</div><p class="note">${zh?'右列为与上年同月占比之差；反映成交构成，不是房价指数。':'Right column: change in share from a year earlier. Reflects the sales mix, not a price index.'}</p></section>`;
+ const rows=PRICE_BANDS.map((f,i)=>{const change=before?now[i]-before[i]:null;return `<div class="band-row"><span class="band-label">${esc(name(f).replace(/^成交价\s*/,'').replace(/^Sold\s+/,''))}</span><span class="band-track"><span class="band-fill" data-width="${(now[i]/top*100).toFixed(1)}"></span></span><span class="band-share">${number(now[i],1)}%</span><span class="band-change">${change==null?'—':`${change>0?'+':change<0?'−':''}${number(Math.abs(change),1)}`}</span></div>`}).join('');
+ return `<section class="price-bands"><div class="chart-heading"><h2>${zh?'成交价格段分布':'Sales by price band'}</h2><span class="caption">${monthLabel(end)} · ${zh?'较':'vs'} ${monthLabel(prior)}</span></div><div class="band-list" role="table" aria-label="${zh?'各价格段成交占比':'Share of sales by price band'}">${rows}</div><p class="note">${zh?'右列为占比较上年同月的变化（个百分点）；反映成交构成，不是房价指数。':'Right column: change in share from a year earlier, in percentage points. Reflects the sales mix, not a price index.'}</p></section>`;
 }
 function previousMonth(period,offset){
  const date=new Date(Date.UTC(Number(period.slice(0,4)),Number(period.slice(5))-1-offset,1));
@@ -509,11 +519,11 @@ function attach(){
   document.querySelectorAll('[data-left]').forEach(el=>{el.style.left=`${el.dataset.left}%`});
   document.querySelectorAll('[data-pick]').forEach(el=>el.onclick=()=>{const key=el.dataset.pick,value=el.dataset.value;state[key]=value;state.regionFeedback='';render();document.querySelector(`[data-pick="${key}"][data-value="${value}"]`)?.focus()});
   document.querySelectorAll('[data-map-csd]').forEach(el=>{const activate=()=>{state.districtRegion=el.dataset.mapCsd;render();document.querySelector('#regions-panel')?.setAttribute('open','')};el.onclick=activate;el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();activate()}}});
-  document.querySelector('[data-reset]').onclick=()=>{const lang=state.lang;Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,JSON.parse(JSON.stringify(initialState)),{lang});history.replaceState(null,'',location.pathname);render()};
+  document.querySelector('[data-reset]').onclick=()=>{const lang=state.lang;Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,JSON.parse(JSON.stringify(initialState)),{lang});history.replaceState(null,'',location.pathname);render();window.scrollTo(0,0)};
   document.querySelectorAll('[data-district-month]').forEach(el=>el.onclick=()=>{state.end.district=el.dataset.districtMonth;render();document.querySelector('#regions-panel')?.setAttribute('open','')});
-  document.querySelectorAll('[data-lang]').forEach(el=>el.onclick=()=>{state.lang=el.dataset.lang;render()});
-  document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>{state.page=el.dataset.page;render()});
-  document.querySelectorAll('[data-mode]').forEach(el=>el.onclick=()=>{state.rentMode=el.dataset.mode;render()});
+  document.querySelectorAll('[data-lang]').forEach(el=>el.onclick=()=>{state.lang=el.dataset.lang;try{localStorage.setItem('gta-housing-lang',state.lang)}catch{}render()});
+  document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>go({page:el.dataset.page}));
+  document.querySelectorAll('[data-mode]').forEach(el=>el.onclick=()=>go({rentMode:el.dataset.mode}));
   document.querySelectorAll('[data-state]').forEach(el=>el.onchange=()=>{state[el.dataset.state]=el.value;state.regionFeedback='';render();if(el.dataset.state.startsWith('district'))document.querySelector('#regions-panel')?.setAttribute('open','')});
   document.querySelectorAll('[data-end]').forEach(el=>el.onchange=()=>{state.end[el.dataset.end]=el.value;render();if(el.dataset.end==='district')document.querySelector('#regions-panel')?.setAttribute('open','')});
   const regionChoices=()=>Object.entries(AREAS).filter(([id])=>state.regionFrequency==='annual'?id!=='toronto':!id.includes('richmond')&&!id.includes('aurora'));

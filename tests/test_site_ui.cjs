@@ -209,6 +209,26 @@ async function main() {
     await page.locator('[data-number="rate"]').fill('5');
     assert.equal(await page.locator('.sens-col').count(), 4);
 
+    // 7. Navigation: plain #tokens survive reload, back returns, a new page starts at the top, language is remembered.
+    await open(page, 'market');
+    await page.evaluate(() => window.scrollTo(0, 2000));
+    await open(page, 'rent');
+    assert.match(await page.evaluate(() => location.hash), /^#rent(-[a-z]+)?$/, 'rent reopens on its last tab');
+    assert.equal(await page.evaluate(() => scrollY), 0, 'new page starts at the top');
+    await page.locator('[data-mode="monthly"]').click();
+    assert.equal(await page.evaluate(() => location.hash), '#rent');
+    await page.locator('[data-mode="lease"]').click();
+    assert.equal(await page.evaluate(() => location.hash), '#rent-lease');
+    await page.locator('[data-lang="en"]').click();
+    await page.reload();
+    await page.locator('#app nav').waitFor();
+    assert.equal(await page.locator('[data-mode="lease"]').getAttribute('aria-selected'), 'true', 'reload keeps the tab');
+    assert.equal(await page.evaluate(() => document.documentElement.lang), 'en', 'language remembered');
+    await page.goBack();
+    assert.equal(await page.locator('[data-mode="monthly"]').getAttribute('aria-selected'), 'true', 'back returns to the previous tab');
+    assert.match(await page.title(), /^Rental market · /);
+    await page.locator('[data-lang="zh"]').click();
+
     assert.deepEqual(errors, [], 'browser errors');
     console.log(`PASS: ${COMBOS.length} page combinations, no sideways scroll at 1440/390/320 px, overview, rent, economy and mortgage checks`);
   } finally {

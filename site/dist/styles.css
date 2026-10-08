@@ -9,3 +9,10 @@
 .heading-controls{min-width:0;max-width:100%}
 @media(max-width:760px){.bubble{position:fixed;left:16px;top:20vh;width:calc(100vw - 32px)}}
 .bubble .bubble-title{font-size:14px;font-weight:600;margin-bottom:2px}.bubble .bubble-what{color:#333;margin:4px 0 12px}.bubble-label{display:block;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted)}.bubble-label+p{margin-top:4px}
+/* Navigation stays reachable on long pages. */
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:#fff}
+.overview nav{border-bottom:1px solid var(--line)}
+/* Touch screens: help icons get a finger-sized hit area. */
+@media(pointer:coarse){details.info>summary{display:inline-flex;align-items:center;min-height:36px}}
+.band-row{grid-template-columns:minmax(120px,170px) minmax(0,1fr) 56px 52px}
+@media(max-width:600px){.band-row{grid-template-columns:minmax(0,1fr) 52px 48px}}
