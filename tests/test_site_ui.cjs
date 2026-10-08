@@ -117,6 +117,24 @@ async function main() {
     const outcomes = await page.locator('.outcome-row').count();
     assert.equal(outcomes, 3);
     assert.equal(await page.locator('.outcome-row.current').count(), 1);
+    // Linked charts: heatmap and price-band columns set the observation month; legend focuses one band.
+    const heatCells = page.locator('.heat-cell.pickable');
+    assert.ok(await heatCells.count() >= 24, 'cells from September 2022 on are selectable');
+    const target = await page.evaluate(() => allPeriods(['trreb_hpi_benchmark','trreb_sales','moi_raw']).at(-13));
+    await page.locator(`.heat-cell[data-pick-month="${target}"]`).click();
+    assert.equal(await page.evaluate(() => state.end.market), target, 'heatmap click sets the month');
+    assert.equal(await page.locator('[data-end="market"]').inputValue(), target);
+    assert.equal(await page.locator(`.band-mix .band-col[data-pick-month="${target}"]`).count(), 1, 'price-band chart shows the same month');
+    await page.locator(`.heat-cell[data-pick-month="${target}"]`).hover();
+    assert.equal(await page.locator('[data-temp-guide]').getAttribute('visibility'), 'visible', 'hover marks the month on the temperature line');
+    assert.equal(await page.locator('.viz-tip').isVisible(), true);
+    const latestMonth = await page.evaluate(() => allPeriods(['trreb_hpi_benchmark','trreb_sales','moi_raw']).at(-1));
+    await page.locator(`.band-col[data-pick-month="${latestMonth}"]`).click();
+    assert.equal(await page.evaluate(() => state.end.market), latestMonth, 'column click sets the month');
+    await page.locator('.band-legend').first().click();
+    assert.ok(await page.locator('.band-focus-label').count() >= 2, 'focused band shows its shares');
+    await page.locator('.band-legend.active').click();
+    assert.equal(await page.locator('.band-focus-label').count(), 0);
     // Help bubbles: one open at a time; an outside click or Escape closes them.
     const infos = page.locator('details.info > summary');
     await infos.nth(0).click();
@@ -142,14 +160,19 @@ async function main() {
 
     // 4. Rental market.
     await open(page, 'rent');
-    assert.equal(await page.locator('.measure').count(), 4, 'apartment measures');
-    await page.locator('[data-pick="measureRoom"][data-value="studio"]').click();
-    assert.match(await page.locator('.measure').first().textContent(), /没有这一房型/, 'asking rents have no studio category');
-    await page.locator('[data-pick="measureRoom"][data-value="3br"]').click();
-    assert.match(await page.locator('.measure').nth(2).textContent(), /三卧及以上/, 'CMHC 3+ must be labelled');
+    // Dumbbell: four unit types; asking rents have no studio, so that point is a hollow marker.
+    assert.equal(await page.locator('.db-row').count(), 4, 'one row per unit type');
+    assert.equal(await page.locator('.db-missing').count(), 1, 'asking rents have no studio category');
+    const dots = await page.locator('.db-dot').count();
+    assert.equal(dots, await page.evaluate(() => ['studio','1br','2br','3br'].flatMap(r => RENT_MEASURES.apartment.map(m => m[1](r))).filter(f => f && latestObservation(f)).length));
+    await page.locator('[data-pick-room="3br"]').click();
+    assert.equal(await page.locator('.db-row.selected').getAttribute('data-pick-room'), '3br');
+    assert.equal(await page.evaluate(() => state.room), '3br', 'row click switches the trend below');
+    assert.match(await page.locator('.rent-measures .note').textContent(), /三卧及以上/, 'CMHC 3+ must be labelled');
     await page.locator('[data-pick="measureType"][data-value="townhouse"]').click();
-    assert.equal(await page.locator('.measure').count(), 2, 'townhouse measures');
-    assert.equal(await page.locator('.measure.missing').count(), 0, 'three-bedroom townhouses have both measures');
+    assert.equal(await page.locator('.db-row').count(), 4);
+    assert.equal(await page.locator('.db-row[data-pick-room="3br"] .db-dot').count(), 2, 'three-bedroom townhouses have both measures');
+    await page.locator('[data-pick="measureType"][data-value="apartment"]').click();
     await page.locator('[data-mode="lease"]').click();
     await page.locator('[data-pick="leaseType"][data-value="townhouse"]').click();
     assert.equal(await page.locator('.supply-stat').count(), 3, 'townhouse leases: one to three bedrooms');
@@ -208,6 +231,15 @@ async function main() {
     assert.match(await page.locator('.mortgage-results').textContent(), /有效的利率/, 'blank rate must not show a payment');
     await page.locator('[data-number="rate"]').fill('5');
     assert.equal(await page.locator('.sens-col').count(), 4);
+    assert.match(await page.locator('.amort h3').textContent(), /5\.00%/);
+    assert.equal(await page.locator('.amort-bar').count(), await page.evaluate(() => Number(state.years)));
+    await page.locator('[data-amort-step="2"]').click();
+    assert.match(await page.locator('.amort h3').textContent(), /7\.00%/, 'rate column switches the chart');
+    assert.equal(await page.locator('.sens-col.chosen').getAttribute('data-amort-step'), '2');
+    await page.locator('[data-number="rate"]').fill('4');
+    assert.match(await page.locator('.amort h3').textContent(), /6\.00%/, 'chart follows the rate input, keeping the chosen offset');
+    const bg = await page.locator('.amort .legend-item i').first().evaluate(el => getComputedStyle(el).backgroundColor);
+    assert.notEqual(bg, 'rgba(0, 0, 0, 0)', 'swatches keep their colour after redraw');
 
     // 7. Navigation: plain #tokens survive reload, back returns, a new page starts at the top, language is remembered.
     await open(page, 'market');

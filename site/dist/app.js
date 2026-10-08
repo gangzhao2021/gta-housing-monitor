@@ -9,7 +9,7 @@ const PROPERTY_TYPES = {"all_types": ["全部房型", "All property types"], "de
 const COLORS = ['#2855d9','#007f86','#bf6517','#7952be'];
 const ROOM = {total:'total',studio:'studio','1br':'one','2br':'two','3br':'three','3plus':'threePlus'};
 const AREAS = {toronto:'Toronto',north_york:'North York',scarborough:'Scarborough',markham:'Markham',vaughan:'Vaughan',mississauga:'Mississauga',oakville:'Oakville',richmond_vaughan_king:'Richmond Hill / Vaughan / King',aurora_newmarket_whit:'Aurora / Newmarket / Whit-St.'};
-const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',measureType:'apartment',leaseType:'condo',regions:['north_york','markham','scarborough'],regionFeedback:'',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
+const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',measureType:'apartment',bandFocus:'all',amortStep:0,leaseType:'condo',regions:['north_york','markham','scarborough'],regionFeedback:'',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
 const initialState=JSON.parse(JSON.stringify(state));
 let payload, observations, monthly;
 let chartModels = [];
@@ -296,7 +296,8 @@ function temperatureChart(months,periods,band,W){
  const step=Math.max(1,Math.ceil((periods.length-1)/(W<500?2:3)));
  const xt=periods.map((p,i)=>i===0||i===periods.length-1||(i%step===0&&periods.length-1-i>=step/2)?`<text class="axis-label" x="${x(i)}" y="${H-6}" text-anchor="${i===0?'start':i===periods.length-1?'end':'middle'}">${p.slice(2).replace('-','/')}</text>`:'').join('');
  const last=values.length-1;
- return `<svg class="chart temperature-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${state.lang==='zh'?'成交／新挂牌比与同月常态之差':'Sales-to-new-listings ratio minus seasonal norm'}"><rect class="temp-hot" x="${pad.l}" y="${y(lim)}" width="${iw}" height="${y(band)-y(lim)}"/><rect class="temp-cool" x="${pad.l}" y="${y(-band)}" width="${iw}" height="${y(-lim)-y(-band)}"/><text class="temp-label" x="${W-pad.r-6}" y="${y(lim)+14}" text-anchor="end">${TEMPERATURE_LABELS.hot[state.lang==='zh'?0:1]}</text><text class="temp-label" x="${W-pad.r-6}" y="${y(-lim)-6}" text-anchor="end">${TEMPERATURE_LABELS.cool[state.lang==='zh'?0:1]}</text>${ticks}${xt}<path class="series-line" d="${d}" stroke="#2855d9"/>${values[last]!=null?`<circle class="chart-point" cx="${x(last)}" cy="${y(values[last])}" r="4" fill="#2855d9"/>`:''}</svg>`;
+ tempGuide={periods,xs:periods.map((_,i)=>x(i))};
+ return `<svg class="chart temperature-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${state.lang==='zh'?'成交／新挂牌比与同月常态之差':'Sales-to-new-listings ratio minus seasonal norm'}"><rect class="temp-hot" x="${pad.l}" y="${y(lim)}" width="${iw}" height="${y(band)-y(lim)}"/><rect class="temp-cool" x="${pad.l}" y="${y(-band)}" width="${iw}" height="${y(-lim)-y(-band)}"/><text class="temp-label" x="${W-pad.r-6}" y="${y(lim)+14}" text-anchor="end">${TEMPERATURE_LABELS.hot[state.lang==='zh'?0:1]}</text><text class="temp-label" x="${W-pad.r-6}" y="${y(-lim)-6}" text-anchor="end">${TEMPERATURE_LABELS.cool[state.lang==='zh'?0:1]}</text>${ticks}${xt}<path class="series-line" d="${d}" stroke="#2855d9"/>${values[last]!=null?`<circle class="chart-point" cx="${x(last)}" cy="${y(values[last])}" r="4" fill="#2855d9"/>`:''}<line class="temp-guide" data-temp-guide x1="0" x2="0" y1="${pad.t}" y2="${H-pad.b}" visibility="hidden"/></svg>`;
 }
 function temperatureSection(end){
  const reading=temperatureReading(end);if(!reading)return '';
@@ -306,18 +307,110 @@ function temperatureSection(end){
  const rows=['cool','balanced','hot'].map(k=>{const o=t.outcomes_12m[k],change=o.mean_change==null?'—':`${o.mean_change>0?'+':o.mean_change<0?'−':''}${number(Math.abs(o.mean_change),1)}%`;return `<div class="outcome-row${k===r.state?' current':''}"><span class="outcome-name">${TEMPERATURE_LABELS[k][L]}${k===r.state?`<small>${zh?'当前':'now'}</small>`:''}</span><b>${change}</b><span class="outcome-meta">${o.share_up==null?'—':number(o.share_up*100,0)+'%'} ${zh?'上涨':'rose'} · ${o.n} ${zh?'个月':'months'}</span></div>`}).join('');
  return `<section class="temperature"><div class="chart-heading"><h2>${zh?'市场温度走势':'Market temperature history'}</h2><span class="caption">${zh?'成交／新挂牌比 − 同月常态 · 个百分点':'Sales-to-new-listings ratio minus seasonal norm · pp'}</span></div>
  <div class="temperature-grid"><div>${temperatureChart(t.months,periods,t.band_pp,W)}<p class="note">${zh?`高于常态 ${t.band_pp} 个百分点以上为偏热，低于 ${t.band_pp} 个百分点以上为偏冷。`:`Hot when ${t.band_pp} pp or more above the norm, cool when ${t.band_pp} pp or more below.`}</p></div>
- <div class="outcomes"><h3>${zh?'历史上，各温度之后 12 个月的 HPI':'HPI over the following 12 months, by reading'}</h3><div role="table" aria-label="${zh?'各温度之后 12 个月 HPI 平均变化':'Average HPI change 12 months after each reading'}">${rows}</div><p class="note">${zh?'2012 年以来 TRREB HPI 统计。描述供需，不是预测；样本外研究显示对 6–12 个月方向有参考意义。':'TRREB HPI since 2012. Describes market balance, not a forecast; out-of-sample research found it informative about direction 6–12 months ahead.'}</p></div></div></section>`;
+ <div class="outcomes"><h3>${zh?'历史上，各温度之后 12 个月的 HPI':'HPI over the following 12 months, by reading'}</h3><div role="table" aria-label="${zh?'各温度之后 12 个月 HPI 平均变化':'Average HPI change 12 months after each reading'}">${rows}</div><p class="note">${zh?'2012 年以来 TRREB HPI 统计。描述供需，不是预测；样本外研究显示对 6–12 个月方向有参考意义。':'TRREB HPI since 2012. Describes market balance, not a forecast; out-of-sample research found it informative about direction 6–12 months ahead.'}</p></div></div>${seasonHeatmap(end)}</section>`;
+}
+// ---- Linked charts (Figma 12): heatmap and price-band mix share the observation month,
+// the dumbbell row picks the rent bedroom type, and the rate table drives the amortization bars.
+let tempGuide=null;
+const COOL_RGB=[40,85,217],HOT_RGB=[191,101,23],NEUTRAL_RGB=[243,243,243];
+function gapColor(v){const k=Math.min(1,Math.abs(v)/30),to=v<0?COOL_RGB:HOT_RGB;return `rgb(${NEUTRAL_RGB.map((c,i)=>Math.round(c+(to[i]-c)*k)).join(',')})`}
+const signed=(v,d=1)=>`${v>0?'+':v<0?'−':''}${number(Math.abs(v),d)}`;
+function seasonHeatmap(end){
+ const t=payload.market_temperature;if(!t)return '';
+ const zh=state.lang==='zh',L=zh?0:1,months=t.months,keys=Object.keys(months).sort();
+ const lastYear=Number(keys.at(-1).slice(0,4)),firstYear=Math.max(2012,Number(keys[0].slice(0,4)));
+ const years=[];for(let y=firstYear;y<=lastYear;y++)years.push(y);
+ const selectable=new Set(allPeriods(['trreb_hpi_benchmark','trreb_sales','moi_raw']));
+ const selected=keys.filter(p=>p<=end).at(-1);
+ const full=chartWidth(1280,false),W=window.innerWidth>900?Math.round(full*0.62):full,narrow=W<560;
+ const lw=narrow?34:42,cw=(W-lw)/12,ch=narrow?17:22,top=20,H=top+years.length*ch;
+ const head=Array.from({length:12},(_,m)=>narrow&&m%3?'':`<text class="axis-label" x="${(lw+m*cw+cw/2).toFixed(1)}" y="12" text-anchor="middle">${zh?`${m+1}月`:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m]}</text>`).join('');
+ let cells='',labels='',sel='';
+ years.forEach((y,r)=>{labels+=`<text class="axis-label" x="0" y="${(top+r*ch+ch*0.68).toFixed(1)}">${narrow?String(y).slice(2):y}</text>`;
+  for(let m=0;m<12;m++){const p=`${y}-${String(m+1).padStart(2,'0')}`,v=months[p];if(!v)continue;
+   const x=(lw+m*cw).toFixed(1),yy=(top+r*ch).toFixed(1),tip=`${monthLabel(p)} · ${signed(v.gap)} ${zh?'个百分点':'pp'} · ${TEMPERATURE_LABELS[v.state][L]}`,pick=selectable.has(p);
+   cells+=`<rect class="heat-cell${pick?' pickable':''}" x="${x}" y="${yy}" width="${(cw-2).toFixed(1)}" height="${ch-2}" rx="2" fill="${gapColor(v.gap)}" data-tip="${esc(tip)}" data-heat="${p}"${pick?` data-pick-month="${p}" tabindex="0" role="button" aria-label="${esc(tip)}"`:''}/>`;
+   if(p===selected)sel=`<rect class="heat-selected" x="${(lw+m*cw-1.5).toFixed(1)}" y="${(top+r*ch-1.5).toFixed(1)}" width="${(cw+1).toFixed(1)}" height="${ch+1}" rx="3"/>`}});
+ // A plain-language reading: the current run of same-temperature months and the last hot spell.
+ let run=0;for(let i=keys.indexOf(selected);i>=0&&months[keys[i]].state===months[selected].state;i--)run++;
+ const lastHot=keys.filter(p=>p<=selected&&months[p].state==='hot').at(-1);
+ const ramp=[-30,-20,-10,0,10,20,30].map(v=>`<i data-bg="${gapColor(v)}"></i>`).join('');
+ return `<div class="heatmap-block"><div class="chart-heading"><h3>${zh?'逐月热力图':'Month-by-month heatmap'}</h3><span class="caption">${zh?`${firstYear}—${lastYear} · 一行一年`:`${firstYear}–${lastYear} · one row per year`}</span></div>
+ <div class="temperature-grid"><svg class="chart heatmap" viewBox="0 0 ${W} ${H}" role="group" aria-label="${zh?'市场温度逐月热力图':'Market temperature heatmap'}">${head}${labels}${cells}${sel}</svg>
+ <div class="heat-side"><div class="heat-ramp">${ramp}</div><div class="heat-ramp-labels"><span>${zh?'偏冷':'Cool'} −30</span><span>0</span><span>+30 ${zh?'偏热':'Hot'}</span></div>
+ <p>${zh?`${monthLabel(selected)} 为${TEMPERATURE_LABELS[months[selected].state][0]}，已连续 ${run} 个月${TEMPERATURE_LABELS[months[selected].state][0]}${lastHot?`；上一次偏热是 ${monthLabel(lastHot)}`:''}。`:`${selected} reads ${TEMPERATURE_LABELS[months[selected].state][1].toLowerCase()}, ${run} month${run>1?'s':''} in a row${lastHot?`; the last hot month was ${lastHot}`:''}.`}</p>
+ <p class="note">${zh?'点 2022 年 9 月以后的格子：整页切到该月。悬停：上方走势图同步标出该月。':'Select a cell from September 2022 on to move the whole page to that month. Hover to mark the month on the chart above.'}</p></div></div></div>`;
+}
+const BAND_COLORS=['#9ad0d3','#4fb0b6','#007f86','#2855d9','#1b3a99','#0f1f55'];
+function bandShares(period){const counts=PRICE_BANDS.map(f=>value(f,period));if(counts.some(v=>v==null))return null;const total=counts.reduce((a,b)=>a+b,0);return total?counts.map(v=>v/total*100):null}
+const bandName=i=>name(PRICE_BANDS[i]).replace(/^成交价\s*/,'').replace(/^Sold\s+/,'');
+function priceBands(end){
+ const zh=state.lang==='zh',all=allPeriods(PRICE_BANDS).filter(p=>bandShares(p));
+ if(!all.length||!bandShares(end))return '';
+ const latest=all.at(-1),stop=end<all.at(-25)?end:latest,periods=all.filter(p=>p<=stop).slice(-25),shares=periods.map(bandShares);
+ const focus=/^[0-5]$/.test(String(state.bandFocus))?Number(state.bandFocus):null;
+ const full=chartWidth(1280,false),W=window.innerWidth>900?Math.round(full*0.62):full,narrow=W<560;
+ const L=36,H=240,top=8,step=(W-L)/periods.length,bw=Math.max(4,step*0.78);
+ const y=v=>top+H-v/100*H;
+ const grid=[0,25,50,75,100].map(v=>`<line class="grid-line" x1="${L}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text class="axis-label" x="${L-6}" y="${y(v)+4}" text-anchor="end">${v}%</text>`).join('');
+ const lab=Math.max(1,Math.ceil(periods.length/(narrow?3:5)));
+ const cols=periods.map((p,i)=>{let acc=0;const x=L+i*step+(step-bw)/2;
+  const segs=shares[i].map((v,k)=>{const yy=y(acc+v),h=v/100*H;acc+=v;return `<rect class="band-seg" x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,h-0.6).toFixed(1)}" fill="${BAND_COLORS[k]}"${focus!=null&&focus!==k?' opacity="0.22"':''}/>`}).join('');
+  const label=focus!=null&&(i===0||i===periods.length-1||p===end)?`<text class="band-focus-label" x="${(x+bw/2).toFixed(1)}" y="${(y(shares[i].slice(0,focus+1).reduce((a,b)=>a+b,0))-4).toFixed(1)}" text-anchor="middle">${number(shares[i][focus],1)}%</text>`:'';
+  const tip=`${monthLabel(p)} · `+shares[i].map((v,k)=>`${bandName(k)} ${number(v,1)}%`).join(' · ');
+  const tick=i%lab===0||i===periods.length-1?`<text class="axis-label" x="${(x+bw/2).toFixed(1)}" y="${top+H+16}" text-anchor="middle">${p.slice(2).replace('-','/')}</text>`:'';
+  return `<g class="band-col" data-pick-month="${p}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}"><rect class="band-hit" x="${(L+i*step).toFixed(1)}" y="${top}" width="${step.toFixed(1)}" height="${H}"/>${segs}${label}</g>${tick}`}).join('');
+ const si=periods.indexOf(end),sel=si<0?'':`<rect class="heat-selected" x="${(L+si*step+(step-bw)/2-2.5).toFixed(1)}" y="${top-2.5}" width="${(bw+5).toFixed(1)}" height="${H+5}" rx="3"/>`;
+ const legend=PRICE_BANDS.map((_,k)=>`<button class="band-legend${focus===k?' active':''}" data-pick="bandFocus" data-value="${focus===k?'all':k}" aria-pressed="${focus===k}"><i data-bg="${BAND_COLORS[k]}"></i>${esc(bandName(k))}</button>`).join('');
+ const now=bandShares(end),before=bandShares(previousMonth(end,12));
+ const rows=PRICE_BANDS.map((_,k)=>`<div class="mix-row"><span><i data-bg="${BAND_COLORS[k]}"></i>${esc(bandName(k))}</span><b>${number(now[k],1)}%</b><small>${before?signed(now[k]-before[k]):'—'}</small></div>`).join('');
+ const change=shares.at(-1).map((v,k)=>v-shares[0][k]),up=change.indexOf(Math.max(...change)),down=change.indexOf(Math.min(...change));
+ const insight=zh?`${monthLabel(periods[0])} 到 ${monthLabel(periods.at(-1))}，${bandName(up)}的占比从 ${number(shares[0][up],1)}% 变为 ${number(shares.at(-1)[up],1)}%，${bandName(down)}从 ${number(shares[0][down],1)}% 变为 ${number(shares.at(-1)[down],1)}%。`:`From ${periods[0]} to ${periods.at(-1)}, ${bandName(up)} moved from ${number(shares[0][up],1)}% to ${number(shares.at(-1)[up],1)}% of sales, and ${bandName(down)} from ${number(shares[0][down],1)}% to ${number(shares.at(-1)[down],1)}%.`;
+ return `<section class="price-bands"><div class="chart-heading"><h2>${zh?'成交价格段构成':'Sales by price band'}</h2><span class="caption">${zh?'各价格段占当月成交的比例':'Share of each month’s sales'}</span></div><div class="band-legends" role="group" aria-label="${zh?'只看某一价格段':'Focus on one band'}">${legend}</div>
+ <div class="temperature-grid"><svg class="chart band-mix" viewBox="0 0 ${W} ${top+H+24}" role="group" aria-label="${zh?'价格段构成，近 25 个月':'Price-band mix, last 25 months'}">${grid}${cols}${sel}</svg>
+ <div class="mix-side"><p>${insight}</p><div class="mix-detail"><strong>${monthLabel(end)}${zh?' · 较上年同月（个百分点）':' · change vs a year earlier (pp)'}</strong>${rows}</div><p class="note">${zh?'点柱子切换观察月份；点图例只看一个价格段。反映成交构成，不是房价指数。':'Select a column to change the month; select a legend item to focus on one band. Reflects the sales mix, not a price index.'}</p></div></div></section>`;
+}
+function rentDumbbell(){
+ const zh=state.lang==='zh',L=zh?0:1,type=state.measureType==='townhouse'?'townhouse':'apartment',measures=RENT_MEASURES[type];
+ const selectedRoom=['studio','1br','2br','3br'].includes(state.measureRoom)?state.measureRoom:'1br';
+ const rooms=[['studio',t('studio')],['1br',t('one')],['2br',t('two')],['3br',t('three')+(zh?'*':'*')]];
+ const data=rooms.map(([room])=>measures.map(([id,field,annual,color,label,source])=>{const f=field(room),o=f&&latestObservation(f);if(!o)return {missing:true,reason:f?(zh?'样本太少，不显示':'too few units'):(zh?'该来源没有这一房型':'no such category'),label,color,source};
+  const when=annual?(zh?`${o.period} 年 10 月`:`Oct ${o.period}`):id==='lease'?quarterLabel(o.period):monthLabel(o.period);return {value:o.value,label,color,source,when}}));
+ const values=data.flat().filter(d=>!d.missing).map(d=>d.value);if(!values.length)return '';
+ const lo=Math.floor((Math.min(...values)-100)/500)*500,hi=Math.ceil((Math.max(...values)+100)/500)*500;
+ const W=chartWidth(980,false),lw=56,rw=78,rh=44,top=4,H=top+rooms.length*rh+26,pw=W-lw-rw;
+ const X=v=>lw+(v-lo)/(hi-lo)*pw;
+ let ticks='';for(let v=lo;v<=hi;v+=500){if(W<520&&(v-lo)%1000)continue;ticks+=`<line class="grid-line" x1="${X(v).toFixed(1)}" x2="${X(v).toFixed(1)}" y1="${top}" y2="${top+rooms.length*rh}"/><text class="axis-label" x="${X(v).toFixed(1)}" y="${H-6}" text-anchor="middle">$${number(v)}</text>`}
+ const rowsSvg=rooms.map(([room,label],i)=>{const y=top+i*rh+rh/2,pts=data[i],vals=pts.filter(d=>!d.missing).map(d=>d.value),sel=room===selectedRoom;
+  const lineEl=vals.length>1?`<line class="db-line" x1="${X(Math.min(...vals)).toFixed(1)}" x2="${X(Math.max(...vals)).toFixed(1)}" y1="${y}" y2="${y}"/>`:'';
+  const dots=pts.map(d=>d.missing?`<circle class="db-missing" cx="${lw-12}" cy="${y}" r="5" data-tip="${esc(`${label} · ${d.label[L]} · ${d.reason}`)}"/>`:`<circle class="db-dot" cx="${X(d.value).toFixed(1)}" cy="${y}" r="6.5" fill="${d.color}" data-tip="${esc(`${label} · ${d.label[L]} · $${number(d.value)} · ${d.when} · ${d.source}`)}"/>`).join('');
+  const gap=vals.length>1?`<text class="axis-label" x="${(X(Math.max(...vals))+12).toFixed(1)}" y="${y+4}">${zh?'差':'gap'} $${number(Math.max(...vals)-Math.min(...vals))}</text>`:'';
+  return `<g class="db-row${sel?' selected':''}" data-pick-room="${room}" tabindex="0" role="button" aria-pressed="${sel}" aria-label="${esc(label)}"><rect class="db-hit" x="0" y="${top+i*rh+3}" width="${W}" height="${rh-6}" rx="6"/><text class="db-label" x="0" y="${y+4}">${esc(label)}</text>${lineEl}${dots}${gap}</g>`}).join('');
+ const legend=measures.map(([id,field,annual,color,label,source,meaning])=>{const o=latestObservation(field('1br'))||latestObservation(field('2br'));const when=o?(annual?(zh?`${o.period} 年 10 月`:`Oct ${o.period}`):id==='lease'?quarterLabel(o.period):monthLabel(o.period)):'';return `<div class="db-legend-item"><i data-bg="${color}"></i><span><b>${esc(label[L])}</b> <small>${source} · ${esc(when)}</small><br><small class="db-meaning">${esc(meaning[L])}</small></span></div>`}).join('');
+ return `<section class="rent-measures"><div class="chart-heading"><div><h2>${zh?'同一房型，不同口径的租金':'One unit type, different rent measures'}</h2><p class="caption">${zh?'点一行，下方走势切到该房型；悬停看来源与时间':'Select a row to show that unit type below; hover for source and date'}</p></div>${segmented('measureType',[['apartment',zh?'公寓':'Apartment'],['townhouse',zh?'镇屋':'Townhouse']],type,zh?'物业类型':'Property type')}</div>
+ <div class="db-legend">${legend}</div><svg class="chart dumbbell" viewBox="0 0 ${W} ${H}" role="group" aria-label="${zh?'各房型不同口径租金':'Rent measures by unit type'}">${ticks}${rowsSvg}</svg>
+ <p class="note">${zh?'* CMHC 为三卧及以上；空心虚线点表示该口径没有这一房型。独立屋、半独立屋和单间合租暂无可靠公开数据。':'* CMHC figures are 3+ bedrooms; a hollow dashed dot means that measure has no such unit type. Detached and semi-detached houses and shared rooms have no reliable public series.'}</p></section>`;
+}
+function amortization(loan,rate,years){const r=Math.pow(1+rate/200,1/6)-1,pay=monthlyPayment(loan,rate,years);let bal=loan;const out=[];for(let y=1;y<=years;y++){let p=0,i=0;for(let k=0;k<12;k++){const int=bal*r,pr=Math.min(bal,pay-int);i+=int;p+=pr;bal-=pr}out.push({year:y,principal:p,interest:i,balance:Math.max(0,bal)})}return out}
+function amortChart(m,rate){
+ const zh=state.lang==='zh',rows=amortization(m.loan,rate,m.years);if(!rows.length||m.loan<=0)return '';
+ const W=640,H=210,L=48,top=10,max=Math.max(...rows.map(r=>r.principal+r.interest)),scale=niceScale(0,max,4);
+ const y=v=>top+H-v/scale.max*H,step=(W-L)/rows.length,bw=step*0.74;
+ let grid='';for(let v=0;v<=scale.max+1e-9;v+=scale.step)grid+=`<line class="grid-line" x1="${L}" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="axis-label" x="${L-6}" y="${(y(v)+4).toFixed(1)}" text-anchor="end">${v?'$'+axisNumber(v):'0'}</text>`;
+ const bars=rows.map((r,i)=>{const x=L+i*step+(step-bw)/2,tip=zh?`第 ${r.year} 年：本金 ${money(r.principal)} · 利息 ${money(r.interest)} · 年末剩余 ${money(r.balance)}`:`Year ${r.year}: principal ${money(r.principal)} · interest ${money(r.interest)} · balance ${money(r.balance)}`;
+  const edge=r.year===rows.length?'end':r.year===1?'start':'middle',tx=edge==='end'?x+bw:edge==='start'?x:x+bw/2;
+  const tick=r.year===1||r.year%5===0?`<text class="axis-label" x="${tx.toFixed(1)}" y="${top+H+16}" text-anchor="${edge}">${zh?`第${r.year}年`:`Y${r.year}`}</text>`:'';
+  return `<g class="amort-bar" data-tip="${esc(tip)}" tabindex="0" aria-label="${esc(tip)}"><rect x="${x.toFixed(1)}" y="${y(r.principal).toFixed(1)}" width="${bw.toFixed(1)}" height="${(H+top-y(r.principal)).toFixed(1)}" fill="#007f86"/><rect x="${x.toFixed(1)}" y="${y(r.principal+r.interest).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,y(r.principal)-y(r.principal+r.interest)-0.6).toFixed(1)}" fill="#bf6517"/></g>${tick}`}).join('');
+ const cross=rows.find(r=>r.principal>r.interest),cx=cross?L+(cross.year-1)*step+step/2:null;
+ const crossEl=cross?`<line class="amort-cross" x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${top}" y2="${top+H}"/><text class="amort-cross-label" x="${(cx+6).toFixed(1)}" y="${top+12}">${zh?`第 ${cross.year} 年起本金超过利息`:`Principal exceeds interest from year ${cross.year}`}</text>`:'';
+ const five=rows.slice(0,5),paid5=five.reduce((a,r)=>a+r.principal+r.interest,0),int5=five.reduce((a,r)=>a+r.interest,0),total=rows.reduce((a,r)=>a+r.interest,0);
+ const facts=[[zh?'前 5 年共还':'Paid in the first 5 years',money(Math.round(paid5/100)*100)],[zh?'其中利息':'of which interest',`${money(Math.round(int5/100)*100)}（${number(int5/paid5*100,0)}%）`],[zh?`${m.years} 年利息合计`:`Interest over ${m.years} years`,money(Math.round(total/100)*100)]];
+ if(rows[9])facts.push([zh?'第 10 年末剩余本金':'Balance after year 10',money(Math.round(rows[9].balance/100)*100)]);
+ return `<div class="amort"><div class="chart-heading"><h3>${zh?`每年还的钱：本金与利息（${number(rate,2)}%）`:`Each year’s payments: principal and interest (${number(rate,2)}%)`}</h3><span class="legend"><span class="legend-item"><i data-bg="#007f86"></i>${zh?'本金':'Principal'}</span><span class="legend-item"><i data-bg="#bf6517"></i>${zh?'利息':'Interest'}</span></span></div>
+ <svg class="chart amort-chart" viewBox="0 0 ${W} ${top+H+24}" role="group" aria-label="${zh?'逐年本金与利息':'Principal and interest by year'}">${grid}${bars}${crossEl}</svg>
+ <div class="amort-facts">${facts.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('')}</div></div>`;
 }
 const PRICE_BANDS=['trreb_sales_band_under_500k','trreb_sales_band_500k_800k','trreb_sales_band_800k_1m','trreb_sales_band_1m_1_5m','trreb_sales_band_1_5m_2m','trreb_sales_band_2m_plus'];
-function priceBands(end){
- const zh=state.lang==='zh',prior=previousMonth(end,12);
- const share=(period)=>{const counts=PRICE_BANDS.map(f=>value(f,period));if(counts.some(v=>v==null))return null;const total=counts.reduce((a,b)=>a+b,0);return total?counts.map(v=>v/total*100):null};
- const now=share(end),before=share(prior);
- if(!now)return '';
- const top=Math.max(...now);
- const rows=PRICE_BANDS.map((f,i)=>{const change=before?now[i]-before[i]:null;return `<div class="band-row"><span class="band-label">${esc(name(f).replace(/^成交价\s*/,'').replace(/^Sold\s+/,''))}</span><span class="band-track"><span class="band-fill" data-width="${(now[i]/top*100).toFixed(1)}"></span></span><span class="band-share">${number(now[i],1)}%</span><span class="band-change">${change==null?'—':`${change>0?'+':change<0?'−':''}${number(Math.abs(change),1)}`}</span></div>`}).join('');
- return `<section class="price-bands"><div class="chart-heading"><h2>${zh?'成交价格段分布':'Sales by price band'}</h2><span class="caption">${monthLabel(end)} · ${zh?'较':'vs'} ${monthLabel(prior)}</span></div><div class="band-list" role="table" aria-label="${zh?'各价格段成交占比':'Share of sales by price band'}">${rows}</div><p class="note">${zh?'右列为占比较上年同月的变化（个百分点）；反映成交构成，不是房价指数。':'Right column: change in share from a year earlier, in percentage points. Reflects the sales mix, not a price index.'}</p></section>`;
-}
 function previousMonth(period,offset){
  const date=new Date(Date.UTC(Number(period.slice(0,4)),Number(period.slice(5))-1-offset,1));
  return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}`;
@@ -377,20 +470,10 @@ const RENT_MEASURES={
   ['lease',r=>`gta_townhouse_lease_rent_${r==='studio'?'bachelor':r}`,false,'#007f86',['签约租金 · 镇屋','Signed lease · townhouse'],'TRREB',['经 MLS 实际租出的镇屋平均月租。季度更新。','Average rent on townhouses actually leased through the MLS. Quarterly.']],
   ['row',r=>`toronto_row_rent_${plus(r)}`,true,'#7952be',['年度调查 · 专建出租镇屋','Annual survey · purpose-built townhouses'],'CMHC',['专门建来出租的联排镇屋，含已住租客。','Townhouse rentals built as such, including sitting tenants.']]]};
 function latestObservation(field){const periods=Object.keys(observations[field]||{}).sort();const period=periods.at(-1);return period?{period,value:observations[field][period]}:null}
-function rentMeasures(){
- const zh=state.lang==='zh',L=zh?0:1,room=['studio','1br','2br','3br'].includes(state.measureRoom)?state.measureRoom:'1br',type=state.measureType==='townhouse'?'townhouse':'apartment';
- const cards=RENT_MEASURES[type].map(([id,field,annual,color,label,source,meaning])=>{const f=field(room),latest=f&&latestObservation(f);
-  if(!latest)return `<div class="measure missing"><span class="measure-name">${esc(label[L])}</span><strong>—</strong><small>${source}</small><p>${f?(zh?'该房型样本太少，不显示。':'Too few units to show.'):(zh?'该来源没有这一房型。':'This source has no such category.')}</p></div>`;
-  const when=annual?(zh?`${latest.period} 年 10 月`:`Oct ${latest.period}`):id==='lease'?quarterLabel(latest.period):monthLabel(latest.period);
-  const caveat=annual&&room==='3br'?(zh?' · 三卧及以上':' · 3+ bedrooms'):'';
-  return `<div class="measure" data-border="${color}"><span class="measure-name">${esc(label[L])}</span><strong>$${number(latest.value)}</strong><small>${esc(when)} · ${source}${caveat}</small><p>${esc(meaning[L])}</p></div>`}).join('');
- const rooms=[['studio',t('studio')],['1br',t('one')],['2br',t('two')],['3br',t('three')]];
- return `<section class="rent-measures"><div class="chart-heading"><div><h2>${zh?'同一房型，不同口径的租金':'One unit type, different rent measures'}</h2><p class="caption">${zh?'开价、成交和存量调查回答不同的问题，不能互相替代；独立屋、半独立屋和单间合租暂无可靠公开数据':'Asking, signed and surveyed rents answer different questions; detached and semi-detached houses and shared rooms have no reliable public series'}</p></div><div class="heading-controls">${segmented('measureType',[['apartment',zh?'公寓':'Apartment'],['townhouse',zh?'镇屋':'Townhouse']],type,zh?'物业类型':'Property type')}${segmented('measureRoom',rooms,room,t('room'))}</div></div><div class="measure-row${type==='townhouse'?' two':''}">${cards}</div></section>`;
-}
 function roomPicker(key,rooms){if(!rooms.includes(state[key]))state[key]='total';return segmented(key,rooms.map(r=>[r,r==='total'&&state.lang==='zh'?'全部':r==='total'?'All':t(ROOM[r])]),state[key],t('room'))}
 function rentPage(){
   const zh=state.lang==='zh';
-  let out=rentMeasures()+tabButtons('mode',[['monthly',t('monthly')],['lease',t('lease')],['annual',t('annual')],['region',t('region')]],state.rentMode);
+  let out=rentDumbbell()+tabButtons('mode',[['monthly',t('monthly')],['lease',t('lease')],['annual',t('annual')],['region',t('region')]],state.rentMode);
   if(state.rentMode==='monthly'){
     const room=state.room,fields=room==='total'?['toronto_asking_rent_total','toronto_asking_rent_1br','toronto_asking_rent_2br'].filter(f=>observations[f]):[`toronto_asking_rent_${room}`];
     const key=fields[0],periods=allPeriods([key]),end=last([key]);
@@ -484,10 +567,12 @@ const money=(v,d=0)=>`$${number(v,d)}`;
 function mortgageResults(){
  const m=mortgageModel(),zh=state.lang==='zh';if(!m.valid)return `<p class="chart-empty">${zh?'请输入有效的利率。':'Enter a valid rate.'}</p>`;
  const steps=[-1,0,1,2].map(d=>m.rate+d).filter(r=>r>=0);
- const sens=steps.map(r=>{const p=monthlyPayment(m.loan,r,m.years),diff=p-m.pay,cur=Math.abs(r-m.rate)<1e-9;return `<div class="sens-col${cur?' current':''}"><span>${number(r,2)}%</span><strong>${money(p)}</strong><small>${cur?(zh?'当前假设':'current'):`${diff>0?'+':'−'}${money(Math.abs(diff))}`}</small></div>`}).join('');
+ const offset=[-1,0,1,2].includes(Number(state.amortStep))&&m.rate+Number(state.amortStep)>=0?Number(state.amortStep):0,chartRate=m.rate+offset;
+ const sens=steps.map(r=>{const p=monthlyPayment(m.loan,r,m.years),diff=p-m.pay,cur=Math.abs(r-m.rate)<1e-9,chosen=Math.abs(r-chartRate)<1e-9;return `<div class="sens-col${cur?' current':''}${chosen?' chosen':''}" data-amort-step="${Math.round(r-m.rate)}" tabindex="0" role="button" aria-pressed="${chosen}"><span>${number(r,2)}%</span><strong>${money(p)}</strong><small>${cur?(zh?'当前假设':'current'):`${diff>0?'+':'−'}${money(Math.abs(diff))}`}</small></div>`}).join('');
  return `<div class="payment-main"><span class="metric-name">${t('payment')}</span><div><span class="payment-result">${money(m.pay,2)}</span><span class="per">${zh?'/ 月':'/ month'}</span></div><p class="caption">${zh?`${m.years} 年共付利息约 ${money(Math.round(m.interest/100)*100)}`:`About ${money(Math.round(m.interest/100)*100)} of interest over ${m.years} years`}</p></div>
  <div class="mortgage-cards"><div class="mortgage-card"><strong>${zh?'压力测试月供':'Stress-test payment'}</strong><span>${money(m.stress,2)}</span><p>${zh?`按 ${number(m.qualifying,2)}% 计算：合同利率 +2 个百分点与 5.25% 取较高者，银行用它审核贷款。`:`At ${number(m.qualifying,2)}%: the higher of the contract rate + 2 points and 5.25%, which lenders use to qualify borrowers.`}</p></div><div class="mortgage-card"><strong>${zh?'大约需要的家庭年收入':'Approximate household income needed'}</strong><span>${money(Math.round(m.income/1000)*1000)}</span><p>${zh?'按压力测试月供不超过收入 39% 估算；未含物业税、取暖和 condo 管理费，实际要求更高。':'Stress-test payment at no more than 39% of income; excludes property tax, heating and condo fees, so the real requirement is higher.'}</p></div></div>
- <div class="sensitivity"><h3>${zh?'如果利率变化':'If the rate changes'}</h3><div class="sens-row">${sens}</div></div>
+ <div class="sensitivity"><h3>${zh?'如果利率变化':'If the rate changes'}</h3><div class="sens-row">${sens}</div><p class="note">${zh?'点任一列，下图切到该利率。':'Select a column to show that rate below.'}</p></div>
+ ${amortChart(m,chartRate)}
  <p class="note">${t('paymentNote')}</p>`;
 }
 function mortgageHints(){
@@ -530,7 +615,7 @@ function attach(){
   document.querySelectorAll('[data-remove-region]').forEach(el=>el.onclick=()=>{toggleRegion(el.dataset.removeRegion,regionChoices());document.querySelector('[data-add-region]')?.focus()});
   document.querySelectorAll('[data-add-region]').forEach(el=>el.onchange=()=>{if(el.value)toggleRegion(el.value,regionChoices())});
   document.querySelectorAll('[data-border]').forEach(el=>{el.style.borderLeftColor=el.dataset.border});
-  const refreshMortgage=()=>{const m=mortgageModel(),zh=state.lang==='zh';document.querySelector('.mortgage-results').innerHTML=mortgageResults();document.querySelector('[data-loan]').textContent=money(m.loan);document.querySelector('[data-down-amount]').textContent=`${zh?'首付':'Down payment'} ${money(m.price*m.down/100)}`;document.querySelector('[data-mortgage-hints]').innerHTML=mortgageHints()};
+  const refreshMortgage=()=>{const m=mortgageModel(),zh=state.lang==='zh';document.querySelector('.mortgage-results').innerHTML=mortgageResults();document.querySelectorAll('.mortgage-results [data-bg]').forEach(el=>{el.style.background=el.dataset.bg});document.querySelector('[data-loan]').textContent=money(m.loan);document.querySelector('[data-down-amount]').textContent=`${zh?'首付':'Down payment'} ${money(m.price*m.down/100)}`;document.querySelector('[data-mortgage-hints]').innerHTML=mortgageHints()};
   document.querySelectorAll('[data-number]').forEach(el=>el.oninput=()=>{const v=Number(el.value);state[el.dataset.number]=el.value!==''&&Number.isFinite(v)?v:NaN;refreshMortgage()});
   document.querySelectorAll('[data-money]').forEach(el=>{el.oninput=()=>{const digits=el.value.replace(/[^0-9]/g,'');state[el.dataset.money]=digits?Number(digits):0;refreshMortgage()};el.onblur=()=>{el.value=money(state[el.dataset.money])}});
 }
@@ -540,4 +625,21 @@ fetch('data.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.st
 document.addEventListener('click',event=>{document.querySelectorAll('details.info[open]').forEach(d=>{if(!d.contains(event.target))d.open=false})});
 document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const open=document.querySelector('details.info[open]');if(open){open.open=false;open.querySelector('summary')?.focus()}});
 document.addEventListener('toggle',event=>{const d=event.target;if(d.matches?.('details.info')&&d.open)document.querySelectorAll('details.info[open]').forEach(o=>{if(o!==d)o.open=false})},true);
+// One tooltip and delegated handlers serve the custom SVG charts, including ones redrawn on input.
+const vizTip=document.createElement('div');vizTip.className='viz-tip';vizTip.hidden=true;vizTip.setAttribute('role','status');document.body.appendChild(vizTip);
+function placeTip(text,x,y){vizTip.textContent=text;vizTip.hidden=false;const w=vizTip.offsetWidth,h=vizTip.offsetHeight;vizTip.style.left=`${Math.min(innerWidth-w-8,Math.max(8,x+14))}px`;vizTip.style.top=`${y-h-14<8?y+18:y-h-14}px`}
+function heatGuide(el){const line=document.querySelector('[data-temp-guide]');if(!line||!tempGuide)return;const i=el?tempGuide.periods.indexOf(el.dataset.heat):-1;if(i<0){line.setAttribute('visibility','hidden');return}line.setAttribute('x1',tempGuide.xs[i]);line.setAttribute('x2',tempGuide.xs[i]);line.setAttribute('visibility','visible')}
+document.addEventListener('pointerover',e=>{const el=e.target.closest?.('[data-tip]');if(!el)return;placeTip(el.dataset.tip,e.clientX,e.clientY);heatGuide(el.closest('[data-heat]'))});
+document.addEventListener('pointermove',e=>{const el=e.target.closest?.('[data-tip]');if(el)placeTip(el.dataset.tip,e.clientX,e.clientY)});
+document.addEventListener('pointerout',e=>{if(e.target.closest?.('[data-tip]')&&!e.relatedTarget?.closest?.('[data-tip]')){vizTip.hidden=true;heatGuide(null)}});
+document.addEventListener('focusin',e=>{const el=e.target.closest?.('[data-tip]');if(!el)return;const r=el.getBoundingClientRect();placeTip(el.dataset.tip,r.left+r.width/2,r.top);heatGuide(el.closest('[data-heat]'))});
+document.addEventListener('focusout',e=>{if(e.target.closest?.('[data-tip]')){vizTip.hidden=true;heatGuide(null)}});
+function vizAction(target){
+ const month=target.closest('[data-pick-month]');if(month){state.end.market=month.dataset.pickMonth;vizTip.hidden=true;render();document.querySelector(`[data-pick-month="${month.dataset.pickMonth}"]`)?.focus({preventScroll:true});return true}
+ const room=target.closest('[data-pick-room]');if(room){const r=room.dataset.pickRoom;state.measureRoom=r;if(['1br','2br','3br'].includes(r))state.room=r;state.annualRoom=r==='3br'?'3plus':r;state.leaseType=state.measureType==='townhouse'?'townhouse':'condo';vizTip.hidden=true;render();document.querySelector(`[data-pick-room="${r}"]`)?.focus({preventScroll:true});return true}
+ const step=target.closest('[data-amort-step]');if(step){state.amortStep=Number(step.dataset.amortStep);const box=document.querySelector('.mortgage-results');if(box)box.innerHTML=mortgageResults();attach();document.querySelector(`[data-amort-step="${state.amortStep}"]`)?.focus({preventScroll:true});return true}
+ return false;
+}
+document.addEventListener('click',e=>{if(e.target.closest)vizAction(e.target)});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest?.('[data-pick-month],[data-pick-room],[data-amort-step]')){e.preventDefault();vizAction(e.target)}});
 let resizeFrame;window.addEventListener('resize',()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{if(!payload)return;const open=document.querySelector('#regions-panel')?.open;render();if(open)document.querySelector('#regions-panel')?.setAttribute('open','')})});
