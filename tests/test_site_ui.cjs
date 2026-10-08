@@ -117,6 +117,17 @@ async function main() {
     const outcomes = await page.locator('.outcome-row').count();
     assert.equal(outcomes, 3);
     assert.equal(await page.locator('.outcome-row.current').count(), 1);
+    // Help bubbles: one open at a time; an outside click or Escape closes them.
+    const infos = page.locator('details.info > summary');
+    await infos.nth(0).click();
+    assert.equal(await page.locator('details.info[open]').count(), 1);
+    await page.locator('.kpi-strip details.info > summary').last().click();  // not covered by the first bubble
+    assert.equal(await page.locator('details.info[open]').count(), 1, 'opening a bubble closes the other');
+    await page.locator('h1').click();
+    assert.equal(await page.locator('details.info[open]').count(), 0, 'outside click closes the bubble');
+    await infos.nth(0).click();
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('details.info[open]').count(), 0, 'Escape closes the bubble');
     // Regions panel: collapsed by default, map opens the district detail.
     assert.equal(await page.locator('#regions-panel').getAttribute('open'), null);
     await page.locator('#regions-panel > summary').click();

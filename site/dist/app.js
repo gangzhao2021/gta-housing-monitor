@@ -526,4 +526,8 @@ function attach(){
 }
 fetch('data.json',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error(`HTTP ${r.status}`);return r.json()}).then(data=>{payload=data;prepare();render()}).catch(()=>{$('#app').innerHTML='<p class="message">已发布的资料快照暂时无法读取。 / Published data snapshot could not be loaded.</p>'});
 
+// Help bubbles close on an outside click or Escape, and only one stays open at a time.
+document.addEventListener('click',event=>{document.querySelectorAll('details.info[open]').forEach(d=>{if(!d.contains(event.target))d.open=false})});
+document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;const open=document.querySelector('details.info[open]');if(open){open.open=false;open.querySelector('summary')?.focus()}});
+document.addEventListener('toggle',event=>{const d=event.target;if(d.matches?.('details.info')&&d.open)document.querySelectorAll('details.info[open]').forEach(o=>{if(o!==d)o.open=false})},true);
 let resizeFrame;window.addEventListener('resize',()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{if(!payload)return;const open=document.querySelector('#regions-panel')?.open;render();if(open)document.querySelector('#regions-panel')?.setAttribute('open','')})});
