@@ -68,3 +68,20 @@ def scenario_notes(price, down_pct, amortization_years):
         if amortization_years == 30:
             notes.append("首付不足 20% 时，30 年摊还仅限首次购房或新建住宅。")
     return notes
+
+
+def amortization_by_year(principal, rate_pct, amortization_years):
+    """Principal, interest and year-end balance for each year of a fixed-payment mortgage."""
+    payment = monthly_payment(principal, rate_pct, amortization_years)
+    monthly_rate = (1 + rate_pct / 200) ** (1 / 6) - 1
+    balance, rows = principal, []
+    for year in range(1, amortization_years + 1):
+        paid_principal = paid_interest = 0.0
+        for _ in range(12):
+            interest = balance * monthly_rate
+            repaid = min(balance, payment - interest)
+            paid_interest += interest
+            paid_principal += repaid
+            balance -= repaid
+        rows.append({"year": year, "principal": paid_principal, "interest": paid_interest, "balance": max(0.0, balance)})
+    return rows

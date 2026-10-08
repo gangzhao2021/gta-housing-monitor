@@ -129,7 +129,7 @@ if page == "市场总览":
     if temperature_csv.is_file():
         from housing.market_temperature import build as build_temperature
         from housing.temperature_view import render as render_temperature
-        render_temperature(build_temperature(temperature_csv, db), end)
+        render_temperature(build_temperature(temperature_csv, db), end, "market-month", available_periods(data, resale_fields))
     cards(data, ["trreb_sales", "trreb_active_listings", "moi_raw"], end,
           {"moi_raw": "月末有效挂牌 ÷ 当月成交"})
     st.subheader("成交与新增挂牌")

@@ -191,3 +191,4 @@ p {line-height:1.55}
 .impact-bubble .bubble-title{font-size:14px;font-weight:600}.impact-bubble .bubble-what{color:#333;margin:4px 0 12px}.impact-bubble .bubble-label{display:block;border-top:1px solid #e5e5e5;padding-top:10px;font-size:12px;color:#666;font-weight:400}.impact-bubble .bubble-label+p{margin-top:4px}
 /* A clicked bubble stays while its summary or a link inside has focus; clicking elsewhere blurs it and hides it. */
 .metric-help:focus-within::details-content{content-visibility:visible}.metric-help:focus-within .impact-bubble{display:block}.metric-help[open]:not(:hover):not(:focus-within) .impact-bubble{display:none}
+.amort-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px 20px;background:#f7f7f7;border-radius:8px;padding:12px 14px;margin:4px 0 6px}.amort-facts div{display:grid;gap:2px;font-size:12px}.amort-facts span{color:#666}.amort-facts b{font-size:14px;font-variant-numeric:tabular-nums}

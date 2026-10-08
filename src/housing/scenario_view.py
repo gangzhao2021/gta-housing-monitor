@@ -1,7 +1,7 @@
 """Shared owner/viewer sections for the economy readings and the price-first mortgage scenario (Figma 10/11)."""
 from html import escape
 
-from .affordability import monthly_payment, scenario, scenario_notes
+from .affordability import amortization_by_year, monthly_payment, scenario, scenario_notes
 from .i18n import st, english
 
 READINGS = (("boc_policy_rate", ("加拿大央行政策利率", "Bank of Canada policy rate"), 2),
@@ -113,4 +113,48 @@ def render_scenario(default_price, price_period, default_rate, rate_period, key)
 <div class="mortgage-card"><strong>{"Approximate household income needed" if en else "大约需要的家庭年收入"}</strong><span>${round(s["income"] / 1000) * 1000:,.0f}</span>
 <p>{"Stress-test payment at no more than 39% of income; excludes property tax, heating and condo fees, so the real requirement is higher." if en else "按压力测试月供不超过收入 39% 估算；未含物业税、取暖和 condo 管理费，实际要求更高。"}</p></div></div>
 <h3 class="sens-title">{"If the rate changes" if en else "如果利率变化"}</h3><div class="sens-row">{"".join(sens)}</div>''')
+    with right:
+        render_amortization(s["loan"], rate, years, key, en)
     return {"loan": s["loan"], "years": years, "rate": rate}
+
+
+def render_amortization(loan, rate, years, key, en):
+    """Yearly principal and interest bars; a rate picker mirrors the site's clickable rate table."""
+    import altair as alt
+    import pandas as pd
+    import streamlit as native_st
+    if loan <= 0:
+        return
+    steps = [step for step in (-1, 0, 1, 2) if rate + step >= 0]
+    step = native_st.radio("Chart rate" if en else "图表利率", steps, index=steps.index(0), horizontal=True,
+                           format_func=lambda d: f"{rate + d:.2f}%", key=f"{key}-amort-step")
+    chart_rate = rate + step
+    rows = amortization_by_year(loan, chart_rate, years)
+    principal, interest = ("Principal", "Interest") if en else ("本金", "利息")
+    frame = pd.DataFrame([{"year": r["year"], "part": part, "amount": r[field], "order": order,
+                           "balance": r["balance"]} for r in rows
+                          for part, field, order in ((principal, "principal", 0), (interest, "interest", 1))])
+    native_st.markdown(f"**{'Each year: principal and interest' if en else '每年还的钱：本金与利息'}（{chart_rate:.2f}%）**")
+    chart = alt.Chart(frame).mark_bar().encode(
+        x=alt.X("year:O", title=None, axis=alt.Axis(labelAngle=0, values=[1, *range(5, years + 1, 5)])),
+        y=alt.Y("sum(amount):Q", title=None, axis=alt.Axis(format="$,.0f")),
+        color=alt.Color("part:N", scale=alt.Scale(domain=[principal, interest], range=["#007f86", "#bf6517"]),
+                        legend=alt.Legend(title=None, orient="top")),
+        order=alt.Order("order:Q"),
+        tooltip=[alt.Tooltip("year:O", title="Year" if en else "年份"), alt.Tooltip("part:N", title=""),
+                 alt.Tooltip("amount:Q", format="$,.0f", title="Amount" if en else "金额"),
+                 alt.Tooltip("balance:Q", format="$,.0f", title="Year-end balance" if en else "年末剩余本金")],
+    ).properties(height=240)
+    native_st.altair_chart(chart, use_container_width=True)
+    five = rows[:5]
+    paid, paid_interest = sum(r["principal"] + r["interest"] for r in five), sum(r["interest"] for r in five)
+    total = sum(r["interest"] for r in rows)
+    cross = next((r["year"] for r in rows if r["principal"] > r["interest"]), None)
+    facts = [("Paid in the first 5 years" if en else "前 5 年共还", f"${round(paid, -2):,.0f}"),
+             ("of which interest" if en else "其中利息", f"${round(paid_interest, -2):,.0f}（{paid_interest / paid * 100:.0f}%）"),
+             (f"Interest over {years} years" if en else f"{years} 年利息合计", f"${round(total, -2):,.0f}")]
+    if len(rows) >= 10:
+        facts.append(("Balance after year 10" if en else "第 10 年末剩余本金", f"${round(rows[9]['balance'], -2):,.0f}"))
+    st.html('<div class="amort-facts">' + ''.join(f'<div><span>{escape(a)}</span><b>{escape(b)}</b></div>' for a, b in facts) + '</div>')
+    if cross:
+        native_st.caption(f"Principal exceeds interest from year {cross}." if en else f"第 {cross} 年起本金超过利息。")

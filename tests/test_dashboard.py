@@ -46,8 +46,10 @@ def chart_frame(element):
 
 
 def series_charts(app):
-    # Single-dataset series charts; the layered market-temperature chart is checked separately.
-    return [element for element in app.get("arrow_vega_lite_chart") if "data" in json.loads(element.proto.spec)]
+    # Single-dataset series charts; the layered market-temperature chart and the clickable heatmap
+    # (the only chart with a selection parameter) are checked separately.
+    specs = [(element, json.loads(element.proto.spec)) for element in app.get("arrow_vega_lite_chart")]
+    return [element for element, spec in specs if "data" in spec and "params" not in spec]
 
 
 def chart_with_column(app, column):
@@ -349,6 +351,17 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(any("请填写全部" in message.value for message in self.app.info))
         self.assertEqual(self.scenario_markup(), "")
 
+    def test_heatmap_and_amortization_render(self):
+        heat = [e for e in self.app.get("arrow_vega_lite_chart") if "params" in json.loads(e.proto.spec)]
+        self.assertEqual(len(heat), 1, "one clickable heatmap on the market page")
+        self.assertTrue(any("已连续" in c.value for c in self.app.caption))
+        self.navigate("月供情景")
+        self.assertTrue(any("本金超过利息" in c.value for c in self.app.caption))
+        self.app.radio(key="owner-scenario-amort-step").set_value(2).run()
+        self.assert_clean()
+        rate = self.app.number_input(key="owner-scenario-rate").value
+        self.assertTrue(any(f"（{rate + 2:.2f}%）" in m.value for m in self.app.markdown), "chart follows the chosen rate")
+
     def test_source_status_distinguishes_withheld_values_from_late_updates(self):
         from housing.catalog import SERIES
         with patch("housing.db.connect", side_effect=mortgage_gap_database):
@@ -494,3 +507,4 @@ class DashboardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

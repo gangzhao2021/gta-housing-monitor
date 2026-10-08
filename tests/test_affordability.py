@@ -29,5 +29,18 @@ class ScenarioTest(unittest.TestCase):
         self.assertEqual(len(scenario_notes(900_000, 10, 25)), 1)
 
 
+class AmortizationTest(unittest.TestCase):
+    def test_yearly_rows_add_up(self):
+        from housing.affordability import amortization_by_year
+        rows = amortization_by_year(734_080, 4.49, 25)
+        self.assertEqual(len(rows), 25)
+        self.assertAlmostEqual(sum(r["principal"] for r in rows), 734_080, delta=1)
+        self.assertAlmostEqual(rows[-1]["balance"], 0, delta=1)
+        self.assertEqual(next(r["year"] for r in rows if r["principal"] > r["interest"]), 10)
+        self.assertAlmostEqual(rows[9]["balance"], 532_401, delta=1)
+        payment = monthly_payment(734_080, 4.49, 25)
+        self.assertAlmostEqual(rows[0]["principal"] + rows[0]["interest"], payment * 12, delta=0.01)
+
+
 if __name__ == "__main__":
     unittest.main()

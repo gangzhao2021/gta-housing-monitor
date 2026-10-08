@@ -35,8 +35,12 @@ def _card(r, band, period, en):
             f'<div class="gauge-labels">{labels}</div></div><p>{escape(reading)}</p></div>')
 
 
-def render(temperature, end):
-    """Show the reading for the latest month at or before `end`; quiet when no data."""
+def render(temperature, end, month_key=None, selectable=()):
+    """Show the reading for the latest month at or before `end`; quiet when no data.
+
+    With `month_key` (the page's observation-month selectbox) a click on a heatmap cell
+    from `selectable` moves the whole page to that month, as on the published site.
+    """
     if not temperature or not temperature.get('months'):
         return
     import altair as alt
@@ -80,7 +84,62 @@ def render(temperature, end):
                     f'<b>{change}</b><span class="outcome-meta">{share} {"rose" if en else "上涨"} · {o["n"]} {"months" if en else "个月"}</span></div>')
     heading = 'HPI over the following 12 months, by reading' if en else '历史上，各温度之后 12 个月的 HPI'
     st.html(f'<div class="outcomes"><h3>{heading}</h3>{"".join(rows)}</div>')
+    heatmap(temperature, period, en, month_key, selectable)
     st.caption('Historical TRREB HPI statistics since 2012; out-of-sample research (from 2018) found this reading informative about '
                'price direction over the next 6–12 months. It describes market balance; it is not a forecast or investment advice.'
                if en else '2012 年以来 TRREB HPI 的历史统计；样本外研究（2018 年起）显示该读数对未来 6–12 个月价格方向有参考意义。'
                '描述供需状况，不是预测，不构成投资建议。')
+
+
+def heatmap(temperature, selected, en, month_key=None, selectable=()):
+    """Year x month grid of the gap to the seasonal norm (2012 on), the selected month outlined."""
+    import altair as alt
+    import pandas as pd
+    import streamlit as native_st
+    months, i = temperature['months'], 1 if en else 0
+    rows = [{'period': p, 'year': p[:4], 'month': int(p[5:7]), 'gap': r['gap'],
+             'reading': LABELS[r['state']][i], 'label': _month(p)} for p, r in sorted(months.items()) if p >= '2012-01']
+    if not rows:
+        return
+    keys = sorted(months)
+    run = 0
+    for p in reversed([k for k in keys if k <= selected]):
+        if months[p]['state'] != months[selected]['state']:
+            break
+        run += 1
+    last_hot = max((p for p in keys if p <= selected and months[p]['state'] == 'hot'), default=None)
+    native_st.markdown(f"**{'Month-by-month heatmap' if en else '逐月热力图'}**")
+    frame = pd.DataFrame(rows)
+    pick = alt.selection_point(fields=['period'], name='cell')
+    month_names = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split() if en else [f'{m}月' for m in range(1, 13)]
+    label_expr = '[' + ','.join(f'"{n}"' for n in month_names) + '][datum.value - 1]'
+    chart = alt.Chart(frame).mark_rect(cornerRadius=2).encode(
+        x=alt.X('month:O', title=None, axis=alt.Axis(labelExpr=label_expr, labelAngle=0, orient='top', domain=False, ticks=False)),
+        y=alt.Y('year:O', title=None, axis=alt.Axis(domain=False, ticks=False, labelOverlap=False)),
+        color=alt.Color('gap:Q', scale=alt.Scale(domain=[-30, 0, 30], range=['#2855d9', '#f3f3f3', '#bf6517'], clamp=True),
+                        legend=alt.Legend(title='pp' if en else '个百分点', orient='bottom', gradientLength=240)),
+        stroke=alt.condition(alt.datum.period == selected, alt.value('#171717'), alt.value('#ffffff')),
+        strokeWidth=alt.condition(alt.datum.period == selected, alt.value(2.5), alt.value(1)),
+        tooltip=[alt.Tooltip('label:N', title='Month' if en else '月份'), alt.Tooltip('gap:Q', format='+.1f', title='Gap (pp)' if en else '相差（个百分点）'),
+                 alt.Tooltip('reading:N', title='Reading' if en else '温度')],
+    ).add_params(pick).properties(height=26 * frame.year.nunique())
+    options = set(selectable)
+
+    def jump():
+        picked = (native_st.session_state.get(f'heatmap-{month_key}') or {}).get('selection', {}).get('cell') or []
+        period = picked[0].get('period') if picked else None
+        if period in options:
+            native_st.session_state[month_key] = period
+
+    if month_key and options:
+        native_st.altair_chart(chart, use_container_width=True, on_select=jump, selection_mode='cell', key=f'heatmap-{month_key}')
+    else:
+        native_st.altair_chart(chart, use_container_width=True)
+    state = months[selected]['state']
+    if en:
+        reading = f"{_month(selected)} reads {LABELS[state][1].lower()}, {run} month{'s' if run > 1 else ''} in a row" + (f"; the last hot month was {_month(last_hot)}." if last_hot else '.')
+        hint = ' Select a cell from September 2022 on to move the page to that month.' if month_key and options else ''
+    else:
+        reading = f"{_month(selected)}为{LABELS[state][0]}，已连续 {run} 个月{LABELS[state][0]}" + (f"；上一次偏热是 {_month(last_hot)}。" if last_hot else '。')
+        hint = '点 2022 年 9 月以后的格子，整页切到该月。' if month_key and options else ''
+    native_st.caption(reading + hint)
