@@ -247,11 +247,31 @@ function municipalMap(period){
    const status=change==null?(zh?'无连续两月数据':'No consecutive observations'):`${change>=0?'+':''}${number(change,1)}%`;
    return {name,region,change,current,prior,status,path:geometryPath(feature.geometry)};
  });
- const shapes=rendered.map(item=>`<path class="municipal-shape" d="${item.path}" fill="${color(item.change)}" fill-rule="evenodd" data-map-csd="${esc(item.region)}" role="button" tabindex="0" aria-label="${esc(item.name+' · '+item.status)}"><title>${esc(item.name+' · '+item.status)}</title></path>`).join('');
+ const chosen=rendered.some(item=>item.region===state.districtRegion)?state.districtRegion:'City of Toronto';
+ // Draw the chosen shape last so its outline is not covered by neighbours.
+ rendered.sort((a,b)=>(a.region===chosen)-(b.region===chosen));
+ const shapes=rendered.map(item=>`<path class="municipal-shape" d="${item.path}" fill="${color(item.change)}" fill-rule="evenodd" data-map-csd="${esc(item.region)}" role="button" tabindex="0" aria-pressed="${item.region===chosen}" aria-label="${esc(item.name+' · '+item.status)}"><title>${esc(item.name+' · '+item.status)}</title></path>`).join('');
  const centers={Toronto:[-79.36,43.69],Markham:[-79.29,43.88],Vaughan:[-79.56,43.84],Mississauga:[-79.68,43.61],Oakville:[-79.73,43.46],'Richmond Hill':[-79.44,43.90],Aurora:[-79.45,43.99],Brampton:[-79.76,43.73]};
  const labels=rendered.map(item=>{const [lon,lat]=centers[item.name];return `<text class="municipal-label" x="${x(lon).toFixed(1)}" y="${y(lat).toFixed(1)}" text-anchor="middle">${esc(item.name)}</text>`}).join('');
  const legend=colors.map((fill,i)=>`<span><i data-bg="${fill}"></i>${['≤ −5%','−5 to −2%','−2 to +2%','+2 to +5%','≥ +5%'][i]}</span>`).join('')+`<span><i data-bg="#d6dce0"></i>${zh?'无数据':'No data'}</span>`;
- return `<section class="municipal-map"><div class="chart-heading"><h2>${zh?'市镇成交均价环比地图':'Municipal average sale price change'}</h2><span class="caption">${monthLabel(previous)} → ${monthLabel(period)}</span></div><p class="note">${zh?'全部房型成交均价的环比，不是 HPI。点选市镇查看明细。':'Month-over-month change in average sale price, all home types; not HPI. Select an area for detail.'}</p><svg viewBox="0 0 ${W} ${H}" role="group" aria-label="${zh?'市镇环比涨跌地图':'Municipal month-over-month map'}">${shapes}${labels}</svg><div class="map-legend" aria-label="${zh?'环比涨跌图例':'Month-over-month legend'}">${legend}</div><p class="map-credit">${zh?'边界：Statistics Canada 2021；数值：TRREB。':'Boundaries: Statistics Canada 2021; values: TRREB.'} <a href="https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Cartographic_boundary_files/MapServer/9" target="_blank" rel="noopener noreferrer">${zh?'边界来源':'Boundary source'} ↗</a></p><table class="context-table municipal-table"><thead><tr><th>${zh?'市镇':'Municipality'}</th><th>${zh?'环比':'Monthly change'}</th><th>${zh?'当月均价':'Current average'}</th><th>${zh?'成交':'Sales'}</th></tr></thead><tbody>${rendered.map(item=>`<tr><th scope="row">${esc(item.name)}</th><td data-label="${zh?'环比':'Monthly change'}">${item.status}</td><td data-label="${zh?'当月均价':'Current average'}">${item.current?.average_price>0?'$'+number(item.current.average_price):'—'}</td><td data-label="${zh?'成交':'Sales'}">${item.current?.sales>0?number(item.current.sales):'—'}</td></tr>`).join('')}</tbody></table></section>`;
+ return `<section class="municipal-map"><div class="chart-heading"><h2>${zh?'市镇成交均价环比地图':'Municipal average sale price change'}</h2><span class="caption">${monthLabel(previous)} → ${monthLabel(period)}</span></div><p class="note">${zh?'全部房型成交均价的环比，不是 HPI。点选市镇查看该市镇本月数字。':'Month-over-month change in average sale price, all home types; not HPI. Select an area to see its figures.'}</p><div class="map-layout"><svg viewBox="0 0 ${W} ${H}" role="group" aria-label="${zh?'市镇环比涨跌地图':'Municipal month-over-month map'}">${shapes}${labels}</svg>${mapDetail(rendered.find(item=>item.region===chosen),period,previous)}</div><div class="map-legend" aria-label="${zh?'环比涨跌图例':'Month-over-month legend'}">${legend}</div><p class="map-credit">${zh?'边界：Statistics Canada 2021；数值：TRREB。':'Boundaries: Statistics Canada 2021; values: TRREB.'} <a href="https://geo.statcan.gc.ca/geo_wa/rest/services/2021/Cartographic_boundary_files/MapServer/9" target="_blank" rel="noopener noreferrer">${zh?'边界来源':'Boundary source'} ↗</a></p><table class="context-table municipal-table"><thead><tr><th>${zh?'市镇':'Municipality'}</th><th>${zh?'环比':'Monthly change'}</th><th>${zh?'当月均价':'Current average'}</th><th>${zh?'成交':'Sales'}</th></tr></thead><tbody>${rendered.map(item=>`<tr><th scope="row">${esc(item.name)}</th><td data-label="${zh?'环比':'Monthly change'}">${item.status}</td><td data-label="${zh?'当月均价':'Current average'}">${item.current?.average_price>0?'$'+number(item.current.average_price):'—'}</td><td data-label="${zh?'成交':'Sales'}">${item.current?.sales>0?number(item.current.sales):'—'}</td></tr>`).join('')}</tbody></table></section>`;
+}
+function mapDetail(item,period,previous){
+ if(!item)return '';
+ const zh=state.lang==='zh',c=item.current,pr=item.prior,money=v=>v==null?'—':'$'+number(v,0),count=v=>v==null?'—':number(v,0);
+ const dir=item.change==null?'':item.change>=0?' up':' down';
+ const rows=[[zh?'成交均价':'Average price',money(c?.average_price),pr?.average_price?`${zh?'上月':'Prior'} ${money(pr.average_price)}`:''],
+  [zh?'中位价':'Median price',money(c?.median_price),''],
+  [zh?'成交':'Sales',count(c?.sales),pr?.sales!=null?`${zh?'上月':'Prior'} ${count(pr.sales)}`:''],
+  [zh?'新增挂牌':'New listings',count(c?.new_listings),''],
+  [zh?'在售挂牌':'Active listings',count(c?.active_listings),''],
+  [zh?'成交价／挂牌价':'Sale-to-list',c?.avg_sp_lp==null?'—':number(c.avg_sp_lp,0)+'%',''],
+  [zh?'平均挂牌天数':'Avg. listing days',count(c?.avg_ldom),'']];
+ return `<aside class="map-detail" aria-live="polite"><h3>${esc(item.name)}</h3><p class="caption">${zh?'全部房型':'All home types'} · ${monthLabel(period)}</p>
+ <p class="map-change${dir}"><b>${esc(item.status)}</b><span>${zh?`均价环比（对比 ${monthLabel(previous)}）`:`average price vs ${monthLabel(previous)}`}</span></p>
+ <dl>${rows.map(([k,v,sub])=>`<div><dt>${k}</dt><dd>${v}${sub?`<small>${sub}</small>`:''}</dd></div>`).join('')}</dl>
+ ${c&&pr&&c.sales<50?`<p class="note">${zh?'成交不足 50 宗，均价易受个别大额成交影响。':'Fewer than 50 sales; one large sale can move the average.'}</p>`:''}
+ <button class="map-more" data-jump-district>${zh?'看这个市镇的 36 个月走势 ↓':'See its 36-month trend ↓'}</button></aside>`;
 }
 function segmented(key,options,current,label){return `<div class="segmented" role="group" aria-label="${esc(label)}">${options.map(([id,text])=>`<button data-pick="${esc(key)}" data-value="${esc(id)}" aria-pressed="${current===id}">${esc(text)}</button>`).join('')}</div>`}
 function marketPage(){
@@ -622,6 +642,7 @@ function mortgagePage(){
 function render(){themeColors();BAND_COLORS=isDark()?BAND_DARK:BAND_LIGHT;chartModels=[];shell(({market:marketPage,rent:rentPage,economy:economyPage,mortgage:mortgagePage})[state.page]());attachChartTooltips()}
 function attach(){
  rovingSetup();
+ document.querySelectorAll('[data-jump-district]').forEach(el=>el.onclick=()=>document.getElementById('district-section')?.scrollIntoView({behavior:'smooth',block:'start'}));
   const navEl=document.querySelector('#app nav');if(navEl)document.documentElement.style.setProperty('--nav-h',`${navEl.offsetHeight}px`);
   document.querySelectorAll('[data-jump]').forEach(el=>el.onclick=()=>{jumpTarget=el.dataset.jump;document.getElementById(el.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'});spySections()});
   spySections();
@@ -630,7 +651,9 @@ function attach(){
   document.querySelectorAll('[data-bg]').forEach(el=>{el.style.background=el.dataset.bg});
   document.querySelectorAll('[data-left]').forEach(el=>{el.style.left=`${el.dataset.left}%`});
   document.querySelectorAll('[data-pick]').forEach(el=>el.onclick=()=>{const key=el.dataset.pick,value=el.dataset.value;state[key]=value;state.regionFeedback='';render();document.querySelector(`[data-pick="${key}"][data-value="${value}"]`)?.focus()});
-  document.querySelectorAll('[data-map-csd]').forEach(el=>{const activate=()=>{state.districtRegion=el.dataset.mapCsd;render();document.querySelector('#regions-panel')?.setAttribute('open','')};el.onclick=activate;el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();activate()}}});
+  document.querySelectorAll('[data-map-csd]').forEach(el=>{const activate=()=>{const r=el.dataset.mapCsd,keep=scrollY;state.districtRegion=r;state.districtType='all_types';render();document.querySelector('#regions-panel')?.setAttribute('open','');document.querySelector(`[data-map-csd="${CSS.escape(r)}"]`)?.focus({preventScroll:true});scrollTo(0,keep);
+   // On narrow screens the card sits under the map; bring it into view.
+   const card=document.querySelector('.map-detail');if(card&&innerWidth<=900&&card.getBoundingClientRect().top>innerHeight-120)card.scrollIntoView({behavior:'smooth',block:'nearest'})};el.onclick=activate;el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();activate()}}});
   document.querySelector('[data-reset]').onclick=()=>{const lang=state.lang;Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,JSON.parse(JSON.stringify(initialState)),{lang});history.replaceState(null,'',location.pathname);render();window.scrollTo(0,0)};
   document.querySelectorAll('[data-district-month]').forEach(el=>el.onclick=()=>{state.end.district=el.dataset.districtMonth;render();document.querySelector('#regions-panel')?.setAttribute('open','')});
   document.querySelectorAll('[data-theme-toggle]').forEach(el=>el.onclick=()=>{themeChoice={auto:'light',light:'dark',dark:'auto'}[themeChoice];try{localStorage.setItem('gta-housing-theme',themeChoice)}catch{}applyTheme();render();document.querySelector('[data-theme-toggle]')?.focus()});

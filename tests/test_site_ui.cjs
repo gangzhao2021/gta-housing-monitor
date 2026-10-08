@@ -182,6 +182,11 @@ async function main() {
     await page.keyboard.press('Enter');
     assert.equal(await page.locator('#regions-panel').getAttribute('open'), '');
     assert.equal(await page.locator('[data-state="districtRegion"]').inputValue(), 'Markham');
+    // The choice shows on the map itself: outlined shape, a figures card, focus kept for the next key press.
+    assert.equal(await page.locator('[data-map-csd][aria-pressed="true"]').getAttribute('data-map-csd'), 'Markham');
+    assert.equal(await page.locator('.map-detail h3').textContent(), 'Markham');
+    assert.match(await page.locator('.map-detail').textContent(), /\$[\d,]+/, 'card shows the average price');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.mapCsd), 'Markham');
 
     // 4. Rental market.
     await open(page, 'rent');
