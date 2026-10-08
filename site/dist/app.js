@@ -6,10 +6,13 @@ const TEXT = {
   en:{market:'Market overview',rent:'Rental market',economy:'Economy & supply',mortgage:'Mortgage scenarios',snapshot:'Data updated',fixed:'This site shows a published snapshot. Local updates appear only after validation and publication.',date:'Observation month',year:'Survey year',price:'Home price trend',sales:'Sales and new listings',supply:'Months of inventory and sales-to-new-listings ratio',annual:'Annual survey',monthly:'Asking rents',lease:'Signed leases',monthlySource:'Monthly asking rents',annualSource:'Annual survey rents',dataSource:'Data',region:'Area comparison',room:'Bedroom type',regionLabel:'Compare areas (up to three)',mapTitle:'Select areas on map',mapNote:'Select up to three areas to compare; grey means no data for this period.',mapFull:'Three areas are selected. Remove one first.',rates:'Rates & financing',jobs:'Employment',construction:'Housing construction',population:'Population',context:'Context indicators',contextNote:'Geographies, frequencies and units differ; do not add or compare them directly.',latest:'Latest value',unit:'Unit',period:'Reference period',geography:'Geography',indicator:'Measure',sources:'Official sources',impact:'How it relates to home prices',principal:'Loan principal (CAD)',years:'Amortization years',rate:'Nominal annual rate (%)',payment:'Monthly principal & interest',paymentNote:'A fixed-assumption scenario, not a loan approval, actual household affordability or rate forecast.',noData:'No observations for this selection',notForecast:'Public-data research tool · Not live market data · Not investment advice',total:'All bedroom types',studio:'Studio',one:'1 bedroom',two:'2 bedrooms',three:'3 bedrooms',threePlus:'3+ bedrooms',starts:'Monthly starts and completions',stock:'Homes under construction at month-end',unemployment:'Unemployment rate',employment:'Employment and participation rates',sourceNote:'Values come from a published snapshot; different statistical boundaries are not combined into ratios.'}
 };
 const PROPERTY_TYPES = {"all_types": ["全部房型", "All property types"], "detached": ["独立屋", "Detached"], "semi_detached": ["半独立屋", "Semi-detached"], "townhouse": ["镇屋", "Townhouse"], "condo_townhouse": ["公寓镇屋", "Condo townhouse"], "condo_apartment": ["公寓", "Condo apartment"], "link": ["连接屋", "Link"], "coop_apartment": ["合作公寓", "Co-op apartment"], "detached_condo": ["独立式公寓", "Detached condo"], "coownership_apartment": ["共同产权公寓", "Co-ownership apartment"]};
-const COLORS = ['#2855d9','#007f86','#bf6517','#7952be'];
+let COLORS = ['#2855d9','#007f86','#bf6517','#7952be'];
+// Chart colours follow the light/dark tokens in styles.css; read once per render.
+function isDark(){const t=document.documentElement.dataset.theme;return t==='dark'||(t!=='light'&&matchMedia('(prefers-color-scheme: dark)').matches)}
+function themeColors(){const css=getComputedStyle(document.documentElement);COLORS=['--blue','--teal','--orange','--purple'].map((v,i)=>css.getPropertyValue(v).trim()||COLORS[i])}
 const ROOM = {total:'total',studio:'studio','1br':'one','2br':'two','3br':'three','3plus':'threePlus'};
 const AREAS = {toronto:'Toronto',north_york:'North York',scarborough:'Scarborough',markham:'Markham',vaughan:'Vaughan',mississauga:'Mississauga',oakville:'Oakville',richmond_vaughan_king:'Richmond Hill / Vaughan / King',aurora_newmarket_whit:'Aurora / Newmarket / Whit-St.'};
-const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',measureType:'apartment',bandFocus:'all',amortStep:0,leaseType:'condo',regions:['north_york','markham','scarborough'],regionFeedback:'',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
+const state = {lang:'zh',page:'market',rentMode:'monthly',room:'total',annualRoom:'total',regionRoom:'total',regionFrequency:'monthly',measureRoom:'1br',measureType:'apartment',bandFocus:'all',amortStep:0,priceRange:'recent',tempView:'line',leaseType:'condo',regions:['north_york','markham','scarborough'],regionFeedback:'',marketView:'level',price:1000000,down:'20',years:'25',rate:5,econRange:'2',end:{}};
 const initialState=JSON.parse(JSON.stringify(state));
 let payload, observations, monthly;
 let chartModels = [];
@@ -81,7 +84,7 @@ window.addEventListener('popstate',()=>{if(!payload)return;if(!readRoute())state
 function shell(body) {
   document.documentElement.lang=state.lang;
   document.title=`${state.page==='market'?'':t(state.page)+' · '}GTA Housing Monitor`;
-  $('#app').classList.toggle('overview',state.page==='market');
+  $('#app').classList.add('overview');  // every page shares the same width, header and chart sizing
   $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
   attach();
 }
@@ -96,10 +99,10 @@ function metric(field,period,digits=0) {
   const v=value(field,period), prev=value(field,`${Number(period.slice(0,4))-1}${period.slice(4)}`), computed=(v!=null&&prev)?(v/prev-1)*100:null;
   const published=PUBLISHED_YOY[field]?value(PUBLISHED_YOY[field],period):null, delta=published??computed, zh=state.lang==='zh';
   const shown=field==='trreb_hpi_benchmark'?`$${number(v)}`:number(v,digits);
-  const pct=delta==null?'—':`${delta>0?'+':delta<0?'−':''}${number(Math.abs(delta),published!=null&&field==='trreb_hpi_benchmark'?2:1)}%`;
+  const pct=delta==null?'—':`${delta>0?'▲':delta<0?'▼':''} ${number(Math.abs(delta),published!=null&&field==='trreb_hpi_benchmark'?2:1)}%`;
   const source=published!=null?(zh?'TRREB 公布':'TRREB published'):(zh?'自算':'computed');
   const detail=field==='moi_raw'?(zh?'有效挂牌 ÷ 当月成交':'active listings ÷ sales'):field==='trreb_hpi_benchmark'?`${source} · ${zh?'标准化住宅价格，不是成交均价':'standardized home, not the average sale price'}`:'';
-  return `<div class="metric"><div class="metric-name">${help(field)}</div><div class="metric-value">${shown}</div><div class="metric-delta">${field==='moi_raw'?'':`<span class="delta ${delta<0?'down':delta>0?'up':''}" title="${esc(source)}">${zh?'同比':'YoY'} ${pct}</span>`}${detail?` <span>${detail}</span>`:''}</div>${v==null?`<div class="metric-asof">${zh?'本月暂无数据':'No data this month'}</div>`:''}</div>`;
+  return `<div class="metric"><div class="metric-name">${help(field)}</div><div class="metric-value">${shown}</div><div class="metric-delta">${field==='moi_raw'?'':`<span class="delta" title="${esc(source)}">${zh?'同比':'YoY'} ${pct}</span>`}${detail?` <span>${detail}</span>`:''}</div>${v==null?`<div class="metric-asof">${zh?'本月暂无数据':'No data this month'}</div>`:''}</div>`;
 }
 function tooltipValue(field,v) {
   if(v==null) return '—';
@@ -132,10 +135,9 @@ function comparisonValue(field,period,mode,annual=false){
 }
 // Draw at the width the chart will occupy, so 11px labels stay 11px on screen.
 function chartWidth(width,compact){
-  const market=state.page==='market',vw=Math.min(window.innerWidth,market?1440:1160);
-  const pad=window.innerWidth<=760?(market?24:20):(market?80:48),inner=vw-2*pad-(window.innerWidth>vw?0:16);
+  const vw=Math.min(window.innerWidth,1440),pad=window.innerWidth<=760?24:80,inner=vw-2*pad-(window.innerWidth>vw?0:16);
   const split=(compact||width===616)&&window.innerWidth>760;
-  return Math.round(Math.max(300,split?(inner-(market?48:28))/2:Math.min(inner,market?inner:980)));
+  return Math.round(Math.max(300,split?(inner-48)/2:inner));
 }
 function niceScale(min,max,count=4){
   const span=max-min||Math.abs(max)||1,raw=span/count,mag=10**Math.floor(Math.log10(raw));
@@ -247,26 +249,33 @@ function marketPage(){
  const periods=viewPeriods(fields,end),zh=state.lang==='zh',comparison=state.marketView;
  const views=[['level',zh?'原值':'Values'],['mom',zh?'环比':'MoM'],['yoy',zh?'同比':'YoY']];
  return `<div class="overview-heading"><div><h1>${t('market')}</h1><p class="caption">${zh?'TRREB 全市场 · 全部房型':'All TRREB areas · All home types'}</p></div>${select(t('date'),'market',allPeriods(fields))}</div>
+ ${sectionNav()}
  <div class="overview-hero">${metric('trreb_hpi_benchmark',end)}${temperatureCard(end)}</div>
  <div class="kpi-strip">${metric('trreb_sales',end)}${metric('trreb_new_listings',end)}${metric('trreb_active_listings',end)}${metric('moi_raw',end,2)}</div>
- <section class="price-panel"><div class="chart-heading"><h2>${t('price')}</h2>${segmented('marketView',views,comparison,zh?'价格及供需图表显示方式':'Price and supply chart mode')}</div>${comparison==='level'?'':`<p class="note comparison-note">${(comparison==='yoy'?(zh?'房价、成交与新增挂牌的同比使用 TRREB 公布值（以修订后的上年同月为分母）；其余同比按原发布值自算，前期缺失时留空。':'Price, sales and new-listing YoY use TRREB published figures, which divide by revised prior-year values. Other YoY values are computed from original releases and stay blank without a base.'):(zh?'前期缺失、分母为零或 HPI 跨 2025-04 口径断点时留空；百分比指标显示百分点差，其余显示百分比变化。':'Missing bases, zero denominators and HPI comparisons across April 2025 stay blank. Rate measures show percentage-point differences; others show percent changes.'))}</p>`}${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:comparison==='level'?'CAD':'%',hpiNote:comparison==='level',comparison})}<p class="note">${zh?'基准价格是标准化住宅的价格，不是成交均价。':'The benchmark is the price of a standardized home, not the average sale price.'} ${periods.includes('2025-04')?esc(hpiRebaseNote()):''}</p></section>
- ${longRunSection()}
+${pricePanel(end,periods,comparison,views)}
  ${temperatureSection(end)}
- <section class="supply-dashboard"><div class="split overview-support"><div><h2>${t('sales')}</h2>${svgChart(['trreb_sales','trreb_new_listings'],periods,{height:230,width:616,zero:comparison==='level',unit:comparison==='level'?(zh?'笔 / 套':'Sales / listings'):'%',comparison})}</div><div><h2>${help('moi_raw')}</h2>${svgChart(['moi_raw'],periods,{height:230,width:616,zero:comparison==='level',legend:false,unit:comparison==='level'?(zh?'月':'Months'):'%',comparison})}</div></div></section>
+ <section class="supply-dashboard" id="sec-supply"><div class="split overview-support"><div><h2>${t('sales')}</h2>${svgChart(['trreb_sales','trreb_new_listings'],periods,{height:230,width:616,zero:comparison==='level',unit:comparison==='level'?(zh?'笔 / 套':'Sales / listings'):'%',comparison})}</div><div><h2>${help('moi_raw')}</h2>${svgChart(['moi_raw'],periods,{height:230,width:616,zero:comparison==='level',legend:false,unit:comparison==='level'?(zh?'月':'Months'):'%',comparison})}</div></div></section>
  ${priceBands(end)}${regionsPanel(end)}${editorialNote(end)}<details class="overview-sources"><summary>${zh?'来源与口径':'Sources and definitions'}</summary>${sourceNote()}<p class="note">${t('fixed')}</p><a href="https://trreb.ca/market-data/market-watch/" target="_blank" rel="noopener noreferrer">TRREB Market Watch ↗</a></details>`;
 }
-function longRunSection(){
+const SECTIONS=[['sec-price',['价格','Prices']],['sec-temp',['温度','Temperature']],['sec-supply',['供需','Supply']],['sec-mix',['价格段','Price bands']],['regions-panel',['地区','Areas']]];
+function sectionNav(){const L=state.lang==='zh'?0:1;return `<div class="section-nav" role="navigation" aria-label="${L?'On this page':'本页内容'}">${SECTIONS.map(([id,label])=>`<button data-jump="${id}">${label[L]}</button>`).join('')}</div>`}
+function pricePanel(end,periods,comparison,views){
+ const zh=state.lang==='zh',range=state.priceRange==='long'&&observations.teranet_toronto_index_sa?'long':'recent';
+ const ranges=[['recent',zh?'近 2 年 · HPI':'2 years · HPI'],['long',zh?'1998 年起 · Teranet':'Since 1998 · Teranet']];
+ return `<section class="price-panel" id="sec-price"><div class="chart-heading"><h2>${t('price')}</h2><div class="heading-controls">${segmented('priceRange',ranges,range,zh?'时间跨度':'Time span')}${range==='long'?'':segmented('marketView',views,comparison,zh?'价格及供需图表显示方式':'Price and supply chart mode')}</div></div>${range==='long'?longRunBody():`${comparison==='level'?'':`<p class="note comparison-note">${(comparison==='yoy'?(zh?'房价、成交与新增挂牌的同比使用 TRREB 公布值（以修订后的上年同月为分母）；其余同比按原发布值自算，前期缺失时留空。':'Price, sales and new-listing YoY use TRREB published figures, which divide by revised prior-year values. Other YoY values are computed from original releases and stay blank without a base.'):(zh?'前期缺失、分母为零或 HPI 跨 2025-04 口径断点时留空；百分比指标显示百分点差，其余显示百分比变化。':'Missing bases, zero denominators and HPI comparisons across April 2025 stay blank. Rate measures show percentage-point differences; others show percent changes.'))}</p>`}${svgChart(['trreb_hpi_benchmark'],periods,{height:300,width:1280,legend:false,unit:comparison==='level'?'CAD':'%',hpiNote:comparison==='level',comparison})}<p class="note">${zh?'基准价格是标准化住宅的价格，不是成交均价。':'The benchmark is the price of a standardized home, not the average sale price.'} ${periods.includes('2025-04')?esc(hpiRebaseNote()):''}</p>`}</section>`;
+}
+function longRunBody(){
  const f='teranet_toronto_index_sa',series=observations[f];if(!series)return '';
  const zh=state.lang==='zh',periods=Object.keys(series).sort(),last=periods.at(-1),peakPeriod=periods.reduce((a,p)=>series[p]>series[a]?p:a,periods[0]);
  const fromPeak=(series[last]/series[peakPeriod]-1)*100,tenYear=series[previousMonth(last,120)],decade=tenYear?(series[last]/tenYear-1)*100:null;
  const pct=v=>`${v>0?'+':v<0?'−':''}${number(Math.abs(v),1)}%`;
- return `<section class="long-run"><div class="chart-heading"><h2>${zh?'长期房价走势':'Long-run home prices'}</h2><span class="caption">${monthLabel(periods[0])} — ${monthLabel(last)}</span></div><p class="long-run-stats"><span>${zh?`较 ${monthLabel(peakPeriod)} 高点 <b>${pct(fromPeak)}</b>`:`<b>${pct(fromPeak)}</b> from the ${peakPeriod} peak`}</span>${decade==null?'':`<span>${zh?`十年 <b>${pct(decade)}</b>`:`<b>${pct(decade)}</b> over ten years`}</span>`}</p>${svgChart([f],periods,{height:240,width:1280,legend:false,unit:zh?'指数':'Index'})}<p class="note">${zh?'Teranet–National Bank 多伦多重复交易指数（季调，2005 年 6 月 = 100）：按产权登记（交割）日期，比 MLS 签约晚 1–3 个月，独立屋占比较高；与上面的 TRREB HPI 口径不同，不能直接对比数值。':'Teranet–National Bank Toronto repeat-sales index (seasonally adjusted, June 2005 = 100): dated at registration (closing), 1–3 months after the MLS sale, with a heavier detached weighting. A different measure from the TRREB HPI above; do not compare levels.'}</p></section>`;
+ return `<div class="long-run"><p class="long-run-stats"><span>${monthLabel(periods[0])} — ${monthLabel(last)}</span><span>${zh?`较 ${monthLabel(peakPeriod)} 高点 <b>${pct(fromPeak)}</b>`:`<b>${pct(fromPeak)}</b> from the ${peakPeriod} peak`}</span>${decade==null?'':`<span>${zh?`十年 <b>${pct(decade)}</b>`:`<b>${pct(decade)}</b> over ten years`}</span>`}</p>${svgChart([f],periods,{height:240,width:1280,legend:false,unit:zh?'指数':'Index'})}<p class="note">${zh?'Teranet–National Bank 多伦多重复交易指数（季调，2005 年 6 月 = 100）：按产权登记（交割）日期，比 MLS 签约晚 1–3 个月，独立屋占比较高；与「近 2 年 · HPI」视图的口径不同，不能直接对比数值。':'Teranet–National Bank Toronto repeat-sales index (seasonally adjusted, June 2005 = 100): dated at registration (closing), 1–3 months after the MLS sale, with a heavier detached weighting. A different measure from the 2-year HPI view; do not compare levels.'}</p></div>`;
 }
 function regionsPanel(end){
  const map=municipalMap(end),district=districtSection();
  if(!map&&!district)return '';
  const zh=state.lang==='zh';
- return `<details id="regions-panel"><summary><span><strong>${zh?'地区与市镇':'Areas and municipalities'}</strong><small>${zh?'市镇地图，按地区和房型比较均价、成交与挂牌':'Municipal map; compare prices, sales and listings by area and home type'}</small></span></summary>${map}${district}</details>`;
+ return `<details id="regions-panel" class="sec-anchor" data-sec="sec-areas"><summary><span><strong>${zh?'地区与市镇':'Areas and municipalities'}</strong><small>${zh?'市镇地图，按地区和房型比较均价、成交与挂牌':'Municipal map; compare prices, sales and listings by area and home type'}</small></span></summary>${map}${district}</details>`;
 }
 const TEMPERATURE_LABELS={cool:['偏冷','Cool'],balanced:['平衡','Balanced'],hot:['偏热','Hot']};
 const TEMPERATURE_NOTE={cool:['买方议价空间较大','buyers have more leverage'],balanced:['供需大致平衡','supply and demand roughly balanced'],hot:['卖方占优','sellers have the upper hand']};
@@ -297,23 +306,25 @@ function temperatureChart(months,periods,band,W){
  const xt=periods.map((p,i)=>i===0||i===periods.length-1||(i%step===0&&periods.length-1-i>=step/2)?`<text class="axis-label" x="${x(i)}" y="${H-6}" text-anchor="${i===0?'start':i===periods.length-1?'end':'middle'}">${p.slice(2).replace('-','/')}</text>`:'').join('');
  const last=values.length-1;
  tempGuide={periods,xs:periods.map((_,i)=>x(i))};
- return `<svg class="chart temperature-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${state.lang==='zh'?'成交／新挂牌比与同月常态之差':'Sales-to-new-listings ratio minus seasonal norm'}"><rect class="temp-hot" x="${pad.l}" y="${y(lim)}" width="${iw}" height="${y(band)-y(lim)}"/><rect class="temp-cool" x="${pad.l}" y="${y(-band)}" width="${iw}" height="${y(-lim)-y(-band)}"/><text class="temp-label" x="${W-pad.r-6}" y="${y(lim)+14}" text-anchor="end">${TEMPERATURE_LABELS.hot[state.lang==='zh'?0:1]}</text><text class="temp-label" x="${W-pad.r-6}" y="${y(-lim)-6}" text-anchor="end">${TEMPERATURE_LABELS.cool[state.lang==='zh'?0:1]}</text>${ticks}${xt}<path class="series-line" d="${d}" stroke="#2855d9"/>${values[last]!=null?`<circle class="chart-point" cx="${x(last)}" cy="${y(values[last])}" r="4" fill="#2855d9"/>`:''}<line class="temp-guide" data-temp-guide x1="0" x2="0" y1="${pad.t}" y2="${H-pad.b}" visibility="hidden"/></svg>`;
+ return `<svg class="chart temperature-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${state.lang==='zh'?'成交／新挂牌比与同月常态之差':'Sales-to-new-listings ratio minus seasonal norm'}"><rect class="temp-hot" x="${pad.l}" y="${y(lim)}" width="${iw}" height="${y(band)-y(lim)}"/><rect class="temp-cool" x="${pad.l}" y="${y(-band)}" width="${iw}" height="${y(-lim)-y(-band)}"/><text class="temp-label" x="${W-pad.r-6}" y="${y(lim)+14}" text-anchor="end">${TEMPERATURE_LABELS.hot[state.lang==='zh'?0:1]}</text><text class="temp-label" x="${W-pad.r-6}" y="${y(-lim)-6}" text-anchor="end">${TEMPERATURE_LABELS.cool[state.lang==='zh'?0:1]}</text>${ticks}${xt}<path class="series-line" d="${d}" stroke="${COLORS[0]}"/>${values[last]!=null?`<circle class="chart-point" cx="${x(last)}" cy="${y(values[last])}" r="4" fill="${COLORS[0]}"/>`:''}<line class="temp-guide" data-temp-guide x1="0" x2="0" y1="${pad.t}" y2="${H-pad.b}" visibility="hidden"/></svg>`;
 }
 function temperatureSection(end){
  const reading=temperatureReading(end);if(!reading)return '';
  const {t,period,r}=reading,zh=state.lang==='zh',L=zh?0:1;
  const periods=Object.keys(t.months).filter(p=>p<=period).sort().slice(-36);
- const full=chartWidth(1280,false),W=window.innerWidth>900?Math.round(full*0.62):full;
+ const full=chartWidth(1280,false),W=window.innerWidth>900?Math.round(full*0.62):full,view=state.tempView==='heat'?'heat':'line';
  const rows=['cool','balanced','hot'].map(k=>{const o=t.outcomes_12m[k],change=o.mean_change==null?'—':`${o.mean_change>0?'+':o.mean_change<0?'−':''}${number(Math.abs(o.mean_change),1)}%`;return `<div class="outcome-row${k===r.state?' current':''}"><span class="outcome-name">${TEMPERATURE_LABELS[k][L]}${k===r.state?`<small>${zh?'当前':'now'}</small>`:''}</span><b>${change}</b><span class="outcome-meta">${o.share_up==null?'—':number(o.share_up*100,0)+'%'} ${zh?'上涨':'rose'} · ${o.n} ${zh?'个月':'months'}</span></div>`}).join('');
- return `<section class="temperature"><div class="chart-heading"><h2>${zh?'市场温度走势':'Market temperature history'}</h2><span class="caption">${zh?'成交／新挂牌比 − 同月常态 · 个百分点':'Sales-to-new-listings ratio minus seasonal norm · pp'}</span></div>
- <div class="temperature-grid"><div>${temperatureChart(t.months,periods,t.band_pp,W)}<p class="note">${zh?`高于常态 ${t.band_pp} 个百分点以上为偏热，低于 ${t.band_pp} 个百分点以上为偏冷。`:`Hot when ${t.band_pp} pp or more above the norm, cool when ${t.band_pp} pp or more below.`}</p></div>
- <div class="outcomes"><h3>${zh?'历史上，各温度之后 12 个月的 HPI':'HPI over the following 12 months, by reading'}</h3><div role="table" aria-label="${zh?'各温度之后 12 个月 HPI 平均变化':'Average HPI change 12 months after each reading'}">${rows}</div><p class="note">${zh?'2012 年以来 TRREB HPI 统计。描述供需，不是预测；样本外研究显示对 6–12 个月方向有参考意义。':'TRREB HPI since 2012. Describes market balance, not a forecast; out-of-sample research found it informative about direction 6–12 months ahead.'}</p></div></div>${seasonHeatmap(end)}</section>`;
+ const views=[['line',zh?'近 3 年走势':'3-year trend'],['heat',zh?'逐月热力图':'Monthly heatmap']];
+ const left=view==='heat'?seasonHeatmap(end):`${temperatureChart(t.months,periods,t.band_pp,W)}<p class="note">${zh?`高于常态 ${t.band_pp} 个百分点以上为偏热，低于 ${t.band_pp} 个百分点以上为偏冷。`:`Hot when ${t.band_pp} pp or more above the norm, cool when ${t.band_pp} pp or more below.`}</p>`;
+ return `<section class="temperature" id="sec-temp"><div class="chart-heading"><div><h2>${zh?'市场温度':'Market temperature'}</h2><p class="caption">${zh?'成交／新挂牌比 − 同月常态 · 个百分点':'Sales-to-new-listings ratio minus seasonal norm · pp'}</p></div>${segmented('tempView',views,view,zh?'显示方式':'View')}</div>
+ <div class="temperature-grid"><div>${left}</div>
+ <div class="outcomes"><h3>${zh?'历史上，各温度之后 12 个月的 HPI':'HPI over the following 12 months, by reading'}</h3><div role="table" aria-label="${zh?'各温度之后 12 个月 HPI 平均变化':'Average HPI change 12 months after each reading'}">${rows}</div><p class="note">${zh?'2012 年以来 TRREB HPI 统计。描述供需，不是预测；样本外研究显示对 6–12 个月方向有参考意义。':'TRREB HPI since 2012. Describes market balance, not a forecast; out-of-sample research found it informative about direction 6–12 months ahead.'}</p></div></div></section>`;
 }
 // ---- Linked charts (Figma 12): heatmap and price-band mix share the observation month,
 // the dumbbell row picks the rent bedroom type, and the rate table drives the amortization bars.
 let tempGuide=null;
-const COOL_RGB=[40,85,217],HOT_RGB=[191,101,23],NEUTRAL_RGB=[243,243,243];
-function gapColor(v){const k=Math.min(1,Math.abs(v)/30),to=v<0?COOL_RGB:HOT_RGB;return `rgb(${NEUTRAL_RGB.map((c,i)=>Math.round(c+(to[i]-c)*k)).join(',')})`}
+const COOL_RGB=[40,85,217],HOT_RGB=[191,101,23];
+function gapColor(v){const base=isDark()?[44,48,55]:[243,243,243],k=Math.min(1,Math.abs(v)/30),to=v<0?COOL_RGB:HOT_RGB;return `rgb(${base.map((c,i)=>Math.round(c+(to[i]-c)*k)).join(',')})`}
 const signed=(v,d=1)=>`${v>0?'+':v<0?'−':''}${number(Math.abs(v),d)}`;
 function seasonHeatmap(end){
  const t=payload.market_temperature;if(!t)return '';
@@ -335,13 +346,13 @@ function seasonHeatmap(end){
  let run=0;for(let i=keys.indexOf(selected);i>=0&&months[keys[i]].state===months[selected].state;i--)run++;
  const lastHot=keys.filter(p=>p<=selected&&months[p].state==='hot').at(-1);
  const ramp=[-30,-20,-10,0,10,20,30].map(v=>`<i data-bg="${gapColor(v)}"></i>`).join('');
- return `<div class="heatmap-block"><div class="chart-heading"><h3>${zh?'逐月热力图':'Month-by-month heatmap'}</h3><span class="caption">${zh?`${firstYear}—${lastYear} · 一行一年`:`${firstYear}–${lastYear} · one row per year`}</span></div>
- <div class="temperature-grid"><svg class="chart heatmap" viewBox="0 0 ${W} ${H}" role="group" aria-label="${zh?'市场温度逐月热力图':'Market temperature heatmap'}">${head}${labels}${cells}${sel}</svg>
- <div class="heat-side"><div class="heat-ramp">${ramp}</div><div class="heat-ramp-labels"><span>${zh?'偏冷':'Cool'} −30</span><span>0</span><span>+30 ${zh?'偏热':'Hot'}</span></div>
- <p>${zh?`${monthLabel(selected)} 为${TEMPERATURE_LABELS[months[selected].state][0]}，已连续 ${run} 个月${TEMPERATURE_LABELS[months[selected].state][0]}${lastHot?`；上一次偏热是 ${monthLabel(lastHot)}`:''}。`:`${selected} reads ${TEMPERATURE_LABELS[months[selected].state][1].toLowerCase()}, ${run} month${run>1?'s':''} in a row${lastHot?`; the last hot month was ${lastHot}`:''}.`}</p>
- <p class="note">${zh?'点 2022 年 9 月以后的格子：整页切到该月。悬停：上方走势图同步标出该月。':'Select a cell from September 2022 on to move the whole page to that month. Hover to mark the month on the chart above.'}</p></div></div></div>`;
+ return `<div class="heatmap-block"><svg class="chart heatmap" viewBox="0 0 ${W} ${H}" role="group" aria-label="${zh?'市场温度逐月热力图':'Market temperature heatmap'}">${head}${labels}${cells}${sel}</svg>
+ <div class="heat-legend"><div class="heat-ramp">${ramp}</div><div class="heat-ramp-labels"><span>${zh?'偏冷':'Cool'} −30</span><span>0</span><span>+30 ${zh?'偏热':'Hot'}</span></div></div>
+ <p class="heat-reading">${zh?`${monthLabel(selected)} 为${TEMPERATURE_LABELS[months[selected].state][0]}，已连续 ${run} 个月${TEMPERATURE_LABELS[months[selected].state][0]}${lastHot?`；上一次偏热是 ${monthLabel(lastHot)}`:''}。`:`${selected} reads ${TEMPERATURE_LABELS[months[selected].state][1].toLowerCase()}, ${run} month${run>1?'s':''} in a row${lastHot?`; the last hot month was ${lastHot}`:''}.`}</p>
+ <p class="note">${zh?`一行一年（${firstYear}—${lastYear}）。点 2022 年 9 月以后的格子：整页切到该月。`:`One row per year (${firstYear}–${lastYear}). Select a cell from September 2022 on to move the whole page to that month.`}</p></div>`;
 }
-const BAND_COLORS=['#9ad0d3','#4fb0b6','#007f86','#2855d9','#1b3a99','#0f1f55'];
+const BAND_LIGHT=['#9ad0d3','#4fb0b6','#007f86','#2855d9','#1b3a99','#0f1f55'],BAND_DARK=['#bfe6e8','#74c6cb','#2fb3a7','#6f8ff5','#4a63d1','#3a4aa8'];
+let BAND_COLORS=BAND_LIGHT;
 function bandShares(period){const counts=PRICE_BANDS.map(f=>value(f,period));if(counts.some(v=>v==null))return null;const total=counts.reduce((a,b)=>a+b,0);return total?counts.map(v=>v/total*100):null}
 const bandName=i=>name(PRICE_BANDS[i]).replace(/^成交价\s*/,'').replace(/^Sold\s+/,'');
 function priceBands(end){
@@ -366,7 +377,7 @@ function priceBands(end){
  const rows=PRICE_BANDS.map((_,k)=>`<div class="mix-row"><span><i data-bg="${BAND_COLORS[k]}"></i>${esc(bandName(k))}</span><b>${number(now[k],1)}%</b><small>${before?signed(now[k]-before[k]):'—'}</small></div>`).join('');
  const change=shares.at(-1).map((v,k)=>v-shares[0][k]),up=change.indexOf(Math.max(...change)),down=change.indexOf(Math.min(...change));
  const insight=zh?`${monthLabel(periods[0])} 到 ${monthLabel(periods.at(-1))}，${bandName(up)}的占比从 ${number(shares[0][up],1)}% 变为 ${number(shares.at(-1)[up],1)}%，${bandName(down)}从 ${number(shares[0][down],1)}% 变为 ${number(shares.at(-1)[down],1)}%。`:`From ${periods[0]} to ${periods.at(-1)}, ${bandName(up)} moved from ${number(shares[0][up],1)}% to ${number(shares.at(-1)[up],1)}% of sales, and ${bandName(down)} from ${number(shares[0][down],1)}% to ${number(shares.at(-1)[down],1)}%.`;
- return `<section class="price-bands"><div class="chart-heading"><h2>${zh?'成交价格段构成':'Sales by price band'}</h2><span class="caption">${zh?'各价格段占当月成交的比例':'Share of each month’s sales'}</span></div><div class="band-legends" role="group" aria-label="${zh?'只看某一价格段':'Focus on one band'}">${legend}</div>
+ return `<section class="price-bands" id="sec-mix"><div class="chart-heading"><h2>${zh?'成交价格段构成':'Sales by price band'}</h2><span class="caption">${zh?'各价格段占当月成交的比例':'Share of each month’s sales'}</span></div><div class="band-legends" role="group" aria-label="${zh?'只看某一价格段':'Focus on one band'}">${legend}</div>
  <div class="temperature-grid"><svg class="chart band-mix" viewBox="0 0 ${W} ${top+H+24}" role="group" aria-label="${zh?'价格段构成，近 25 个月':'Price-band mix, last 25 months'}">${grid}${cols}${sel}</svg>
  <div class="mix-side"><p>${insight}</p><div class="mix-detail"><strong>${monthLabel(end)}${zh?' · 较上年同月（个百分点）':' · change vs a year earlier (pp)'}</strong>${rows}</div><p class="note">${zh?'点柱子切换观察月份；点图例只看一个价格段。反映成交构成，不是房价指数。':'Select a column to change the month; select a legend item to focus on one band. Reflects the sales mix, not a price index.'}</p></div></div></section>`;
 }
@@ -394,7 +405,8 @@ function rentDumbbell(){
 function amortization(loan,rate,years){const r=Math.pow(1+rate/200,1/6)-1,pay=monthlyPayment(loan,rate,years);let bal=loan;const out=[];for(let y=1;y<=years;y++){let p=0,i=0;for(let k=0;k<12;k++){const int=bal*r,pr=Math.min(bal,pay-int);i+=int;p+=pr;bal-=pr}out.push({year:y,principal:p,interest:i,balance:Math.max(0,bal)})}return out}
 function amortChart(m,rate){
  const zh=state.lang==='zh',rows=amortization(m.loan,rate,m.years);if(!rows.length||m.loan<=0)return '';
- const W=640,H=210,L=48,top=10,max=Math.max(...rows.map(r=>r.principal+r.interest)),scale=niceScale(0,max,4);
+ // Drawn at the results column's width (page width minus the 400px inputs and the 64px gap) so labels stay 11px.
+ const full=chartWidth(1280,false),W=window.innerWidth>900?Math.max(420,full-464):full,H=210,L=48,top=10,max=Math.max(...rows.map(r=>r.principal+r.interest)),scale=niceScale(0,max,4);
  const y=v=>top+H-v/scale.max*H,step=(W-L)/rows.length,bw=step*0.74;
  let grid='';for(let v=0;v<=scale.max+1e-9;v+=scale.step)grid+=`<line class="grid-line" x1="${L}" x2="${W}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text class="axis-label" x="${L-6}" y="${(y(v)+4).toFixed(1)}" text-anchor="end">${v?'$'+axisNumber(v):'0'}</text>`;
  const bars=rows.map((r,i)=>{const x=L+i*step+(step-bw)/2,tip=zh?`第 ${r.year} 年：本金 ${money(r.principal)} · 利息 ${money(r.interest)} · 年末剩余 ${money(r.balance)}`:`Year ${r.year}: principal ${money(r.principal)} · interest ${money(r.interest)} · balance ${money(r.balance)}`;
@@ -596,8 +608,11 @@ function mortgagePage(){
  <div data-mortgage-hints>${mortgageHints()}</div>
  </div><div class="mortgage-results" aria-live="polite">${mortgageResults()}</div></div>`;
 }
-function render(){chartModels=[];shell(({market:marketPage,rent:rentPage,economy:economyPage,mortgage:mortgagePage})[state.page]());attachChartTooltips()}
+function render(){themeColors();BAND_COLORS=isDark()?BAND_DARK:BAND_LIGHT;chartModels=[];shell(({market:marketPage,rent:rentPage,economy:economyPage,mortgage:mortgagePage})[state.page]());attachChartTooltips()}
 function attach(){
+  const navEl=document.querySelector('#app nav');if(navEl)document.documentElement.style.setProperty('--nav-h',`${navEl.offsetHeight}px`);
+  document.querySelectorAll('[data-jump]').forEach(el=>el.onclick=()=>{jumpTarget=el.dataset.jump;document.getElementById(el.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'});spySections()});
+  spySections();
   // Widths are set through CSSOM because the page's CSP disallows inline style attributes.
   document.querySelectorAll('[data-width]').forEach(el=>{el.style.width=`${el.dataset.width}%`});
   document.querySelectorAll('[data-bg]').forEach(el=>{el.style.background=el.dataset.bg});
@@ -642,4 +657,13 @@ function vizAction(target){
 }
 document.addEventListener('click',e=>{if(e.target.closest)vizAction(e.target)});
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest?.('[data-pick-month],[data-pick-room],[data-amort-step]')){e.preventDefault();vizAction(e.target)}});
+// Highlight the in-page section currently under the sticky navigation.
+let jumpTarget=null;
+function spySections(){const buttons=[...document.querySelectorAll('[data-jump]')];if(!buttons.length)return;const bar=document.querySelector('.section-nav'),offset=(parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'))||52)+(bar?bar.offsetHeight:44)+40;let current=buttons[0].dataset.jump;for(const b of buttons){const el=document.getElementById(b.dataset.jump);if(el&&el.getBoundingClientRect().top-offset<=0)current=b.dataset.jump}
+ // Sections near the end cannot reach the top, so a clicked target stays marked until the reader scrolls.
+ if(jumpTarget&&document.getElementById(jumpTarget))current=jumpTarget;buttons.forEach(b=>b.setAttribute('aria-current',b.dataset.jump===current?'true':'false'))}
+for(const type of ['wheel','touchstart','keydown'])window.addEventListener(type,()=>{if(jumpTarget){jumpTarget=null;spySections()}},{passive:true});
+let spyFrame;window.addEventListener('scroll',()=>{cancelAnimationFrame(spyFrame);spyFrame=requestAnimationFrame(spySections)},{passive:true});
+matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(payload)render()});
+new MutationObserver(()=>{if(payload)render()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 let resizeFrame;window.addEventListener('resize',()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{if(!payload)return;const open=document.querySelector('#regions-panel')?.open;render();if(open)document.querySelector('#regions-panel')?.setAttribute('open','')})});

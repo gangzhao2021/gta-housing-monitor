@@ -24,7 +24,8 @@ function serve() {
 const COMBOS = (() => {
   const out = [];
   for (const lang of ['zh','en']) {
-    for (const marketView of ['level','mom','yoy']) out.push({lang, page:'market', marketView});
+    for (const marketView of ['level','mom','yoy']) for (const priceRange of ['recent','long']) for (const tempView of ['line','heat'])
+      out.push({lang, page:'market', marketView, priceRange, tempView});
     for (const rentMode of ['monthly','lease','annual','region'])
       for (const regionFrequency of ['monthly','annual'])
         for (const measureType of ['apartment','townhouse'])
@@ -102,8 +103,19 @@ async function main() {
     assert.match(await page.locator('.price-panel .note').textContent(), /341\.7.*320\.0/);
     assert.equal(await page.locator('.price-comparison').count(), 0, 'dual-axis study was removed');
     assert.equal(await page.locator('[data-supply]').count(), 0, 'monthly SNLR chart was removed');
-    assert.equal(await page.locator('.long-run .series-line').count() >= 1, true, 'long-run chart missing');
+    assert.equal(await page.locator('.long-run').count(), 0, 'long-run view sits behind the price switch');
+    await page.locator('[data-pick="priceRange"][data-value="long"]').click();
+    assert.ok(await page.locator('.price-panel .long-run .series-line').count() >= 1, 'long-run chart missing');
     assert.match(await page.locator('.long-run-stats').textContent(), /高点.*%/);
+    assert.equal(await page.locator('[data-pick="marketView"]').count(), 0, 'values/MoM/YoY only apply to the HPI view');
+    await page.locator('[data-pick="priceRange"][data-value="recent"]').click();
+    // In-page section nav: one button per section, each jumps to an existing block.
+    const jumps = await page.locator('.section-nav [data-jump]').evaluateAll(els => els.map(e => e.dataset.jump));
+    assert.equal(jumps.length, 5, 'prices, temperature, supply, price bands, areas');
+    for (const id of jumps) assert.equal(await page.locator(`#${id}`).count(), 1, `section ${id} missing`);
+    await page.locator('.section-nav [data-jump="sec-mix"]').click();
+    await page.waitForTimeout(700);
+    assert.equal(await page.locator('.section-nav [aria-current="true"]').getAttribute('data-jump'), 'sec-mix', 'scroll spy marks the section in view');
     await page.locator('[data-pick="marketView"][data-value="mom"]').click();
     assert.equal(await page.locator('.price-panel .hpi-annotation').count(), 0, 'level annotation must not use a transformed axis');
     assert.equal(await page.evaluate(() => comparisonValue('trreb_hpi_benchmark','2025-04','mom')), null, 'HPI break must not become a growth number');
@@ -118,6 +130,8 @@ async function main() {
     assert.equal(outcomes, 3);
     assert.equal(await page.locator('.outcome-row.current').count(), 1);
     // Linked charts: heatmap and price-band columns set the observation month; legend focuses one band.
+    assert.equal(await page.locator('.heat-cell').count(), 0, 'heatmap sits behind the temperature switch');
+    await page.locator('[data-pick="tempView"][data-value="heat"]').click();
     const heatCells = page.locator('.heat-cell.pickable');
     assert.ok(await heatCells.count() >= 24, 'cells from September 2022 on are selectable');
     const target = await page.evaluate(() => allPeriods(['trreb_hpi_benchmark','trreb_sales','moi_raw']).at(-13));
@@ -126,8 +140,7 @@ async function main() {
     assert.equal(await page.locator('[data-end="market"]').inputValue(), target);
     assert.equal(await page.locator(`.band-mix .band-col[data-pick-month="${target}"]`).count(), 1, 'price-band chart shows the same month');
     await page.locator(`.heat-cell[data-pick-month="${target}"]`).hover();
-    assert.equal(await page.locator('[data-temp-guide]').getAttribute('visibility'), 'visible', 'hover marks the month on the temperature line');
-    assert.equal(await page.locator('.viz-tip').isVisible(), true);
+    assert.equal(await page.locator('.viz-tip').isVisible(), true, 'hover shows the month and reading');
     const latestMonth = await page.evaluate(() => allPeriods(['trreb_hpi_benchmark','trreb_sales','moi_raw']).at(-1));
     await page.locator(`.band-col[data-pick-month="${latestMonth}"]`).click();
     assert.equal(await page.evaluate(() => state.end.market), latestMonth, 'column click sets the month');
@@ -260,6 +273,19 @@ async function main() {
     assert.equal(await page.locator('[data-mode="monthly"]').getAttribute('aria-selected'), 'true', 'back returns to the previous tab');
     assert.match(await page.title(), /^Rental market · /);
     await page.locator('[data-lang="zh"]').click();
+
+    // 8. Dark mode follows the system setting and the host's data-theme, and keeps text readable.
+    await page.emulateMedia({colorScheme:'dark'});
+    await open(page, 'market');
+    const dark = await page.evaluate(() => ({bg:getComputedStyle(document.body).backgroundColor, ink:getComputedStyle(document.querySelector('h1')).color, line:COLORS[0]}));
+    assert.equal(dark.bg, 'rgb(18, 20, 24)');
+    assert.notEqual(dark.ink, 'rgb(23, 23, 23)', 'text turns light on a dark page');
+    assert.notEqual(dark.line, '#2855d9', 'chart colours follow the dark palette');
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme','light'));
+    await page.waitForTimeout(100);
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(255, 255, 255)', 'an explicit light theme wins over a dark system');
+    await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+    await page.emulateMedia({colorScheme:'light'});
 
     assert.deepEqual(errors, [], 'browser errors');
     console.log(`PASS: ${COMBOS.length} page combinations, no sideways scroll at 1440/390/320 px, overview, rent, economy and mortgage checks`);
