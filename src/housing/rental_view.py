@@ -117,8 +117,15 @@ def measure_fields():
     return [f for group in MEASURES.values() for field, *_ in group for room in ROOMS if (f := field(room))]
 
 
-def render_measures(observations, key):
-    """Asking, signed and surveyed rents side by side for one unit type (published site, Figma 09)."""
+def render_measures(observations, key, room_keys=()):
+    """Dumbbell of asking, signed and surveyed rents by unit type (published site, Figma 12).
+
+    Streamlit cannot select on layered charts, so the unit-type radio drives the highlighted row and
+    `room_keys`, the page's bedroom selectors below, follow it.
+    """
+    import altair as alt
+    import pandas as pd
+    import streamlit as native_st
     en = english()
     i = 1 if en else 0
     st.subheader("One unit type, different rent measures" if en else "同一房型，不同口径的租金")
@@ -126,31 +133,54 @@ def render_measures(observations, key):
     with left:
         kind = st.radio("物业类型", ["apartment", "townhouse"], format_func={"apartment": "公寓", "townhouse": "镇屋"}.get,
                         horizontal=True, label_visibility="collapsed", key=key + "-type")
+    def follow():
+        chosen = native_st.session_state.get(key)
+        for room_key, rooms in room_keys:
+            if chosen in rooms:
+                native_st.session_state[room_key] = chosen
+
     with right:
         room = st.radio("房型", list(ROOMS), index=1, format_func=lambda r: ROOMS[r][0], horizontal=True,
-                        label_visibility="collapsed", key=key)
-    cards = []
-    for field, color, label, source, kind_of_period, meaning in MEASURES[kind]:
-        series_id = field(room)
-        series = observations.get(series_id) or {} if series_id else {}
-        if not series:
-            reason = ("Too few units to show." if en else "该房型样本太少，不显示。") if series_id else \
-                     ("This source has no such category." if en else "该来源没有这一房型。")
-            cards.append(f'<div class="measure missing"><span class="measure-name">{escape(label[i])}</span><strong>—</strong>'
-                         f'<small>{source}</small><p>{reason}</p></div>')
-            continue
-        period = max(series)
-        if kind_of_period == "year":
-            when = f"Oct {period}" if en else f"{period} 年 10 月"
-            if room == "3br":
-                when += " · 3+ bedrooms" if en else " · 三卧及以上"
-        elif kind_of_period == "quarter":
-            q = (int(period[5:7]) - 1) // 3 + 1
-            when = f"{period[:4]} Q{q}" if en else f"{period[:4]} 年第 {q} 季度"
-        else:
-            when = period if en else f"{period[:4]} 年 {int(period[5:7])} 月"
-        cards.append(f'<div class="measure" style="border-left-color:{color}"><span class="measure-name">{escape(label[i])}</span>'
-                     f'<strong>${series[period]:,.0f}</strong><small>{escape(when)} · {source}</small><p>{escape(meaning[i])}</p></div>')
-    st.html(f'<div class="measure-row{" two" if kind == "townhouse" else ""}">{"".join(cards)}</div>')
-    st.caption("Asking, signed and surveyed rents answer different questions; detached and semi-detached houses and shared rooms have no reliable public series."
-               if en else "开价、成交和存量调查回答不同的问题，不能互相替代；独立屋、半独立屋和单间合租暂无可靠公开数据。")
+                        label_visibility="collapsed", key=key, on_change=follow)
+    rows, missing = [], []
+    for room_id, names in ROOMS.items():
+        label = names[i] + ("*" if room_id == "3br" else "")
+        for field, color, measure, source, kind_of_period, _ in MEASURES[kind]:
+            series_id = field(room_id)
+            series = observations.get(series_id) or {} if series_id else {}
+            if not series:
+                missing.append(f"{label} · {measure[i]}")
+                continue
+            period = max(series)
+            if kind_of_period == "year":
+                when = f"Oct {period}" if en else f"{period} 年 10 月"
+            elif kind_of_period == "quarter":
+                q = (int(period[5:7]) - 1) // 3 + 1
+                when = f"{period[:4]} Q{q}" if en else f"{period[:4]} 年第 {q} 季度"
+            else:
+                when = period if en else f"{period[:4]} 年 {int(period[5:7])} 月"
+            rows.append({"room": room_id, "type": label, "measure": measure[i], "color": color,
+                         "rent": series[period], "when": f"{when} · {source}"})
+    if not rows:
+        return
+    frame = pd.DataFrame(rows)
+    order = [names[i] + ("*" if r == "3br" else "") for r, names in ROOMS.items()]
+    measures = [m[2][i] for m in MEASURES[kind]]
+    y = alt.Y("type:N", sort=order, title=None, axis=alt.Axis(domain=False, ticks=False, labelFontSize=13))
+    band = alt.Chart(pd.DataFrame({"type": [order[list(ROOMS).index(room)]]})).mark_bar(color="#edf2ff", size=34).encode(
+        y=y, x=alt.value(0), x2=alt.value("width"))
+    rule = alt.Chart(frame).mark_rule(color="#c9c9c9", strokeWidth=2).encode(y=y, x="min(rent):Q", x2="max(rent):Q")
+    dots = alt.Chart(frame).mark_circle(size=170, opacity=1, stroke="#ffffff", strokeWidth=2).encode(
+        y=y, x=alt.X("rent:Q", title=None, scale=alt.Scale(zero=False, nice=True), axis=alt.Axis(format="$,.0f", tickCount=6)),
+        color=alt.Color("measure:N", scale=alt.Scale(domain=measures, range=[m[1] for m in MEASURES[kind]]),
+                        legend=alt.Legend(title=None, orient="top")),
+        tooltip=[alt.Tooltip("type:N", title="Unit" if en else "房型"), alt.Tooltip("measure:N", title="Measure" if en else "口径"),
+                 alt.Tooltip("rent:Q", format="$,.0f", title="Rent" if en else "租金"), alt.Tooltip("when:N", title="Source" if en else "来源")],
+    )
+    native_st.altair_chart(alt.layer(band, rule, dots).properties(height=220), use_container_width=True)
+    note = ("\\* CMHC figures are 3+ bedrooms. The highlighted row is the unit type chosen above, which the trend below follows." if en else
+            "\\* CMHC 为三卧及以上。高亮行是上方选中的房型，下方走势跟随它切换。")
+    if missing:
+        note += (" Not available: " if en else " 无数据：") + "、".join(missing) + ("." if en else "。")
+    st.caption(note + (" Asking, signed and surveyed rents answer different questions; detached and semi-detached houses and shared rooms have no reliable public series."
+                       if en else " 开价、成交和存量调查回答不同的问题；独立屋、半独立屋和单间合租暂无可靠公开数据。"))

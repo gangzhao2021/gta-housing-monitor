@@ -52,6 +52,11 @@ def series_charts(app):
     return [element for element, spec in specs if "data" in spec and "params" not in spec]
 
 
+def trend_charts(app):
+    """Rent-page charts other than the unit-type dumbbell at the top (the page's only layered chart)."""
+    return [e for e in app.get("arrow_vega_lite_chart") if "layer" not in json.loads(e.proto.spec)]
+
+
 def chart_with_column(app, column):
     return next(frame for element in series_charts(app)
                 if column in (frame := chart_frame(element)).columns)
@@ -105,7 +110,7 @@ class DashboardTests(unittest.TestCase):
         with patch.object(st, "download_button", wraps=st.download_button) as downloads:
             self.app.selectbox(key="asking-month").set_value(bare).run()
         self.assert_clean()
-        self.assertEqual(len(self.app.get("arrow_vega_lite_chart")), 1)
+        self.assertEqual(len(trend_charts(self.app)), 1)
         self.assertTrue(any("该月尚无" in item.value for item in self.app.info))
         exported = pd.read_csv(io.BytesIO(next(c for c in downloads.call_args_list if c.args[0] == "下载月度租金与来源").args[1]))
         self.assertEqual(exported["period"].max(), bare)
@@ -165,17 +170,17 @@ class DashboardTests(unittest.TestCase):
         self.assert_clean()
         self.assertIn('一卧 · 暂无数据', self.app.selectbox(key="region-room-False").options)
         self.assertTrue(any('已核验月度图表未提供' in x.value for x in self.app.info))
-        self.assertEqual(len(self.app.get('arrow_vega_lite_chart')), 0)
+        self.assertEqual(len(trend_charts(self.app)), 0)
         self.app.button(key='annual-alternative-markham').click().run()
         self.assert_clean()
         self.assertEqual(self.app.selectbox(key='region-source').value, '年度存量租金（CMHC）')
         self.assertEqual(self.app.selectbox(key='region-True-0').value, 'markham')
         self.assertEqual(self.app.selectbox(key='region-room-True').value, '1br')
-        self.assertEqual(len(chart_frame(self.app.get('arrow_vega_lite_chart')[0])), 4)
+        self.assertEqual(len(chart_frame(trend_charts(self.app)[0])), 4)
         self.app.selectbox(key='region-room-True').set_value('studio').run()
         self.assert_clean()
         self.assertTrue(any('均抑制发布' in x.value for x in self.app.info))
-        self.assertEqual(len(self.app.get('arrow_vega_lite_chart')), 0)
+        self.assertEqual(len(trend_charts(self.app)), 0)
         self.app.radio(key='language').set_value('English').run()
         self.assert_clean()
         self.assertTrue(any('CMHC suppresses' in x.value for x in self.app.info))
@@ -198,7 +203,7 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(set(export['series_id']), {'regional_asking_oakville_2br'})
         self.app.selectbox(key="region-False-0").set_value("downtown").run()
         self.assert_clean()
-        self.assertEqual(len(self.app.get("arrow_vega_lite_chart")),0)
+        self.assertEqual(len(trend_charts(self.app)),0)
         self.assertTrue(any('Downtown Toronto' in x.value for x in self.app.info))
         self.app.selectbox(key="region-source").set_value("年度存量租金（CMHC）").run()
         self.app.selectbox(key="region-True-0").set_value("richmond_vaughan_king").run()
@@ -352,9 +357,14 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(self.scenario_markup(), "")
 
     def test_heatmap_and_amortization_render(self):
-        heat = [e for e in self.app.get("arrow_vega_lite_chart") if "params" in json.loads(e.proto.spec)]
-        self.assertEqual(len(heat), 1, "one clickable heatmap on the market page")
+        clickable = [json.loads(e.proto.spec) for e in self.app.get("arrow_vega_lite_chart") if "params" in json.loads(e.proto.spec)]
+        self.assertEqual(sorted(p["name"] for spec in clickable for p in spec["params"] if p["name"] in ("cell", "column")), ["cell", "column"],
+                         "clickable heatmap and price-band columns on the market page")
         self.assertTrue(any("已连续" in c.value for c in self.app.caption))
+        self.navigate("租赁市场")
+        self.app.radio(key="rent-measure-room").set_value("2br").run()
+        self.assert_clean()
+        self.assertEqual(self.app.selectbox(key="asking-room").value, "2br", "rent trend follows the dumbbell's unit type")
         self.navigate("月供情景")
         self.assertTrue(any("本金超过利息" in c.value for c in self.app.caption))
         self.app.radio(key="owner-scenario-amort-step").set_value(2).run()

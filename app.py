@@ -130,6 +130,8 @@ if page == "市场总览":
         from housing.market_temperature import build as build_temperature
         from housing.temperature_view import render as render_temperature
         render_temperature(build_temperature(temperature_csv, db), end, "market-month", available_periods(data, resale_fields))
+        from housing.mix_view import render as render_bands
+        render_bands(lambda field: {row["period"]: row["value"] for row in latest(db, field)}, end, "market-month", available_periods(data, resale_fields))
     cards(data, ["trreb_sales", "trreb_active_listings", "moi_raw"], end,
           {"moi_raw": "月末有效挂牌 ÷ 当月成交"})
     st.subheader("成交与新增挂牌")
@@ -177,7 +179,7 @@ if page == "市场总览":
     render_districts(display_rows(db))
 elif page == "租赁市场":
     from housing.rental_view import latest_observations, measure_fields, render_measures
-    render_measures(latest_observations(db, measure_fields()), "rent-measure-room")
+    render_measures(latest_observations(db, measure_fields()), "rent-measure-room", (("asking-room", ("total", "compare", "1br", "2br", "3br")),))
     with st.container(key="rental-view-nav"):
         view = st.radio("租金数据口径", ["月度挂牌租金", "年度存量租金（CMHC）", "地区租金对比"],
                         format_func=lambda v: {"月度挂牌租金": "月度挂牌", "年度存量租金（CMHC）": "年度存量", "地区租金对比": "地区对比"}[v],
