@@ -200,8 +200,9 @@ def help_label(field, text):
     zh, caveat_zh, en, caveat_en, url = content
     heading, reference = ('How it relates to home prices', 'Background · Bank of Canada') if english() else ('与房价的关系', '机制参考 · 加拿大央行')
     what = definition(field)
-    what_html = (f'<strong>{"What it is" if english() else "是什么"}</strong><p>{escape(what[1] if english() else what[0])}</p>'
-                 if what else '')
+    # The indicator's own name heads the bubble, so the definition reads straight on from it.
+    what_html = f'<strong class="bubble-title">{escape(tr(text))}</strong>' + (
+        f'<p class="bubble-what">{escape(what[1] if english() else what[0])}</p>' if what else '')
     if field in ('wti_cushing_spot_price', 'usd_cad_monthly', 'boc_energy_price_index',
                  'toronto_residential_construction_cost_index', 'ontario_net_interprovincial_migration',
                  'ontario_net_international_migration') or field in {c['id'] for c in BACKGROUND_CONFIG.values()}:
@@ -209,6 +210,6 @@ def help_label(field, text):
     body, caveat = (en, caveat_en) if english() else (zh, caveat_zh)
     # Native disclosure supplies touch/keyboard toggling; CSS adds pointer-hover preview.
     return (f'<details class="metric-help"><summary>{escape(tr(text))} <span class="help-icon" aria-hidden="true">ⓘ</span></summary>'
-            f'<div class="impact-bubble">{what_html}<strong>{heading}</strong><p>{escape(body)}</p>'
+            f'<div class="impact-bubble">{what_html}<span class="bubble-label">{heading}</span><p>{escape(body)}</p>'
             f'<p class="help-caveat">{escape(caveat)}</p>'
             f'<a href="{url}" target="_blank" rel="noopener noreferrer">{reference} ↗</a></div></details>')

@@ -8,3 +8,4 @@
 .segmented{flex-wrap:wrap;max-width:100%}
 .heading-controls{min-width:0;max-width:100%}
 @media(max-width:760px){.bubble{position:fixed;left:16px;top:20vh;width:calc(100vw - 32px)}}
+.bubble .bubble-title{font-size:14px;font-weight:600;margin-bottom:2px}.bubble .bubble-what{color:#333;margin:4px 0 12px}.bubble-label{display:block;border-top:1px solid var(--line);padding-top:10px;font-size:12px;color:var(--muted)}.bubble-label+p{margin-top:4px}

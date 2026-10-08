@@ -67,7 +67,7 @@ function help(field,visible,iconOnly=false) {
   const m=meta(field), h=m.help?.[state.lang];
   if(!h) return esc(visible||name(field));
   const link=m.url?`<a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer">${esc(m.source)} ↗</a>`:'';
-  return `<details class="info"><summary aria-label="${esc(name(field))}">${iconOnly?'':esc(visible||name(field))}<span class="help-icon" aria-hidden="true">ⓘ</span></summary><div class="bubble">${m.what?`<strong>${state.lang==='zh'?'是什么':'What it is'}</strong><p>${esc(m.what[state.lang])}</p>`:''}<strong>${esc(t('impact'))}</strong><p>${esc(h[0])}</p><p class="help-caveat">${esc(h[1])}</p>${link}</div></details>`;
+  return `<details class="info"><summary aria-label="${esc(name(field))}">${iconOnly?'':esc(visible||name(field))}<span class="help-icon" aria-hidden="true">ⓘ</span></summary><div class="bubble"><strong class="bubble-title">${esc(name(field))}</strong>${m.what?`<p class="bubble-what">${esc(m.what[state.lang])}</p>`:''}<span class="bubble-label">${esc(t('impact'))}</span><p>${esc(h[0])}</p><p class="help-caveat">${esc(h[1])}</p>${link}</div></details>`;
 }
 function shell(body) {
   document.documentElement.lang=state.lang;
