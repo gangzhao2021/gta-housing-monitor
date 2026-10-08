@@ -20,7 +20,7 @@ class FreshnessRule:
 RULES = {
     "boc_policy_rate": FreshnessRule("monthly_view", "month_end", "每日公布；只按最近完整月判断"),
     "goc_5y_yield": FreshnessRule("monthly_view", "month_end", "交易日公布；只按最近完整月判断"),
-    "mortgage_uninsured_fixed_5plus": FreshnessRule("monthly", "day_21", "通常在所属月后次月第三周发布；按次月 21 日作保守截止"),
+    "mortgage_uninsured_fixed_5plus": FreshnessRule("monthly", "two_months_end", "BoC 页面称每月第三周更新，实际滞后约两个月（2026-07 值于 2026-09-28 至 29 日间首次出现）；按所属月后第二个月月底作保守截止"),
     "toronto_unemployment_rate": FreshnessRule("monthly", "lfs_calendar", "按 Statistics Canada 劳动力调查年度发布日期表"),
     "toronto_employment_rate": FreshnessRule("monthly", "lfs_calendar", "按 Statistics Canada 劳动力调查年度发布日期表"),
     "toronto_participation_rate": FreshnessRule("monthly", "lfs_calendar", "按 Statistics Canada 劳动力调查年度发布日期表"),

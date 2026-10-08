@@ -285,7 +285,6 @@
   "未登记发布节奏": "Release schedule not registered",
   "每日公布；只按最近完整月判断": "Published daily; assessed against the latest completed month",
   "交易日公布；只按最近完整月判断": "Published on trading days; assessed against the latest completed month",
-  "通常在所属月后次月第三周发布；按次月 21 日作保守截止": "Usually released in the third week of the following month; the 21st is used as a conservative deadline",
   "按 Statistics Canada 劳动力调查年度发布日期表": "Follows Statistics Canada's annual Labour Force Survey release calendar",
   "每月报告；次月 15 日作保守检查日，不是官方保证": "Monthly report; the following month's 15th is a conservative check date, not an official guarantee",
   "每月第 11 个工作日；按次月 18 日保守检查": "11th business day of each month; the following month's 18th is a conservative check date",
@@ -524,5 +523,6 @@
   "按各月利率重算同一笔贷款的月供，不是当时借款人的实际月供。": "Recalculates the same loan's payment at each month's rate; not what borrowers actually paid then.",
   "分房型数据历史较短；三卧不含四卧及以上。": "Bedroom-type history is short; three-bedroom excludes four or more.",
   "均值变化可能来自挂牌房源构成变化，不等于同一套房的租金涨幅。": "Changes in averages can come from the mix of listings, not same-unit rent changes.",
-  "TRREB 公布的同比以修订后的上年同月为分母，可能与原发布值自算的同比相差 1 个百分点以上。": "TRREB's published year-over-year change uses the revised prior-year month and can differ by over one point from the change computed from original releases."
+  "TRREB 公布的同比以修订后的上年同月为分母，可能与原发布值自算的同比相差 1 个百分点以上。": "TRREB's published year-over-year change uses the revised prior-year month and can differ by over one point from the change computed from original releases.",
+  "BoC 页面称每月第三周更新，实际滞后约两个月（2026-07 值于 2026-09-28 至 29 日间首次出现）；按所属月后第二个月月底作保守截止": "The BoC page says it updates in the third week of the month, but values arrive about two months after the reference month (2026-07 first appeared on 2026-09-28/29); the end of the second following month is the conservative deadline"
 }

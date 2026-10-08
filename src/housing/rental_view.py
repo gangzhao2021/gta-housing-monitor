@@ -58,7 +58,8 @@ def render_monthly(db, data, today, controls):
     frame = pd.DataFrame(rooms)
     if frame["月租金"].notna().any():
         bar_chart(frame.dropna(), "房型", "月租金", "月租金（加元）", frame["房型"].tolist())
-        st.dataframe(frame, hide_index=True, width="stretch")
+        shown = frame.assign(月租金=frame["月租金"].map(lambda v: "—" if pd.isna(v) else f"${v:,.0f}"))
+        st.dataframe(shown, hide_index=True, width="stretch")
     else:
         st.info("该月尚无已接入的分房型报价；请勿用最新一期替代历史月份。")
     st.caption("均值变化可能来自挂牌房源构成变化，不等于同一套房的租金涨幅。")

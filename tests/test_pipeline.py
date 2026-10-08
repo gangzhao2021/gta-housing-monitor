@@ -261,6 +261,12 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual(status["expected_period"], "2026-08")
             self.assertEqual(status["status"], "overdue")
             self.assertEqual(status["missing_periods"], ["2026-08"])
+            # The BoC lending table lags about two months: July appeared 2026-09-28/29.
+            ingest(db, "test", source, "https://example.org/mortgage", "2026-07", "fixture",
+                   [("mortgage_uninsured_fixed_5plus", "2026-07", 4.49)])
+            waiting = assess(db, "mortgage_uninsured_fixed_5plus", date(2026, 10, 8))
+            self.assertEqual((waiting["status"], waiting["missing_periods"]), ("pending", ["2026-08", "2026-09"]))
+            self.assertEqual(assess(db, "mortgage_uninsured_fixed_5plus", date(2026, 11, 1))["status"], "overdue")
 
 if __name__ == "__main__":
     unittest.main()

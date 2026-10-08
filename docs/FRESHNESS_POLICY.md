@@ -9,7 +9,7 @@
 | USD/CAD 月均汇率 | 月度，BoC 当前历史表 | 所属月月底 | 本地检查日；官方月表可能在下一个工作日才出现，届时须结合实际来源检查结果解释 |
 | Toronto 住宅建筑造价指数 | 季度，StatsCan 表 18-10-0289-01 | 季末后 45 日 | 季度以首月为 `period`，不得当作月度更新；检查日只用于提醒 |
 | BoC 隔夜目标、5 年债 | 日度／交易日；看板按月末值／月均值显示 | 完整月末 | 当月未结束时排除当月；债券周末与节假日没有观测不算缺值。当前新鲜度只检查是否存在目标月日值，不核验该月应有交易日是否齐全 |
-| BoC 新增放款按揭利率 | 月度，官方称通常在次月第三周发布 | 所属月次月 21 日 | 落后目标完整月时，检查缺失的第一个月是否已经过检查日；已到则显示超过窗口并保留最近值。官方月表无值时不推算 |
+| BoC 新增放款按揭利率 | 月度；官网称每月第三周更新，实测滞后约两个月（2026-07 值于 2026-09-28 至 29 日间首次出现） | 所属月后第二个月月底 | 落后目标完整月时，检查缺失的第一个月是否已经过检查日；已到则显示超过窗口并保留最近值。官方月表无值时不推算 |
 | Toronto CMA 劳动力三率 | 月度，按 Statistics Canada 发布日历 | 已登记月份采用官方发布日 | 例如 2026-08 LFS 于 2026-09-04 发布；代码日历覆盖资料月 2025-12—2027-02。日历外暂用次月 15 日；这只是项目回退日，须补录后续官方日历，不能称已覆盖整个 2027 年 |
 | TRREB 市场与 HPI | 每月 Market Watch 报告 | 次月 15 日作为项目检查日 | 这是保守的操作门槛，不是 TRREB 对发布日期的保证；等待下一期月报时不标过期 |
 | Toronto CMA 建设 | 月度，已有来源说明记录为每月第 11 个工作日发布 | 次月 18 日 | 18 日是固定的本地近似检查日，没有逐年节假日日历计算，不能保证总晚于官方发布日；仅检查实际开工／竣工与在建值，保留其 2011 CMA 边界 |
@@ -40,6 +40,6 @@
 - 年度判断按上个年份，当前年份即使已在年底提前发布也不成为新鲜度目标；需要原件／发布日历核验最新可用调查期。
 - 只读展示页目前不读取管理页的新鲜度表或 CMHC 单元格证据，只给一般缺值提醒和快照生成时间。它尚未满足与管理页同等的逐项新鲜度、质量和抑制解释验收。
 
-页面状态由 `src/housing/freshness.py` 中每条 series 的规则决定。TRREB 次月 15 日、CMHC 次月 18 日、BoC 次月 21 日是为避免过早报过期而设的保守检查日；它们不是发布日期保证。窗口不以下载日期充当发布日期。LFS 的年度发布日期表必须随官方更新。执行正式回测前，仍须采集每个修订版本的真实发布时间和可用证据。
+页面状态由 `src/housing/freshness.py` 中每条 series 的规则决定。TRREB 次月 15 日、CMHC 次月 18 日、BoC 所属月后第二个月月底是为避免过早报过期而设的保守检查日；它们不是发布日期保证。窗口不以下载日期充当发布日期。LFS 的年度发布日期表必须随官方更新。执行正式回测前，仍须采集每个修订版本的真实发布时间和可用证据。
 
-依据：[BoC 新增与存量贷款利率表](https://www.bankofcanada.ca/rates/banking-and-financial-statistics/interest-rates-for-new-and-existing-lending-by-chartered-banks/)（通常次月第三周发布）、[Statistics Canada 2026–2027 发布日历](https://www150.statcan.gc.ca/n1/en/release-diffusion/2026-eng.pdf)及[2026-08 劳动力调查发布](https://www150.statcan.gc.ca/n1/daily-quotidien/260904/dq260904a-eng.htm)、[CMHC 月度住房开工说明](https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-data/data-tables/housing-market-data/monthly-housing-starts-construction-data-tables)。
+依据：[BoC 新增与存量贷款利率表](https://www.bankofcanada.ca/rates/banking-and-financial-statistics/interest-rates-for-new-and-existing-lending-by-chartered-banks/)（页面称每月第三周更新；本地每日刷新记录显示实际约滞后两个月）、[Statistics Canada 2026–2027 发布日历](https://www150.statcan.gc.ca/n1/en/release-diffusion/2026-eng.pdf)及[2026-08 劳动力调查发布](https://www150.statcan.gc.ca/n1/daily-quotidien/260904/dq260904a-eng.htm)、[CMHC 月度住房开工说明](https://www.cmhc-schl.gc.ca/professionals/housing-markets-data-and-research/housing-data/data-tables/housing-market-data/monthly-housing-starts-construction-data-tables)。

@@ -34,6 +34,9 @@ CONTEXT_SERIES |= frozenset(c['id'] for c in BACKGROUND_CONFIG.values() if not c
 from .trreb_rental import SERIES as RENTAL_SERIES
 CONTEXT_SERIES |= frozenset(RENTAL_SERIES)
 CONTEXT_SERIES |= {"teranet_toronto_index"}
+# Published as context before 2026-10-07 and as full display series since; archived
+# snapshots keep them under "context" and must still validate for restore and rollback.
+LEGACY_CONTEXT = frozenset({"ontario_mortgage_arrears_rate", "teranet_toronto_index_sa"})
 QUARTERLY_CONTEXT = frozenset({"toronto_residential_construction_cost_index", "ontario_net_interprovincial_migration",
                                "ontario_net_international_migration", *RENTAL_SERIES})
 
@@ -121,7 +124,7 @@ def validate_display_snapshot(value):
         raise ValueError("Unsupported display snapshot")
     if value["schema_version"] == 2:
         context = value.get("context")
-        if not isinstance(context, dict) or set(context) - CONTEXT_SERIES:
+        if not isinstance(context, dict) or set(context) - CONTEXT_SERIES - LEGACY_CONTEXT:
             raise ValueError("Display snapshot contains invalid context")
         for series, item in context.items():
             if not isinstance(item, dict) or set(item) != {"period", "value"}:

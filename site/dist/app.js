@@ -621,6 +621,7 @@ function mortgagePage(){
 }
 function render(){themeColors();BAND_COLORS=isDark()?BAND_DARK:BAND_LIGHT;chartModels=[];shell(({market:marketPage,rent:rentPage,economy:economyPage,mortgage:mortgagePage})[state.page]());attachChartTooltips()}
 function attach(){
+ rovingSetup();
   const navEl=document.querySelector('#app nav');if(navEl)document.documentElement.style.setProperty('--nav-h',`${navEl.offsetHeight}px`);
   document.querySelectorAll('[data-jump]').forEach(el=>el.onclick=()=>{jumpTarget=el.dataset.jump;document.getElementById(el.dataset.jump)?.scrollIntoView({behavior:'smooth',block:'start'});spySections()});
   spySections();
@@ -642,7 +643,7 @@ function attach(){
   document.querySelectorAll('[data-remove-region]').forEach(el=>el.onclick=()=>{toggleRegion(el.dataset.removeRegion,regionChoices());document.querySelector('[data-add-region]')?.focus()});
   document.querySelectorAll('[data-add-region]').forEach(el=>el.onchange=()=>{if(el.value)toggleRegion(el.value,regionChoices())});
   document.querySelectorAll('[data-border]').forEach(el=>{el.style.borderLeftColor=el.dataset.border});
-  const refreshMortgage=()=>{const m=mortgageModel(),zh=state.lang==='zh';document.querySelector('.mortgage-results').innerHTML=mortgageResults();document.querySelectorAll('.mortgage-results [data-bg]').forEach(el=>{el.style.background=el.dataset.bg});document.querySelector('[data-loan]').textContent=money(m.loan);document.querySelector('[data-down-amount]').textContent=`${zh?'首付':'Down payment'} ${money(m.price*m.down/100)}`;document.querySelector('[data-mortgage-hints]').innerHTML=mortgageHints()};
+  const refreshMortgage=()=>{const m=mortgageModel(),zh=state.lang==='zh';document.querySelector('.mortgage-results').innerHTML=mortgageResults();rovingSetup();document.querySelectorAll('.mortgage-results [data-bg]').forEach(el=>{el.style.background=el.dataset.bg});document.querySelector('[data-loan]').textContent=money(m.loan);document.querySelector('[data-down-amount]').textContent=`${zh?'首付':'Down payment'} ${money(m.price*m.down/100)}`;document.querySelector('[data-mortgage-hints]').innerHTML=mortgageHints()};
   document.querySelectorAll('[data-number]').forEach(el=>el.oninput=()=>{const v=Number(el.value);state[el.dataset.number]=el.value!==''&&Number.isFinite(v)?v:NaN;refreshMortgage()});
   document.querySelectorAll('[data-money]').forEach(el=>{el.oninput=()=>{const digits=el.value.replace(/[^0-9]/g,'');state[el.dataset.money]=digits?Number(digits):0;refreshMortgage()};el.onblur=()=>{el.value=money(state[el.dataset.money])}});
 }
@@ -668,6 +669,18 @@ function vizAction(target){
  return false;
 }
 document.addEventListener('click',e=>{if(e.target.closest)vizAction(e.target)});
+// Dense SVG charts take one Tab stop each; arrow keys move within (heatmap rows are years, so up/down is +/-12 months).
+const ROVING=[['.heat-cell[data-pick-month]',true],['.band-col',false],['.amort-bar',false]];
+function shiftMonth(p,k){const [y,m]=p.split('-').map(Number),t=y*12+m-1+k;return `${Math.floor(t/12)}-${String(t%12+1).padStart(2,'0')}`}
+function rovingSetup(){for(const [sel] of ROVING){const items=[...document.querySelectorAll(sel)];if(!items.length)continue;
+ const cur=items.find(el=>el.dataset.pickMonth&&el.dataset.pickMonth===state.end.market)||items.find(el=>el.matches(':focus'))||(sel==='.amort-bar'?items[0]:items.at(-1));
+ items.forEach(el=>el.setAttribute('tabindex',el===cur?'0':'-1'))}}
+document.addEventListener('keydown',e=>{for(const [sel,grid] of ROVING){const el=e.target.closest?.(sel);if(!el)continue;
+ const items=[...document.querySelectorAll(sel)],i=items.indexOf(el);let n;
+ if(e.key==='ArrowRight')n=i+1;else if(e.key==='ArrowLeft')n=i-1;else if(e.key==='Home')n=0;else if(e.key==='End')n=items.length-1;
+ else if(grid&&(e.key==='ArrowDown'||e.key==='ArrowUp')){const want=shiftMonth(el.dataset.pickMonth,e.key==='ArrowDown'?12:-12);n=items.findIndex(x=>x.dataset.pickMonth===want);if(n<0)n=i}
+ else return;
+ e.preventDefault();n=Math.max(0,Math.min(items.length-1,n));items.forEach(x=>x.setAttribute('tabindex','-1'));items[n].setAttribute('tabindex','0');items[n].focus();return}});
 document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.closest?.('[data-pick-month],[data-pick-room],[data-amort-step]')){e.preventDefault();vizAction(e.target)}});
 // Highlight the in-page section currently under the sticky navigation.
 let jumpTarget=null;

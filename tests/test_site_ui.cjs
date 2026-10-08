@@ -144,6 +144,18 @@ async function main() {
     const latestMonth = await page.evaluate(() => allPeriods(['trreb_hpi_benchmark','trreb_sales','moi_raw']).at(-1));
     await page.locator(`.band-col[data-pick-month="${latestMonth}"]`).click();
     assert.equal(await page.evaluate(() => state.end.market), latestMonth, 'column click sets the month');
+    // Keyboard: each dense chart is one Tab stop; arrows move, Enter picks, up/down steps a year in the heatmap.
+    assert.equal(await page.locator('.heat-cell[tabindex="0"]').count(), 1, 'heatmap is one Tab stop');
+    assert.equal(await page.locator('.band-col[tabindex="0"]').count(), 1, 'price-band chart is one Tab stop');
+    await page.locator('.band-col[tabindex="0"]').focus();
+    await page.keyboard.press('ArrowLeft');
+    const prior = await page.evaluate(() => document.activeElement.dataset.pickMonth);
+    assert.equal(prior, await page.evaluate(() => allPeriods(['trreb_hpi_benchmark','trreb_sales','moi_raw']).at(-2)));
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(() => state.end.market), prior, 'Enter on a column sets the month');
+    await page.locator('.heat-cell[tabindex="0"]').focus();
+    await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(() => document.activeElement.dataset.pickMonth), await page.evaluate(m => shiftMonth(m, -12), prior), 'ArrowUp moves one year back');
     await page.locator('.band-legend').first().click();
     assert.ok(await page.locator('.band-focus-label').count() >= 2, 'focused band shows its shares');
     await page.locator('.band-legend.active').click();
@@ -246,6 +258,10 @@ async function main() {
     assert.equal(await page.locator('.sens-col').count(), 4);
     assert.match(await page.locator('.amort h3').textContent(), /5\.00%/);
     assert.equal(await page.locator('.amort-bar').count(), await page.evaluate(() => Number(state.years)));
+    assert.equal(await page.locator('.amort-bar[tabindex="0"]').count(), 1, 'yearly bars are one Tab stop');
+    await page.locator('.amort-bar[tabindex="0"]').focus();
+    await page.keyboard.press('End');
+    assert.match(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), new RegExp(`第 ${await page.evaluate(() => state.years)} 年`));
     await page.locator('[data-amort-step="2"]').click();
     assert.match(await page.locator('.amort h3').textContent(), /7\.00%/, 'rate column switches the chart');
     assert.equal(await page.locator('.sens-col.chosen').getAttribute('data-amort-step'), '2');

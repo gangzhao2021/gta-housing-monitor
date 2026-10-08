@@ -128,6 +128,10 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_display_snapshot({**valid, "context": {"private_record": {"period": "2026-08", "value": 1}}})
         self.assertEqual(validate_display_snapshot({"schema_version": 1, "observations": {}})["schema_version"], 1)
+        # Snapshots archived before these two moved to full display series still restore.
+        legacy = {**valid, "context": {"ontario_mortgage_arrears_rate": {"period": "2026-06", "value": 0.27},
+                                       "teranet_toronto_index_sa": {"period": "2026-08", "value": 304.8}}}
+        self.assertEqual(validate_display_snapshot(legacy), legacy)
 
     def test_display_publish_archives_and_can_restore_previous_good_version(self):
         with tempfile.TemporaryDirectory() as folder:
