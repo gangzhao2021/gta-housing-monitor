@@ -278,3 +278,11 @@ python3 scripts/check_trreb_districts.py data/manual/trreb-districts-2022-09-to-
 | Teranet–National Bank Toronto 季调指数 | 改为随展示快照发布全部历史（此前只发布最新值） | 1998-06—2026-08，339 个月 | 按产权登记日期计，比 MLS 签约晚 1–3 个月；独立屋占比较高；与 TRREB HPI 口径不同 |
 
 Ontario 按揭拖欠率同样改为带全部历史（2022-09 起）发布，用于经济页“一年前”对比。独立屋、半独立屋租金和单间合租租金未找到可靠的公开定期来源，没有接入。
+
+## 2026-10-08 租金历史回补与 2026 年 9 月数据
+
+| 内容 | 来源与核验 | 覆盖 | 限制 |
+| --- | --- | --- | --- |
+| Rentals.ca 2026 年 10 月报告（9 月数据） | 公开 Datawrapper 图表：房型 `Rf79h`、历史 `i0Brq`、Top 25 `KVeML`；历史图 48 个旧值全部不变 | Toronto 一／二／三卧 2,228／2,943／3,586，总体 2,554；6 个地区总体 | 城市表 `DyccZ` 为全部物业口径，解析器拒绝，不混入 |
+| Rentals.ca 分房型历史（图片图表） | 2025-12 以前报告的 “Average Asking Rent by Bedroom Type for the (6) Largest Markets, Purpose-built & Condominium Rental Apartments” 只有图片；从 Rentals.ca 图片服务器下载原图（报告页经 Internet Archive 找到），逐图转录多伦多值，原图 SHA-256 写入审计表 [RENTAL_BEDROOM_ARCHIVE.csv](RENTAL_BEDROOM_ARCHIVE.csv)，`scripts/import_bedroom_archive.py` 导入前核对哈希且不覆盖已有观测 | 一卧、两卧 2024-01 起，三卧 2024-03 起（2024-01 图只有总体、一卧、两卧），共 59 个值 | 缺 2024-02、2025-01：存档页无法读取、图片地址未找到；交叉核对：2024-01 图上总体 2,830 与历史图一致，逐月变化均在 ±4% 内，与 2025-11 起的 CSV 数据衔接平滑 |
+| TRREB 季度租赁报告 2017Q1—2022Q2 | 旧版式（页标题 “APARTMENTS, FIRST QUARTER 2019”、合计行 “TREB/TRREB Total”、镇屋租金无 $ 号）；同样核对分房型租出量合计、跨页一致与首页摘要（旧版首页含挂牌、租出量与公寓一卧租金）；2017—2026 各期地区列表除更名外完全相同 | 公寓与镇屋各 22 季，共 242 个值；签约租金序列由 2022Q3 起延长为 2017Q1 起 | 2019 年前机构名为 TREB；同一覆盖范围 |

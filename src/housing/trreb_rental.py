@@ -12,7 +12,7 @@ from pathlib import Path
 SOURCE = 'TRREB rental'
 URL = 'https://trreb.ca/wp-content/files/market-stats/rental-reports/rental_report_Q{q}-{year}.pdf'
 ARCHIVE = 'https://trreb.ca/market-data/rental-market-report/rental-market-report-archive/'
-START = (2022, 3)
+START = (2017, 1)  # same 2017+ area list; reports before 2022 Q3 use the older layout
 GEO = 'All TRREB Areas'
 NOTE = '经 TRREB MLS 报告租出的 condo 公寓，季度流量；不含专建出租和未经 MLS 的租约，均价受房型与地点构成影响，不是同一套房租金涨幅'
 # series id -> (label, unit, definition)
@@ -65,27 +65,40 @@ def _total_rows(page):
         words = [unicodedata.normalize('NFKC', w[4]) for w in sorted(rows[key], key=lambda w: w[0])]
         if words[:3] == ['All', 'TRREB', 'Areas'] and len(words) > 3:
             yield words[3:]
+        elif words[:2] in (['TRREB', 'Total'], ['TREB', 'Total']) and len(words) > 2:  # reports before 2022 Q3
+            yield words[2:]
 
 
 def parse_report(path, year, quarter, kind='Apartments'):
     """Return observation rows for 'Apartments' or 'Townhouses'; any shifted, missing or inconsistent value fails."""
     import pymupdf
-    label = f'{kind}, {year} Q{quarter}'
+    ordinal = ('First', 'Second', 'Third', 'Fourth')[quarter - 1]
+    labels = (f'{kind}, {year} Q{quarter}', f'{kind.upper()}, {ordinal.upper()} QUARTER {year}')
     totals = []
     with pymupdf.open(path) as document:
         front = ' '.join(document[0].get_text().split())
-        if f'Rental Market Report, {year} Q{quarter}' not in front:
+        old_layout = f'Rental Market Summary: {ordinal} Quarter {year}' in front
+        if f'Rental Market Report, {year} Q{quarter}' not in front and not old_layout:
             raise ValueError('Rental report title does not match the requested quarter')
         for page in document:
-            title = ' '.join(w[4] for w in page.get_text('words') if w[1] < 50)
-            if 'SUMMARY OF RENTAL TRANSACTIONS' in title and label in title:
+            title = ' '.join(w[4] for w in page.get_text('words') if w[1] < 60)
+            if 'SUMMARY OF RENTAL TRANSACTIONS' in title and any(label in title for label in labels):
                 totals.extend(_total_rows(page))
+    # Pages may differ only in printing a dollar sign, and an older continuation page may repeat just
+    # the listed/leased totals; numbers must otherwise agree exactly.
+    plain = [[t.replace('$', '') for t in row] for row in totals]
+    full = [row for row, bare in zip(totals, plain) if len(bare) == 10]
     if not totals:
         raise ValueError(f'{kind} rental table for All TRREB Areas not found')
-    if any(row != totals[0] for row in totals):
+    if not full:
+        raise ValueError(f'Unexpected All TRREB Areas {kind.lower()} row: {totals[0]}')
+    reference = full[0][:]
+    bare_reference = [t.replace('$', '') for t in reference]
+    if any(bare != bare_reference[:len(bare)] for bare in plain):
         raise ValueError(f'All TRREB Areas {kind.lower()} totals differ across pages')
-    tokens = totals[0]
-    if (len(tokens) != 10 or any(not re.fullmatch(r'\$[\d,]+', tokens[i]) for i in (3, 5, 7, 9))
+    tokens = reference
+    # Older townhouse tables print rents without a dollar sign.
+    if (len(tokens) != 10 or any(not re.fullmatch(r'\$?[\d,]+', tokens[i]) for i in (3, 5, 7, 9))
             or any(not re.fullmatch(r'[\d,]+', tokens[i]) for i in (0, 1, 2, 4, 6, 8))):
         raise ValueError(f'Unexpected All TRREB Areas {kind.lower()} row: {tokens}')
     values = [_amount(token) for token in tokens]
@@ -93,7 +106,10 @@ def parse_report(path, year, quarter, kind='Apartments'):
     by_type = values[2:]
     if sum(by_type[0::2]) != leased:
         raise ValueError('Bedroom-type leases do not sum to total leased')
-    if f'${by_type[3]:,}' not in front or f'{leased:,}' not in front:
+    # The older cover shows listed and leased counts for both tables and the one-bedroom apartment rent.
+    shown = [f'{leased:,}'] + ([f'{listed:,}'] if old_layout else []) + \
+        ([f'${by_type[3]:,}'] if kind == 'Apartments' or not old_layout else [])
+    if any(value not in front for value in shown):
         raise ValueError('Front-page summary does not show the table totals')
     period = period_for(year, quarter)
     if kind == 'Townhouses':

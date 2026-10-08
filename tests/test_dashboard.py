@@ -32,6 +32,13 @@ def mortgage_gap_database(path):
     return db
 
 
+def latest_values(series_id):
+    """Newest version of each period, read from the same database the app copies."""
+    with sqlite3.connect(f"file:{ROOT / 'data/housing.sqlite3'}?mode=ro", uri=True) as db:
+        return dict(db.execute("""SELECT period, value FROM observations o WHERE series_id=? AND version=(SELECT MAX(version)
+            FROM observations WHERE series_id=o.series_id AND period=o.period) ORDER BY period""", (series_id,)).fetchall())
+
+
 def chart_frame(element):
     spec = json.loads(element.proto.spec)
     dataset = next(item for item in element.proto.datasets if item.name == spec["data"]["name"])
@@ -82,20 +89,26 @@ class DashboardTests(unittest.TestCase):
 
     def test_monthly_asking_scope_export_language_and_no_snapshot_backfill(self):
         import re
+        total = latest_values("toronto_asking_rent_total")
+        rooms = {r: latest_values(f"toronto_asking_rent_{r}") for r in ("1br", "2br", "3br")}
+        latest = max(total)
         self.navigate("租赁市场")
         self.assertEqual(self.app.radio(key="rental-view").value, "月度挂牌租金")
         trend = chart_frame(series_charts(self.app)[0])
-        self.assertEqual(trend["period"].max(), "2026-08")
-        self.assertEqual(trend["value"].iloc[-1], 2570)
-        self.assertEqual(chart_with_column(self.app, "月租金")["月租金"].tolist(), [2229, 2955, 3642])
+        self.assertEqual(trend["period"].max(), latest)
+        self.assertEqual(trend["value"].iloc[-1], total[latest])
+        self.assertEqual(chart_with_column(self.app, "月租金")["月租金"].tolist(), [rooms[r][latest] for r in ("1br", "2br", "3br")])
+        # A month with an overall value but no bedroom observations shows a notice, not a backfilled card.
+        bare = max(p for p in total if not any(p in rooms[r] for r in rooms))
         with patch.object(st, "download_button", wraps=st.download_button) as downloads:
-            self.app.selectbox(key="asking-month").set_value("2025-10").run()
+            self.app.selectbox(key="asking-month").set_value(bare).run()
         self.assert_clean()
         self.assertEqual(len(self.app.get("arrow_vega_lite_chart")), 1)
         self.assertTrue(any("该月尚无" in item.value for item in self.app.info))
         exported = pd.read_csv(io.BytesIO(next(c for c in downloads.call_args_list if c.args[0] == "下载月度租金与来源").args[1]))
-        self.assertEqual(exported["period"].max(), "2025-10")
-        self.assertEqual(set(exported["series_id"]), {"toronto_asking_rent_total"})
+        self.assertEqual(exported["period"].max(), bare)
+        self.assertTrue(set(exported["series_id"]) <= {"toronto_asking_rent_total", *(f"toronto_asking_rent_{r}" for r in rooms)})
+        self.assertEqual(set(exported[exported["period"] == bare]["series_id"]), {"toronto_asking_rent_total"}, "no bedroom value is invented for that month")
         self.assertTrue(exported["sha256"].str.len().eq(64).all())
         self.app.selectbox(key="asking-month").set_value("2026-07").run()
         self.app.radio(key="language").set_value("English").run()
@@ -103,22 +116,24 @@ class DashboardTests(unittest.TestCase):
         for kind in ("title", "subheader", "caption", "markdown", "warning", "info"):
             for element in self.app.get(kind):
                 self.assertIsNone(re.search(r"[\u4e00-\u9fff]", element.value), element.value)
-        self.assertEqual(chart_with_column(self.app, "Monthly rent")["Monthly rent"].tolist(), [2242, 2956, 3655])
+        self.assertEqual(chart_with_column(self.app, "Monthly rent")["Monthly rent"].tolist(), [rooms[r]["2026-07"] for r in ("1br", "2br", "3br")])
 
-    def test_bedroom_monthly_comparison_uses_real_ten_month_history(self):
+    def test_bedroom_monthly_comparison_uses_real_history(self):
+        rooms = {r: latest_values(f"toronto_asking_rent_{r}") for r in ("1br", "2br", "3br")}
         self.navigate("租赁市场")
         self.app.selectbox(key="asking-room").set_value("compare").run()
         self.assert_clean()
         trend = chart_frame(series_charts(self.app)[0])
-        self.assertEqual(len(trend), 30)
-        self.assertEqual(trend["period"].min(), "2025-11")
-        self.assertEqual(trend["period"].max(), "2026-08")
-        self.assertEqual(trend[trend["指标"] == "一卧"]["value"].tolist(), [2237,2228,2203,2206,2195,2214,2218,2220,2242,2229])
+        trend = trend.dropna(subset=["value"])  # missing months are blank rows that break the line
+        one = trend[trend["指标"] == "一卧"].set_index("period")["value"]
+        self.assertEqual(one.index.max(), max(rooms["1br"]))
+        self.assertEqual(one.to_dict(), {p: rooms["1br"][p] for p in one.index})
         self.app.selectbox(key="asking-room").set_value("3br").run()
         self.assert_clean()
         trend = chart_frame(series_charts(self.app)[0])
         self.assertEqual(set(trend["指标"]), {"三卧"})
-        self.assertEqual(trend["value"].tolist(), [3499,3508,3469,3508,3479,3567,3555,3588,3655,3642])
+        trend = trend.dropna(subset=["value"])
+        self.assertEqual(trend.set_index("period")["value"].to_dict(), {p: rooms["3br"][p] for p in trend["period"]})
 
     def test_markham_backfill_reaches_chart_and_export(self):
         self.navigate("租赁市场")
@@ -129,10 +144,10 @@ class DashboardTests(unittest.TestCase):
             self.app.selectbox(key="region-False-2").set_value("none").run()
         self.assert_clean()
         trend = chart_frame(series_charts(self.app)[0])
-        self.assertEqual(trend['period'].tolist()[:2], ['2025-09', '2025-10'])
-        self.assertEqual(trend['value'].tolist()[:2], [2473, 2492])
-        self.assertEqual(trend['value'].tolist()[-10:], [2390,2424,2448,2374,2324,2324,2239,2250,2211,2309])
-        self.assertTrue(any('实际观测：12 个' in c.value for c in self.app.caption))
+        markham = latest_values("regional_asking_markham_total")
+        self.assertEqual(trend.set_index("period")["value"].to_dict(), {p: markham[p] for p in trend["period"]})
+        self.assertEqual(trend["period"].max(), max(markham))
+        self.assertTrue(any(f"实际观测：{len(trend)} 个" in c.value for c in self.app.caption))
         self.assertFalse(any('当前仅有' in w.value for w in self.app.warning))
         export = pd.read_csv(io.BytesIO(next(c for c in downloads.call_args_list if c.args[0]=='下载地区对比数据').args[1]))
         self.assertEqual(export['value'].tolist(), trend['value'].tolist())

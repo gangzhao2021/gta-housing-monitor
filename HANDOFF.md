@@ -1,5 +1,7 @@
 # 工作交接
 
+**2026-10-08 租金历史回补**：导入 Rentals.ca 2026 年 10 月报告（9 月数据）。2025-11 以前的多伦多分房型挂牌租金从旧报告图片逐图转录（`scripts/import_bedroom_archive.py`，审计表 `docs/RENTAL_BEDROOM_ARCHIVE.csv`，原图在 `data/raw/rentals/archive/bedrooms/`），一卧／两卧自 2024-01、三卧自 2024-03，缺 2024-02、2025-01。Rentals.ca 旧报告页已重定向到最新报告，只能经 Internet Archive 找图片地址。TRREB 季度租赁报告解析器支持 2022Q3 以前的旧版式，签约租金（公寓与镇屋）延长到 2017Q1 起。Rentals.ca 报告另有多伦多合租单间租金（每期只给当月与前两年同月），尚未接入。
+
 **2026-10-07 网页回归测试**：Node v24.21.0（nodejs.org 官方包，校验 SHA256）装在 `~/.local/node`，未改 shell 配置；项目新增 `package.json`（Playwright 1.63.0，`node_modules/` 已忽略），Chromium headless 在 `~/Library/Caches/ms-playwright`。`tests/test_site_ui.cjs` 重写：两种语言下渲染全部 282 种页面／标签／选项组合，1440/390/320 px 无横向滚动且打开的 ⓘ 说明不出屏，并按 data.json 推导的期望值检查各页。运行：`PATH=~/.local/node/bin:$PATH npm run test:site`。首次运行即发现 320 px 下房型分段按钮与说明气泡出屏，已修。Figma 08/09/11 已按上线版本同步（长期房价、近三个月措辞、公寓／镇屋 × 四种房型、去掉地图与“显示全部”）。
 
 **2026-10-07 精简与长期视角**：删除总览“双轴比较样图”和成交／新挂牌比月度图（市场平衡只留库存月数；三个月口径已在市场温度），删除租金地区对比里的地图（保留地区标签与“添加地区”）。BoC 政策利率、5 年国债收益率、新发 5 年以上固定按揭补到 2015-01 起（官方 Valet，同口径，重叠期 0 修订），经济页“全部”范围从 2015 年开始。Teranet 季调指数改为带全部历史（1998-06 起）发布，总览新增“长期房价走势”，显示较高点和十年变化。CMHC 年度调查无法往前补：2022 年及更早版本用 2016 年普查边界，解析器按设计拒绝。`site/export_site_data.py` 只导出网页用到的地区字段并去掉空值，`site/dist/data.json` 由 10.5 MB 降到约 6.9 MB（展示快照本身不变），按每月增长估计可维持多年低于 Artifact 16 MB 上限。

@@ -17,7 +17,8 @@ REPORTS = ROOT / 'data/raw/trreb_rental'
 
 class TrrebRentalTests(unittest.TestCase):
     def test_quarters_stop_at_last_completed_quarter(self):
-        self.assertEqual(list(trreb_rental.quarters(date(2022, 10, 1))), [(2022, 3)])
+        self.assertEqual(list(trreb_rental.quarters(date(2017, 4, 1))), [(2017, 1)])
+        self.assertEqual(len(list(trreb_rental.quarters(date(2022, 10, 1)))), 23)
         self.assertEqual(list(trreb_rental.quarters(date(2023, 1, 15)))[-1], (2022, 4))
         self.assertEqual(trreb_rental.period_for(2026, 2), '2026-04')
 
@@ -39,6 +40,18 @@ class TrrebRentalTests(unittest.TestCase):
                                 'gta_townhouse_lease_rent_3br': 3329})
         with self.assertRaisesRegex(ValueError, 'Lofts rental table'):
             trreb_rental.parse_report(REPORTS / 'rental_report_Q2-2026.pdf', 2026, 2, 'Lofts')
+
+    def test_older_layout_parses_with_the_same_checks(self):
+        rows = dict((series, value) for series, _, value in
+                    trreb_rental.parse_report(REPORTS / 'rental_report_Q1-2019.pdf', 2019, 1))
+        self.assertEqual(rows, {'gta_condo_lease_listed': 12358, 'gta_condo_leased': 6646,
+                                'gta_condo_lease_rent_bachelor': 1816, 'gta_condo_lease_rent_1br': 2143,
+                                'gta_condo_lease_rent_2br': 2811, 'gta_condo_lease_rent_3br': 3665})
+        # Townhouse pages differ only by dollar signs and a shorter repeated total row.
+        town = dict((series, value) for series, _, value in
+                    trreb_rental.parse_report(REPORTS / 'rental_report_Q1-2019.pdf', 2019, 1, 'Townhouses'))
+        self.assertEqual(town['gta_townhouse_leased'], 537)
+        self.assertEqual(town['gta_townhouse_lease_rent_3br'], 2598)
 
     def test_wrong_quarter_and_shifted_row_fail_closed(self):
         with self.assertRaisesRegex(ValueError, 'quarter'):
