@@ -286,6 +286,14 @@ async function main() {
     assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(255, 255, 255)', 'an explicit light theme wins over a dark system');
     await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
     await page.emulateMedia({colorScheme:'light'});
+    // Manual choice in the header overrides the system and is remembered.
+    await page.locator('[data-theme-choice="dark"]').click();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(18, 20, 24)', 'dark choice applies on a light system');
+    await page.reload();
+    await page.locator('#app nav').waitFor();
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark', 'choice survives a reload');
+    await page.locator('[data-theme-choice="auto"]').click();
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), undefined, 'auto hands control back to the system');
 
     assert.deepEqual(errors, [], 'browser errors');
     console.log(`PASS: ${COMBOS.length} page combinations, no sideways scroll at 1440/390/320 px, overview, rent, economy and mortgage checks`);

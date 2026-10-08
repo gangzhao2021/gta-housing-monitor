@@ -79,13 +79,17 @@ function routeToken(){return state.page==='rent'&&state.rentMode!=='monthly'?`re
 function readRoute(){const [page,mode]=location.hash.slice(1).split('-');if(!PAGES.includes(page))return false;state.page=page;if(page==='rent')state.rentMode=RENT_MODES.includes(mode)?mode:'monthly';return true}
 function go(changes){const before=state.page;Object.assign(state,changes);const token=routeToken();if(location.hash.slice(1)!==token)history.pushState(null,'',`#${token}`);render();if(state.page!==before)window.scrollTo(0,0)}
 try{const saved=localStorage.getItem('gta-housing-lang');if(saved==='zh'||saved==='en')state.lang=saved}catch{}
+let themeChoice='auto',hostTheme=document.documentElement.dataset.theme||null;
+try{const saved=localStorage.getItem('gta-housing-theme');if(saved==='light'||saved==='dark')themeChoice=saved}catch{}
+function applyTheme(){const root=document.documentElement;settingTheme=true;if(themeChoice==='auto'){if(hostTheme)root.dataset.theme=hostTheme;else delete root.dataset.theme}else root.dataset.theme=themeChoice;settingTheme=false}
+let settingTheme=false;applyTheme();
 readRoute();
 window.addEventListener('popstate',()=>{if(!payload)return;if(!readRoute())state.page='market';render()});
 function shell(body) {
   document.documentElement.lang=state.lang;
   document.title=`${state.page==='market'?'':t(state.page)+' · '}GTA Housing Monitor`;
   $('#app').classList.add('overview');  // every page shares the same width, header and chart sizing
-  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
+  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="masthead-controls"><div class="theme-switch" role="group" aria-label="${state.lang==='zh'?'外观':'Appearance'}">${[['auto','自动','Auto'],['light','浅色','Light'],['dark','深色','Dark']].map(([id,zh,en])=>`<button data-theme-choice="${id}" aria-pressed="${themeChoice===id}">${state.lang==='zh'?zh:en}</button>`).join('')}</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
   attach();
 }
 function select(label,key,periods,annual=false,availablePeriods=periods) {
@@ -621,6 +625,7 @@ function attach(){
   document.querySelectorAll('[data-map-csd]').forEach(el=>{const activate=()=>{state.districtRegion=el.dataset.mapCsd;render();document.querySelector('#regions-panel')?.setAttribute('open','')};el.onclick=activate;el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();activate()}}});
   document.querySelector('[data-reset]').onclick=()=>{const lang=state.lang;Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,JSON.parse(JSON.stringify(initialState)),{lang});history.replaceState(null,'',location.pathname);render();window.scrollTo(0,0)};
   document.querySelectorAll('[data-district-month]').forEach(el=>el.onclick=()=>{state.end.district=el.dataset.districtMonth;render();document.querySelector('#regions-panel')?.setAttribute('open','')});
+  document.querySelectorAll('[data-theme-choice]').forEach(el=>el.onclick=()=>{themeChoice=el.dataset.themeChoice;try{localStorage.setItem('gta-housing-theme',themeChoice)}catch{}applyTheme();render()});
   document.querySelectorAll('[data-lang]').forEach(el=>el.onclick=()=>{state.lang=el.dataset.lang;try{localStorage.setItem('gta-housing-lang',state.lang)}catch{}render()});
   document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>go({page:el.dataset.page}));
   document.querySelectorAll('[data-mode]').forEach(el=>el.onclick=()=>go({rentMode:el.dataset.mode}));
@@ -665,5 +670,5 @@ function spySections(){const buttons=[...document.querySelectorAll('[data-jump]'
 for(const type of ['wheel','touchstart','keydown'])window.addEventListener(type,()=>{if(jumpTarget){jumpTarget=null;spySections()}},{passive:true});
 let spyFrame;window.addEventListener('scroll',()=>{cancelAnimationFrame(spyFrame);spyFrame=requestAnimationFrame(spySections)},{passive:true});
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{if(payload)render()});
-new MutationObserver(()=>{if(payload)render()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+new MutationObserver(()=>{if(settingTheme)return;const root=document.documentElement;if(themeChoice==='auto')hostTheme=root.dataset.theme||null;else if(root.dataset.theme!==themeChoice){hostTheme=root.dataset.theme||null;applyTheme()}if(payload)render()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 let resizeFrame;window.addEventListener('resize',()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>{if(!payload)return;const open=document.querySelector('#regions-panel')?.open;render();if(open)document.querySelector('#regions-panel')?.setAttribute('open','')})});
