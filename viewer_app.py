@@ -60,29 +60,29 @@ def period_control(fields, key):
 
 
 if page == "市场总览":
+    from housing.layout_view import anchor, price_panel, section_nav
     scope = period_control(["trreb_hpi_benchmark"], "viewer-market-period")
     if scope:
         start, end = scope
-        cards(data, ["trreb_hpi_benchmark", "trreb_sales", "moi_raw"], end)
+        selectable = available_periods(data, ["trreb_hpi_benchmark"])
+        section_nav()
+        cards(data, ["trreb_hpi_benchmark", "trreb_sales", "trreb_new_listings", "trreb_active_listings", "moi_raw"], end)
+        price_panel(data, start, end, line_chart, available_periods, "viewer-price-span")
         from housing.temperature_view import render as render_temperature
-        render_temperature(snapshot.get("market_temperature"), end, "viewer-market-period", available_periods(data, ["trreb_hpi_benchmark"]))
+        render_temperature(snapshot.get("market_temperature"), end, "viewer-market-period", selectable)
+        anchor("sec-supply")
+        sales, stock = st.columns(2, gap="large")
+        with sales:
+            st.subheader("成交与新增挂牌")
+            indicator_legend(["trreb_sales", "trreb_new_listings"])
+            line_chart(data, ["trreb_sales", "trreb_new_listings"], start, end, external_legend=True)
+        with stock:
+            st.subheader("库存月数")
+            line_chart(data, ["moi_raw"], start, end)
+        anchor("sec-mix")
         from housing.mix_view import render as render_bands
-        render_bands(snapshot["observations"].get, end, "viewer-market-period", available_periods(data, ["trreb_hpi_benchmark"]))
-        st.subheader("房价走势")
-        line_chart(data, ["trreb_hpi_benchmark"], start, end, height=330)
-        st.subheader("成交与新增挂牌")
-        indicator_legend(["trreb_sales", "trreb_new_listings"])
-        line_chart(data, ["trreb_sales", "trreb_new_listings"], start, end, external_legend=True)
-        st.subheader("库存月数")
-        line_chart(data, ["moi_raw"], start, end)
-        st.caption("价格为 HPI 基准价，不是成交均价。")
-        teranet = available_periods(data, ["teranet_toronto_index_sa"])
-        if teranet:
-            st.subheader("长期房价走势")
-            line_chart(data, ["teranet_toronto_index_sa"], teranet[0], teranet[-1], height=280)
-            st.caption("Teranet–National Bank Toronto repeat-sales index (seasonally adjusted, June 2005 = 100), dated at registration, "
-                       "1–3 months after the MLS sale; a different measure from the TRREB HPI." if english() else
-                       "Teranet–National Bank 多伦多重复交易指数（季调，2005 年 6 月 = 100）：按产权登记日期，比 MLS 签约晚 1–3 个月；与 TRREB HPI 口径不同。")
+        render_bands(snapshot["observations"].get, end, "viewer-market-period", selectable)
+    anchor("sec-areas")
     from housing.district_view import render as render_districts
     render_districts(snapshot.get('districts', []))
 elif page == "租赁市场":

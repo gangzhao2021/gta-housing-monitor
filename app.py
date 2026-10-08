@@ -108,6 +108,9 @@ st.caption(f"大多伦多住房市场观察  /  月度转售更新至 {period_la
 }[page])
 
 if page == "市场总览":
+    from housing.layout_view import SECTIONS, anchor, section_nav
+    section_nav([SECTIONS[0], SECTIONS[1], SECTIONS[3], SECTIONS[2], SECTIONS[4]])  # this page shows price bands before supply
+    anchor("sec-price")
     with st.container(key="market-story"):
         context, plot = st.columns([1, 3.4], gap="large")
         with context:
@@ -124,14 +127,24 @@ if page == "市场总览":
         with context:
             st.caption("MLS HPI 基准价，不是成交均价")
         with plot:
-            line_chart(data, ["trreb_hpi_benchmark"], start, end, height=330)
+            teranet = available_periods(data, ["teranet_toronto_index_sa"])
+            span = native_st.radio("时间跨度", ["recent", "long"], horizontal=True, label_visibility="collapsed", key="owner-price-span",
+                                   format_func=lambda v: ("2 years · HPI" if english() else "近 2 年 · HPI") if v == "recent" else ("Since 1998 · Teranet" if english() else "1998 年起 · Teranet")) if teranet else "recent"
+            if span == "long":
+                line_chart(data, ["teranet_toronto_index_sa"], teranet[0], teranet[-1], height=330)
+                native_st.caption("Teranet–National Bank Toronto repeat-sales index (seasonally adjusted), dated at registration; a different measure from the HPI." if english() else
+                                  "Teranet–National Bank 多伦多重复交易指数（季调），按产权登记日期；与 HPI 口径不同。")
+            else:
+                line_chart(data, ["trreb_hpi_benchmark"], start, end, height=330)
     temperature_csv = ROOT / "data/research/trreb-history.csv"
     if temperature_csv.is_file():
         from housing.market_temperature import build as build_temperature
         from housing.temperature_view import render as render_temperature
         render_temperature(build_temperature(temperature_csv, db), end, "market-month", available_periods(data, resale_fields))
         from housing.mix_view import render as render_bands
+        anchor("sec-mix")
         render_bands(lambda field: {row["period"]: row["value"] for row in latest(db, field)}, end, "market-month", available_periods(data, resale_fields))
+    anchor("sec-supply")
     cards(data, ["trreb_sales", "trreb_active_listings", "moi_raw"], end,
           {"moi_raw": "月末有效挂牌 ÷ 当月成交"})
     st.subheader("成交与新增挂牌")
@@ -174,6 +187,7 @@ if page == "市场总览":
     except (ValueError, FileNotFoundError) as exc:
         st.warning(f"该月房型原表未通过来源检查：{exc}")
 
+    anchor("sec-areas")
     from housing.districts import display_rows
     from housing.district_view import render as render_districts
     render_districts(display_rows(db))

@@ -74,7 +74,8 @@ def render_scenario(default_price, price_period, default_rate, rate_period, key)
     down_index = [10, 20, 35].index(saved.get(f"{key}-down", 20))
     years_index = [25, 30].index(saved.get(f"{key}-years", 25))
     left, right = st.columns([1, 1.7], gap="large")
-    with left:
+    inputs = left.container(key=f"{key}-inputs")  # pinned while the results scroll (dashboard.css)
+    with inputs:
         price = st.number_input("房价（加元）", min_value=0, max_value=20_000_000, step=10_000, key=f"{key}-price")
         if price_period:
             st.caption(f"Default: TRREB HPI composite benchmark, {price_period}" if en else f"默认：{_when(price_period, False)} TRREB HPI 综合基准房价")

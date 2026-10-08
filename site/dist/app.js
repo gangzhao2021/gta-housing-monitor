@@ -85,11 +85,18 @@ function applyTheme(){const root=document.documentElement;settingTheme=true;if(t
 let settingTheme=false;applyTheme();
 readRoute();
 window.addEventListener('popstate',()=>{if(!payload)return;if(!readRoute())state.page='market';render()});
+// One icon button, styled like the language buttons; each click cycles auto -> light -> dark.
+const THEME_ICONS={auto:'<circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor"/>',
+ light:'<circle cx="8" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.05 3.05l1.13 1.13M11.82 11.82l1.13 1.13M3.05 12.95l1.13-1.13M11.82 4.18l1.13-1.13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>',
+ dark:'<path d="M13.5 9.6A5.75 5.75 0 0 1 6.4 2.5a5.75 5.75 0 1 0 7.1 7.1z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>'};
+function themeButton(){const zh=state.lang==='zh',names={auto:zh?'自动（跟随系统）':'Auto (system)',light:zh?'浅色':'Light',dark:zh?'深色':'Dark'},next={auto:'light',light:'dark',dark:'auto'}[themeChoice];
+ const label=zh?`外观：${names[themeChoice]}。点击切换为${names[next]}`:`Appearance: ${names[themeChoice]}. Switch to ${names[next]}`;
+ return `<span class="masthead-divider" aria-hidden="true"></span><button class="theme-toggle${themeChoice==='auto'?'':' set'}" data-theme-toggle title="${esc(label)}" aria-label="${esc(label)}"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">${THEME_ICONS[themeChoice]}</svg></button>`}
 function shell(body) {
   document.documentElement.lang=state.lang;
   document.title=`${state.page==='market'?'':t(state.page)+' · '}GTA Housing Monitor`;
   $('#app').classList.add('overview');  // every page shares the same width, header and chart sizing
-  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="masthead-controls"><div class="theme-switch" role="group" aria-label="${state.lang==='zh'?'外观':'Appearance'}">${[['auto','自动','Auto'],['light','浅色','Light'],['dark','深色','Dark']].map(([id,zh,en])=>`<button data-theme-choice="${id}" aria-pressed="${themeChoice===id}">${state.lang==='zh'?zh:en}</button>`).join('')}</div><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div></div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
+  $('#app').innerHTML=`<header class="masthead"><div class="brand">GTA HOUSING MONITOR</div><div class="masthead-controls"><div class="languages" role="group" aria-label="语言 / Language"><button data-lang="zh" aria-pressed="${state.lang==='zh'}">中文</button><button data-lang="en" aria-pressed="${state.lang==='en'}">EN</button></div>${themeButton()}</div></header><nav aria-label="${state.lang==='zh'?'导航':'Navigation'}">${['market','rent','economy','mortgage'].map(p=>`<button data-page="${p}" ${p===state.page?'aria-current="page"':''}>${t(p)}</button>`).join('')}</nav>${state.page==='market'?'':`<h1>${t(state.page)}</h1>`}${body}<footer><div class="view-actions"><button data-reset>${state.lang==='zh'?'重置筛选':'Reset filters'}</button></div><p>${t('snapshot')} ${esc(snapshotTime())}</p><p>${t('notForecast')}</p></footer>`;
   attach();
 }
 function select(label,key,periods,annual=false,availablePeriods=periods) {
@@ -625,7 +632,7 @@ function attach(){
   document.querySelectorAll('[data-map-csd]').forEach(el=>{const activate=()=>{state.districtRegion=el.dataset.mapCsd;render();document.querySelector('#regions-panel')?.setAttribute('open','')};el.onclick=activate;el.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();activate()}}});
   document.querySelector('[data-reset]').onclick=()=>{const lang=state.lang;Object.keys(state).forEach(k=>delete state[k]);Object.assign(state,JSON.parse(JSON.stringify(initialState)),{lang});history.replaceState(null,'',location.pathname);render();window.scrollTo(0,0)};
   document.querySelectorAll('[data-district-month]').forEach(el=>el.onclick=()=>{state.end.district=el.dataset.districtMonth;render();document.querySelector('#regions-panel')?.setAttribute('open','')});
-  document.querySelectorAll('[data-theme-choice]').forEach(el=>el.onclick=()=>{themeChoice=el.dataset.themeChoice;try{localStorage.setItem('gta-housing-theme',themeChoice)}catch{}applyTheme();render()});
+  document.querySelectorAll('[data-theme-toggle]').forEach(el=>el.onclick=()=>{themeChoice={auto:'light',light:'dark',dark:'auto'}[themeChoice];try{localStorage.setItem('gta-housing-theme',themeChoice)}catch{}applyTheme();render();document.querySelector('[data-theme-toggle]')?.focus()});
   document.querySelectorAll('[data-lang]').forEach(el=>el.onclick=()=>{state.lang=el.dataset.lang;try{localStorage.setItem('gta-housing-lang',state.lang)}catch{}render()});
   document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>go({page:el.dataset.page}));
   document.querySelectorAll('[data-mode]').forEach(el=>el.onclick=()=>go({rentMode:el.dataset.mode}));

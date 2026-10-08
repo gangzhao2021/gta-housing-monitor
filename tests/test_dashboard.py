@@ -358,6 +358,10 @@ class DashboardTests(unittest.TestCase):
 
     def test_heatmap_and_amortization_render(self):
         clickable = [json.loads(e.proto.spec) for e in self.app.get("arrow_vega_lite_chart") if "params" in json.loads(e.proto.spec)]
+        self.assertEqual([p["name"] for spec in clickable for p in spec["params"] if p["name"] == "cell"], [], "heatmap waits behind the view switch")
+        self.app.radio(key="temp-view-market-month").set_value("heat").run()
+        self.assert_clean()
+        clickable = [json.loads(e.proto.spec) for e in self.app.get("arrow_vega_lite_chart") if "params" in json.loads(e.proto.spec)]
         self.assertEqual(sorted(p["name"] for spec in clickable for p in spec["params"] if p["name"] in ("cell", "column")), ["cell", "column"],
                          "clickable heatmap and price-band columns on the market page")
         self.assertTrue(any("已连续" in c.value for c in self.app.caption))

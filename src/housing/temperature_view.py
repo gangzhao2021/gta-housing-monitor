@@ -52,8 +52,15 @@ def render(temperature, end, month_key=None, selectable=()):
     if period is None:
         return
     r, band = months[period], temperature['band_pp']
+    import streamlit as native_st
+    st.html('<div id="sec-temp" class="section-anchor"></div>')
     st.subheader('Market temperature' if en else '市场温度')
     st.html(_card(r, band, period, en))
+    # As on the site: one block, the 3-year trend or the month-by-month heatmap, outcomes alongside.
+    view = native_st.radio('View' if en else '显示方式', ['line', 'heat'], horizontal=True, label_visibility='collapsed',
+                           format_func=lambda v: ('3-year trend' if en else '近 3 年走势') if v == 'line' else ('Monthly heatmap' if en else '逐月热力图'),
+                           key=f"temp-view-{month_key or 'page'}")
+    left, right = native_st.columns([1.7, 1], gap='large')
     recent = sorted(p for p in months if p <= period)[-36:]
     frame = pd.DataFrame({'month': pd.to_datetime([p + '-01' for p in recent]), 'gap': [months[p]['gap'] for p in recent]})
     limit = max(25.0, (int(max(abs(v) for v in frame.gap) / 5) + 1) * 5)
@@ -67,12 +74,15 @@ def render(temperature, end, month_key=None, selectable=()):
         x=x, y=alt.Y('gap:Q', scale=alt.Scale(domain=[-limit, limit])),
         tooltip=[alt.Tooltip('month:T', format='%Y-%m', title='Month' if en else '月份'),
                  alt.Tooltip('gap:Q', format='+.1f', title='Gap (pp)' if en else '相差（百分点）')])
-    # Native call: the translating wrapper rebinds a single dataset and would drop the layers' data.
-    # Labels above are already chosen by language and the columns are ASCII.
-    import streamlit as native_st
-    native_st.altair_chart(alt.layer(shade, zero, line).properties(height=190), use_container_width=True)
-    st.caption(f'Hot when {band:g} pp or more above the norm, cool when {band:g} pp or more below.' if en else
-               f'高于常态 {band:g} 个百分点以上为偏热，低于 {band:g} 个百分点以上为偏冷。')
+    with left:
+        if view == 'heat':
+            heatmap(temperature, period, en, month_key, selectable)
+        else:
+            # Native call: the translating wrapper rebinds a single dataset and would drop the layers' data.
+            # Labels above are already chosen by language and the columns are ASCII.
+            native_st.altair_chart(alt.layer(shade, zero, line).properties(height=230), use_container_width=True)
+            native_st.caption(f'Hot when {band:g} pp or more above the norm, cool when {band:g} pp or more below.' if en else
+                              f'高于常态 {band:g} 个百分点以上为偏热，低于 {band:g} 个百分点以上为偏冷。')
     rows = []
     for k in ('cool', 'balanced', 'hot'):
         o = temperature['outcomes_12m'][k]
@@ -83,12 +93,12 @@ def render(temperature, end, month_key=None, selectable=()):
         rows.append(f'<div class="outcome-row{" current" if now else ""}"><span class="outcome-name">{escape(LABELS[k][i])}{tag}</span>'
                     f'<b>{change}</b><span class="outcome-meta">{share} {"rose" if en else "上涨"} · {o["n"]} {"months" if en else "个月"}</span></div>')
     heading = 'HPI over the following 12 months, by reading' if en else '历史上，各温度之后 12 个月的 HPI'
-    st.html(f'<div class="outcomes"><h3>{heading}</h3>{"".join(rows)}</div>')
-    heatmap(temperature, period, en, month_key, selectable)
-    st.caption('Historical TRREB HPI statistics since 2012; out-of-sample research (from 2018) found this reading informative about '
-               'price direction over the next 6–12 months. It describes market balance; it is not a forecast or investment advice.'
-               if en else '2012 年以来 TRREB HPI 的历史统计；样本外研究（2018 年起）显示该读数对未来 6–12 个月价格方向有参考意义。'
-               '描述供需状况，不是预测，不构成投资建议。')
+    with right:
+        st.html(f'<div class="outcomes"><h3>{heading}</h3>{"".join(rows)}</div>')
+        native_st.caption('Historical TRREB HPI statistics since 2012; out-of-sample research (from 2018) found this reading informative about '
+                          'price direction over the next 6–12 months. It describes market balance; it is not a forecast or investment advice.'
+                          if en else '2012 年以来 TRREB HPI 的历史统计；样本外研究（2018 年起）显示该读数对未来 6–12 个月价格方向有参考意义。'
+                          '描述供需状况，不是预测，不构成投资建议。')
 
 
 def heatmap(temperature, selected, en, month_key=None, selectable=()):
@@ -108,7 +118,6 @@ def heatmap(temperature, selected, en, month_key=None, selectable=()):
             break
         run += 1
     last_hot = max((p for p in keys if p <= selected and months[p]['state'] == 'hot'), default=None)
-    native_st.markdown(f"**{'Month-by-month heatmap' if en else '逐月热力图'}**")
     frame = pd.DataFrame(rows)
     pick = alt.selection_point(fields=['period'], name='cell')
     month_names = 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split() if en else [f'{m}月' for m in range(1, 13)]

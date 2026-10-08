@@ -287,12 +287,15 @@ async function main() {
     await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
     await page.emulateMedia({colorScheme:'light'});
     // Manual choice in the header overrides the system and is remembered.
-    await page.locator('[data-theme-choice="dark"]').click();
+    await page.locator('[data-theme-toggle]').click();  // auto -> light
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'light');
+    await page.locator('[data-theme-toggle]').click();  // light -> dark
     assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(18, 20, 24)', 'dark choice applies on a light system');
     await page.reload();
     await page.locator('#app nav').waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark', 'choice survives a reload');
-    await page.locator('[data-theme-choice="auto"]').click();
+    assert.match(await page.locator('[data-theme-toggle]').getAttribute('aria-label'), /深色/);
+    await page.locator('[data-theme-toggle]').click();  // dark -> auto
     assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), undefined, 'auto hands control back to the system');
 
     assert.deepEqual(errors, [], 'browser errors');

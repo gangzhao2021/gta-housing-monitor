@@ -97,11 +97,12 @@ def cards(data, fields, period, notes=None):
     for field in fields:
         metric = metric_at(data, field, period, unit(field))
         delta = metric["delta"]
-        change = f"较上年同期 {delta:+.1f}{metric['delta_unit']}" if delta is not None else "暂无上年同期对照"
+        arrow = lambda v: f"{'▲' if v > 0 else '▼' if v < 0 else ''}{abs(v):.1f}"  # neutral arrows, as on the site
+        change = f"较上年同期 {arrow(delta)}{metric['delta_unit']}" if delta is not None else "暂无上年同期对照"
         published = data.get(period, {}).get(f"{field}_yoy_published")
         if published is not None and delta is not None:
             # TRREB divides by a revised prior-year figure; show both so neither is mistaken for the other.
-            change = f"较上年同期 {delta:+.1f}%（原发布值自算） · TRREB 公布 {published:+.1f}%"
+            change = f"较上年同期 {arrow(delta)}%（原发布值自算） · TRREB 公布 {arrow(published)}%"
         if metric["value"] is None:
             change = f"{period_label(period)}尚无观测"
         raw_unit = unit(field)
